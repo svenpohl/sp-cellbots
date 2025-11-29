@@ -51,17 +51,27 @@ structures.
 - [Blender Replay and Animation](docs/blender.md)  
 - [Tools (Scripts)](docs/tools.md)  
 - [Vision & Future Applications](docs/vision.md)
+- [Research Notes](docs/research.md)
 
 ---
 
 ## 🧩 Version
 
-Current version: **1.2**
+Current version: **1.3.1**
 
 ---
 
 
 ## 📝 Changelog
+
+- **1.3.1** (29.11.2025):  
+  – Added new **Research Notes** section under `/docs/research`  
+  – Included first two research entries:  
+    • **GPU vs. CPU Pathfinding Studies**  
+    • **Floodfill-Morph Approach (Early Experiments)**  
+  – Research Notes provide an informal but structured space for documenting  
+    experimental ideas, performance studies, and conceptual branches that  
+    extend beyond the main implementation.
 
 - **1.3** (15.08.2025):  
   – Added **Target Preview** feature in BotController frontend — displays a semi-transparent, slightly enlarged (scale 1.1) visualization of the target structure for improved visibility during planning and debugging  
