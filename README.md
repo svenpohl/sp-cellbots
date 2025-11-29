@@ -65,7 +65,7 @@ Current version: **1.3.1**
 ## 📝 Changelog
 
 - **1.3.1** (29.11.2025):  
-  – Added new **Research Notes** section under `/docs/research`  
+  – Added new **Research Notes** section under '/docs/research'  
   – Included first two research entries:  
     • **GPU vs. CPU Pathfinding Studies**  
     • **Floodfill-Morph Approach (Early Experiments)**  
