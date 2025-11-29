@@ -110,4 +110,5 @@ Below are some of the most fascinating potential use cases:
 > **The greatest strength of programmable matter lies in its ability to restructure and adapt within seconds — from large-scale construction to micro-implants.**
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [Tools (Scripts)](tools.md)   
+**Previous chapter:** [Tools (Scripts)](tools.md)
+**Next chapter:** [Research Notes](research.md)
