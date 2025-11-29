@@ -78,7 +78,7 @@ Current version: **1.3.1**
 
 
 - **1.2** (11.08.2025):  
-  – Added **Voxelizer 1.2** under 'tools/voxelizer' — a Node.js script with a web-based frontend for voxelizing 3D objects (`.glb` format)  
+  – Added **Voxelizer 1.2** under 'tools/voxelizer' — a Node.js script with a web-based frontend for voxelizing 3D objects ('.glb' format)  
   – Supports configurable grid size, inside/outside detection via raycasting, optional shell extraction, progress display, and JSON export for use as CellBots target structures
 
 
@@ -121,7 +121,7 @@ Pull requests are welcome!
 If you enjoy this project and want to support ongoing development, feel free to send a Bitcoin donation to:
 
 **BTC address:**  
-`bc1qr49kr0cn92wmtne4tasdqe9qzfhj0jqvpxjhha`
+'bc1qr49kr0cn92wmtne4tasdqe9qzfhj0jqvpxjhha'
 
 > *"If you’d like to say thanks: Even a few sats are appreciated!"*
 
@@ -134,4 +134,4 @@ If you're experimenting with CellBots or building something on top of it, I'd lo
 Even a short message helps with motivation and future planning.
 
 Feel free to drop a quick note to:  
-`sven.pohl@zen-systems.de`
+'sven.pohl@zen-systems.de'
