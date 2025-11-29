@@ -78,15 +78,15 @@ Current version: **1.3.1**
 
 
 - **1.2** (11.08.2025):  
-  – Added **Voxelizer 1.2** under `tools/voxelizer` — a Node.js script with a web-based frontend for voxelizing 3D objects (`.glb` format)  
+  – Added **Voxelizer 1.2** under 'tools/voxelizer' — a Node.js script with a web-based frontend for voxelizing 3D objects (`.glb` format)  
   – Supports configurable grid size, inside/outside detection via raycasting, optional shell extraction, progress display, and JSON export for use as CellBots target structures
 
 
 - **1.1** (23.07.2025):  
   – MasterBot can now sign messages using **HMAC**, **ED25519**, or **RSA** (configurable)  
-  – Added `SYS#LOCK` command to selectively disable CellBot communication slots  
-  – Added `SYS#UPDATEKEY` command to securely update shared secrets or public keys at runtime  
-  – The `MOVE` command now supports a `NONCE;(number)` subcommand as preparation for replay protection (not yet active in ClusterSim)
+  – Added 'SYS#LOCK' command to selectively disable CellBot communication slots  
+  – Added 'SYS#UPDATEKEY' command to securely update shared secrets or public keys at runtime  
+  – The 'MOVE' command now supports a 'NONCE;(number)' subcommand as preparation for replay protection (not yet active in ClusterSim)
 
 
 
@@ -94,7 +94,7 @@ Current version: **1.3.1**
 
   ✅ First MVP released  
   – Core modules: ClusterSim, BotController, Frontends  
-  – Movement system with `MOVE` OP-code and anchors  
+  – Movement system with 'MOVE' OP-code and anchors  
   – Quaternion-based rotation, morphing logic, replay system  
   – Basic communication via OP-code messages  
   – Export to Blender and logging support
