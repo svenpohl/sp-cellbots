@@ -7,7 +7,7 @@ This repository contains both main components:
 - **clustersim** (Simulation/Frontend)
 
 Each component has its own dependencies.  
-Please run `npm install` separately in each folder:
+Please run 'npm install' separately in each folder:
 
 ```sh
 cd botcontroller
@@ -69,13 +69,13 @@ Once all four components are running and open, you’re ready to start.
 In the BotController WebGUI, click **Start Scan** to scan the current structure of the CellBot cluster via ClusterSim.  
 The 3D view will then mirror the same structure. Now, you can morph into a target structure like **25_arch**.
 
-By default, `ClusterSim` starts with **25 CellBots and one MasterBot** arranged in a flat base layout (see `config.txt`).  
-You can instantly morph into any structure starting with `25_` (e.g., `25_ring`, `25_tower`, etc.).  
-**More complex forms** can be loaded by switching the `config.txt` to use `base_72.xml`.  
+By default, 'ClusterSim' starts with **25 CellBots and one MasterBot** arranged in a flat base layout (see 'config.txt').  
+You can instantly morph into any structure starting with '25_' (e.g., '25_ring', '25_tower', etc.).  
+**More complex forms** can be loaded by switching the 'config.txt' to use 'base_72.xml'.  
 Note: The more complex the target structure, the longer the BFS wavefront morphing algorithm will take.
 
 **Important:**  
-Before morphing into a new target structure, always first morph back into the correct base structure (e.g., `base_25`).  
+Before morphing into a new target structure, always first morph back into the correct base structure (e.g., 'base_25').  
 The current algorithm does not yet remove surplus CellBots.
 
 ---
@@ -101,7 +101,7 @@ The current algorithm does not yet remove surplus CellBots.
   ```
   /tools/blender_python_targetdesign.py
   ```
-  This generates `.json` files directly from Blender.  
+  This generates '.json' files directly from Blender.  
   It’s best to enable snap mode so that cubes align perfectly to the 3D grid.
 
 Now you can let your creativity run wild: design any **voxel-based structure**, experiment with shapes and morph sequences!  
@@ -115,8 +115,8 @@ Now you can let your creativity run wild: design any **voxel-based structure**, 
 
 |                       | **ClusterSim WebGUI**                | **BotController WebGUI**           |
 |-----------------------|--------------------------------------|------------------------------------|
-| **Shell**             | `% node cluster_sim`                 | `% node botcontroller`             |
-| **Frontend/WebGUI**   | `/cluster_sim/webguisim/index.html`  | `/botcontroller/webguicontroller/index.html` |
+| **Shell**             | '% node cluster_sim'                 | '% node botcontroller'             |
+| **Frontend/WebGUI**   | '/cluster_sim/webguisim/index.html'  | '/botcontroller/webguicontroller/index.html' |
 | **Description**       | WebGUI Cluster Simulator             | WebGUI BotController               |
 
 ---
@@ -128,9 +128,9 @@ each with its own WebGUI and dedicated network ports (hardcoded for now):
 
 | **Component**          | **Frontend/WebGUI**                                 | **Port** | **Description**                                   |
 |------------------------|-----------------------------------------------------|----------|----------------------------------------------------|
-| ClusterSim Simulator   | `/cluster_sim/webguisim/index.html`                 | **3020** | WebSocket port for ClusterSim frontend             |
+| ClusterSim Simulator   | '/cluster_sim/webguisim/index.html'                 | **3020** | WebSocket port for ClusterSim frontend             |
 | ClusterSim Server      |                                                     | **3001** | Connection from BotController to ClusterSim server |
-| BotController Frontend | `/botcontroller/webguicontroller/index.html`        | **3010** | WebSocket port for BotController frontend          |
+| BotController Frontend | '/botcontroller/webguicontroller/index.html'        | **3010** | WebSocket port for BotController frontend          |
 
 ---
 
@@ -148,7 +148,7 @@ each with its own WebGUI and dedicated network ports (hardcoded for now):
   http://localhost:3020
   ```
 - **Configuration:**  
-  Defined via `config.txt`
+  Defined via 'config.txt'
 - **Control:**  
   All interactions handled through the WebGUI and server communication.
 
@@ -166,11 +166,11 @@ each with its own WebGUI and dedicated network ports (hardcoded for now):
   http://localhost:3010
   ```
 - **Configuration:**  
-  Fast variable setup via `config.txt`
+  Fast variable setup via 'config.txt'
 - **Shell Console:**  
   Supports custom commands:
-  - `quit` gracefully shuts down both components
-  - Custom commands like `push` and test routines
+  - 'quit' gracefully shuts down both components
+  - Custom commands like 'push' and test routines
 - **WebGUI:**  
   Includes its own "Quit" button
 
@@ -185,7 +185,7 @@ each with its own WebGUI and dedicated network ports (hardcoded for now):
 - **Quit:**  
   Both frontends include a convenient "Quit" button.
 - **Flexibility:**  
-  You can tweak any config setting via `config.txt` in each component.
+  You can tweak any config setting via 'config.txt' in each component.
 
 ---
 
