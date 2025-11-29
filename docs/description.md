@@ -64,8 +64,8 @@ The software is designed to *simulate, control, and test* various CellBot behavi
 
 | Component        | Description |
 |------------------|-------------|
-| **ClusterSim**   | Simulator for virtual CellBot hardware<br>Frontend: `../webgui/index.html`<br>– Simulates CellBot behavior in a 3D environment<br>– Handles signal routing and visualizes positions in a web frontend<br>– Optional logging for Blender animation<br>– Communication only via a "MasterBot Interface" at coordinate `[0,0,0]` |
-| **BotController** | Control system for scanning real or simulated CellBot clusters<br>Frontend: `/webguisim/index.html`<br>– WebSocket connection to ClusterSim **or** real CellBot hardware<br>– Scans current structure and manages world state, position, orientation, and status of each CellBot<br>– Includes a robust morphing algorithm (e.g. `morph_bfs_wavefront`) |
+| **ClusterSim**   | Simulator for virtual CellBot hardware<br>Frontend: '../webgui/index.html'<br>– Simulates CellBot behavior in a 3D environment<br>– Handles signal routing and visualizes positions in a web frontend<br>– Optional logging for Blender animation<br>– Communication only via a "MasterBot Interface" at coordinate '[0,0,0]' |
+| **BotController** | Control system for scanning real or simulated CellBot clusters<br>Frontend: '/webguisim/index.html'<br>– WebSocket connection to ClusterSim **or** real CellBot hardware<br>– Scans current structure and manages world state, position, orientation, and status of each CellBot<br>– Includes a robust morphing algorithm (e.g. 'morph_bfs_wavefront') |
 
 ---
 
