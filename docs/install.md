@@ -1,4 +1,4 @@
-[Back to Overview](../README.md)
+[⬅️ Back to Overview](../README.md)
 
 # CellBots – Installation
 
@@ -105,7 +105,7 @@ The current algorithm does not yet remove surplus CellBots.
   It’s best to enable snap mode so that cubes align perfectly to the 3D grid.
 
 Now you can let your creativity run wild: design any **voxel-based structure**, experiment with shapes and morph sequences!  
-Each new structure must share at least one coordinate with the base structure, otherwise the algorithm cannot find a valid starting point.
+⚠️ Each new structure must share at least one coordinate with the base structure, otherwise the algorithm cannot find a valid starting point.
 
 ---
 
@@ -235,6 +235,6 @@ mb_connection = f
 
 ---
 
-[Back to Overview](../README.md)  
+[⬅️ Back to Overview](../README.md)  
 **Previous chapter:** [Description](description.md) | 
 **Next chapter:** [CellBot Protocol](protocol.md)
