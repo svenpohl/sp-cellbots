@@ -2,7 +2,7 @@
 // Universal key generator for HMAC, Ed25519, and RSA
 // Sven Pohl © 2025 — MIT License
 
-const signature_class = require('./signature_class');
+const signature_class = require('../../common/signature/signature_class');
 const sig = new signature_class();
 
 function printKeyBlock(title, data) {
