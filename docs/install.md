@@ -2,23 +2,46 @@
 
 # CellBots – Installation
 
+Current version: **1.4**  
+Developed and tested on **Node.js v23.11.0**.  
+Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
+
+---
+
 This repository contains both main components:  
 - **botcontroller** (Backend)  
 - **clustersim** (Simulation/Frontend)
 
-Each component has its own dependencies.  
-Please run 'npm install' separately in each folder:
+
+Please run 'npm install' root folder:
+
+```sh
+
+npm install
+
+
+```
+
+
+To start the system, launch both components in their own terminal windows  
 
 ```sh
 cd botcontroller
-npm install
-
-cd ../clustersim
-npm install
+node botcontroller
 ```
 
-To start the system, launch both components in their own terminal windows –  
-first **ClusterSim**, then **BotController**.
+```sh
+cd cluster_sim
+node cluster_sim
+```
+
+or 
+
+```sh
+cd cluster_sim
+node cluster_sim --quiet
+```
+
 
 Both Web GUIs are optional but offer a convenient interface for exploring and controlling prepared experiments.
 
