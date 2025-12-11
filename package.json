@@ -1,0 +1,21 @@
+{
+  "name": "spcellbots",
+  "version": "1.4",
+  "private": true,
+  "description": "SPCellBots – modular robotic simulator and BotController (Version 1.4)",
+  "workspaces": [
+    "botcontroller",
+    "cluster_sim"
+  ],
+  "scripts": {
+    "preinstall": "echo \"[SPCellBots] Starting installation...\"",
+    "install:all": "npm install -ws",
+    "start:sim": "npm run start -w cluster_sim",
+    "start:controller": "npm run start -w botcontroller",
+    "start": "concurrently \"npm run start:sim\" \"npm run start:controller\"",
+    "postinstall": "echo \"[SPCellBots] Installation completed (v1.4).\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
