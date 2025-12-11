@@ -22,7 +22,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
 const fs       = require('fs');
 const path     = require('path');
 const net      = require('net');
@@ -33,7 +32,7 @@ const WebSocket = require('ws');
 const http      = require('http');
 
 const self_assembly   = require('./self_assembly'); 
-const signature_class = require('./signature_class'); 
+const signature_class = require('../common/signature/signature_class'); 
 
 
 //const MorphBFSSimple    = require('./morph/morph_bfs_simple');
@@ -62,7 +61,9 @@ constructor()
    Logger.reset();
    Logger.log("Start Botcontroller");
    
-      
+   this.setup_console_interface();   
+   this._shutdownRequested = false;
+   
 
    let configPath = path.join(__dirname, 'config.cfg');
    this.config = this.loadconfig(configPath);
@@ -109,7 +110,7 @@ constructor()
 
    this.signal_botids = null;
    
-   this.ws = null;
+   this.ws_gui = null;
    
    // Define supportet morph-Algorithms
    this.morphAlgorithms = [
@@ -151,7 +152,11 @@ constructor()
    this.thread_botcontroller();
 
 
-   this.startWebGUI();
+    
+   
+   // start WebGUI (async Modul)
+   const { startWebGUI } = require('./webgui_server');
+   startWebGUI(this);
 
    } // constructor()
    
@@ -159,7 +164,7 @@ constructor()
    
    
 
-/*
+ 
 loadconfig(filePath) {
   const configData = fs.readFileSync(filePath, 'utf-8');
   const config = {};
@@ -174,22 +179,8 @@ loadconfig(filePath) {
 
   return config;
 }  
-*/
-
-loadconfig(filePath) {
-  const configData = fs.readFileSync(filePath, 'utf-8');
-  const config = {};
-
-  configData.split('\n').forEach(line => {
-    const [key, value] = this.split_first(line.trim(), '=');
-    if (key && value !== null) {
-      config[key.trim()] = value.trim();
-    }
-  });
-
-  return config;
-}
-
+ 
+ 
   
  
 split_first(text, separator) {
@@ -246,47 +237,114 @@ return ( param );
   
   
   
+  
+  
+
 //
 // connect_to_external_masterbot()
-// 
-connect_to_external_masterbot()
-{
-let param = "";
-
-this.client = new net.Socket();
-
-this.rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-
- 
+//   
+connect_to_external_masterbot() {
+    if (this.connect_masterbot == 1) {
+        this.start_masterbot_autoconnect();
+    }
+} // connect_to_external_masterbot
 
 
 
-if (this.connect_masterbot == 1)
-{
-
-this.client.connect( this.PORT, this.HOST, () => {
-  console.log('Connected with MasterBot');
-  console.log('Enter command (gettime/getstatus) or "quit":');
   
-  this.MASTERBOT_CONNECTED = 1;
-  let cmd = "";
+  
+  
+
+
+//
+// start_masterbot_autoconnect()
+//  - versucht Verbindung → reconnect bei Fehler
+//
+start_masterbot_autoconnect() {
+
+    const tryConnect = () => {
+
+        console.log(`[BotController] Trying to connect to ClusterSim at ${this.HOST}:${this.PORT} ...`);
+
+        this.client = new net.Socket();
+        this.client.setNoDelay(true);
+
+        this.client.connect(this.PORT, this.HOST, () => {
+            console.log("[BotController] Connected with MasterBot");
+
+            this.MASTERBOT_CONNECTED = 1;
+
+            // Status anfordern
+            this.client.write('{ "cmd":"status" }\n');
+
+            // !!! WICHTIG:
+            // nach erfolgreichem Connect wieder Listener aktivieren
+            this.setup_masterbot_data_listener();
+        });
+
+        this.client.on('error', (err) => {
+            console.log("[BotController] Connection failed:", err.code);
+
+            this.MASTERBOT_CONNECTED = 0;
+
+            // Nach 2s erneut versuchen
+            setTimeout(tryConnect, 2000);
+        });
+
+        // NEU: sauberer close-Listener
+        this.client.on('close', () => {
+
+            console.log("[BotController] Connection closed.");
+
+            this.MASTERBOT_CONNECTED = 0;
+
+            if (!this._shutdownRequested) {
+                console.log("[BotController] Lost connection → attempting reconnect...");
+                setTimeout(tryConnect, 2000);
+            }
+        });
+    };
+
+    tryConnect();
+} // start_masterbot_autoconnect()
+
+
+
+
+afterMasterbotConnected() {
+
+    console.log('Connected with MasterBot');
+    console.log('Enter command (gettime/getstatus) or "quit":');
+
+    this.MASTERBOT_CONNECTED = 1;
+
+    // initial Status holen
+    this.client.write('{ "cmd": "status" }\n');
+
+    // ✨ alte Event-Handler wieder aktivieren
+    this.setup_readline_interface();
+    this.setup_masterbot_data_listener();
+} // afterMasterbotConnected
+
+  
+  
+
+
+setup_readline_interface() {
+    this.rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
   
     
-  // ask for initial status 
-  cmd = "{ \"cmd\":\"status\" }\n";
-  this.client.write(cmd);
-  
-    
-  
+      
   this.rl.on('line', (input) => {
     if (input.trim().toLowerCase() === 'exit') {
       this.rl.close();
       this.client.end();
-    } else {
+    } else 
+           {
     
            if (input == "status")
               {               
@@ -297,11 +355,13 @@ this.client.connect( this.PORT, this.HOST, () => {
             
            if (input == "quit")
               {               
-              cmd = "{ \"cmd\":\"quit\" }\n";
+              this.shutdown();
+
+/*              cmd = "{ \"cmd\":\"quit\" }\n";
               this.client.write(cmd);
 
               this.rl.close();
-              this.client.end();
+              this.client.end();*/
               }
            else
 
@@ -537,15 +597,26 @@ this.client.connect( this.PORT, this.HOST, () => {
          }
     }
   });
-}); // this.client.connect
+  
+  
+  
+    
+} // setup_readline_interface()
 
 
 
 
+setup_masterbot_data_listener() {
 
-
-
-this.client.on('data', (data) => {
+/*
+    this.client.on('data', (data) => {
+        // dein alter JSON-Parsing-Code hier rein
+    });
+  */  
+    
+   
+this.client.on('data', (data) => 
+{
 
 const messages = data.toString().split("\n").filter(Boolean);
   
@@ -591,7 +662,81 @@ const jsonstring = msg.toString().trim();
 
 
 }); // this.client.on
+ 
+    
+ 
 
+
+this.client.on('close', () => {
+    console.log('MasterBot connection closed.');
+
+    this.MASTERBOT_CONNECTED = 0;
+
+    // Versuche nicht, neu zu verbinden, falls der Benutzer absichtlich "quit" gedrückt hat
+    if (this._shutdownRequested) {
+        console.log("Shutting down BotController.");
+        process.exit(0);
+    }
+
+    // Andernfalls einfach die Schleife weiterlaufen lassen:
+    console.log("Waiting for MasterBot to come online...");
+});
+
+
+
+
+
+} // setup_masterbot_data_listener()
+
+
+
+
+
+  /*
+//
+// connect_to_external_masterbot()
+// 
+connect_to_external_masterbot()
+{
+let param = "";
+
+this.client = new net.Socket();
+
+this.rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+
+ 
+
+
+
+if (this.connect_masterbot == 1)
+{
+
+this.client.connect( this.PORT, this.HOST, () => {
+  console.log('Connected with MasterBot');
+  console.log('Enter command (gettime/getstatus) or "quit":');
+  
+  this.MASTERBOT_CONNECTED = 1;
+  let cmd = "";
+  
+    
+  // ask for initial status 
+  cmd = "{ \"cmd\":\"status\" }\n";
+  this.client.write(cmd);
+  
+    
+
+}); // this.client.connect
+
+
+
+
+
+
+ 
 
 
 this.client.on('close', () => {
@@ -616,7 +761,85 @@ else
   
   
 
+*/
 
+
+
+
+//
+// setup_console_interface()
+//  (safe mode: only adds a wrapper, nothing removed)
+//
+setup_console_interface() {
+
+    // Falls später schon gesetzt, abbrechen (sicherheitscheck)
+    if (this.rl) {
+        console.log("[setup_console_interface] readline already active.");
+        return;
+    }
+
+    this.rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    console.log('Console ready. Type "quit" to exit.');
+
+    this.rl.on('line', input => {
+        input = input.trim();
+
+        // Quit -> sauber shutdown
+        if (input === 'quit') {
+            console.log("Shutting down...");
+            this._shutdownRequested = true;
+
+            try { if (this.client) this.client.end(); } catch(e) {}
+
+            process.exit(0);
+        }
+
+        // Alle anderen Eingaben erstmal NICHT verändern!
+        // Deine alte Console-Logik darf sich erstmal weiter darum kümmern.
+        console.log("[Console passthrough]", input);
+    });
+
+} // setup_console_interface()
+
+
+
+ 
+ 
+shutdown() 
+{
+    if (this._shutdownRequested) return;  
+    this._shutdownRequested = true;
+
+    console.log("Shutting down...");
+
+   
+
+    // 2) Close GUI-Websocket  
+    if (this.ws_gui) {
+        try {
+            console.log("→ Closing WebGUI WebSocket...");
+            this.ws_gui.close();
+        } catch(e) {}
+    }
+
+    // 3) close readline 
+    if (this.rl) {
+        try {
+            this.rl.close();
+        } catch(e) {}
+    }
+
+    // 4) exit process
+    setTimeout(() => {
+        console.log("→ Exit.");
+        process.exit(0);
+    }, 300);
+    
+} // shutdown
  
  
  
@@ -2099,7 +2322,7 @@ notify: "update",
 msg: events
 };
  
-this.ws.send( JSON.stringify(msg) );
+this.ws_gui.send( JSON.stringify(msg) );
  
 } // notify_frontend()
 
@@ -2865,7 +3088,7 @@ const slotnames = ['f','r','b','l','t','d'];
  
  
 
-
+/*
 
 startWebGUI() 
 {
@@ -2882,21 +3105,58 @@ console.log('Starting websocket...');
 let counter = 0;
 let answer = "";
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/') {
-    fs.readFile('index.html', (err, data) => {
-      if (err) {
-        res.writeHead(500);
-        res.end('Error loading index.html');
-      } else {
-        res.writeHead(200, {'Content-Type': 'text/html'});
+
+
+
+
+const server = http.createServer(async (req, res) => {
+
+    // Debug:
+    console.log("REQUEST:", req.url);
+
+    let filePath = req.url;
+
+    // Default route → index.html
+    if (filePath === "/") {
+        filePath = "/index.html";
+    }
+
+    // Absolute Pfad basierend auf __dirname
+    const absPath = path.join(__dirname, "webgui", filePath);
+
+    try {
+        const data = await fs.readFile(absPath);
+
+        // MIME-Type ermitteln
+        const ext = path.extname(absPath).toLowerCase();
+        const mime = {
+            ".html": "text/html",
+            ".js": "application/javascript",
+            ".css": "text/css",
+            ".json": "application/json",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".svg": "image/svg+xml"
+        }[ext] || "application/octet-stream";
+
+        res.writeHead(200, { "Content-Type": mime });
         res.end(data);
-      }
-    });
-  }
+
+    } catch (err) {
+
+        console.log("404 Not found:", absPath);
+        res.writeHead(404);
+        res.end("404 Not Found");
+    }
 });
 
+// WebSocket-Server koppeln
 const wss = new WebSocket.Server({ server });
+
+
+ 
+ 
+
 
 wss.on('connection', (ws) => {
 
@@ -3007,27 +3267,7 @@ wss.on('connection', (ws) => {
            ws.send(answer); 
 
 
-           /*
-            // Pfad to structures-directory
-           const structuresDir = path.join(__dirname, 'structures');
-
-           // only .json
-           function getStructurePrefixes() 
-           {
-                   return fs.readdirSync(structuresDir)
-                   .filter(filename => filename.endsWith('.json'))
-                   .map(filename => filename.replace(/\.json$/i, ''));
-           }
-
-           const list = getStructurePrefixes().join(',');
-
-           answer = JSON.stringify({ answer: "answer_requestsequences", list: getStructurePrefixes() });
-
-           
-
-           ws.send(answer);         
-
-           */
+          
            
            } // getpreviewtarget
            else
@@ -3101,16 +3341,214 @@ wss.on('connection', (ws) => {
 });
 
 
+ 
+
+
 server.listen(3010, () => {
-  console.log('Server running on http://localhost:3010');
+    console.log("BotController WebGUI available at http://localhost:3010");
 });
+
 
  
     
 } // startWebGUI() 
 
+*/
 
- 
+
+
+
+attachGUIWebSocket(ws_gui) {
+    this.ws_gui = ws_gui;
+
+    ws_gui.on('message', (message) => {
+        this.handleGUIMessage(message);
+    });
+} // attachGUIWebSocket
+
+
+handleGUIMessage(message) {
+
+    if (!this.counter) this.counter = 0;
+    let answer = null;
+
+    try {
+        const decodedobject = JSON.parse(message);
+
+        //
+        // STATUS
+        //
+        if (decodedobject.cmd === 'status') {
+            answer = JSON.stringify({
+                answer: "answer_status",
+                masterbot_name: this.masterbot_name
+            });
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // GETCLUSTERDATA
+        //
+        if (decodedobject.cmd === 'getclusterdata') {
+
+            let jsondata = this.getclusterdata_json();
+
+            try {
+                let jsonObject = JSON.parse(jsondata);
+                answer = JSON.stringify({
+                    answer: "answer_getclusterdata",
+                    jsondata: jsonObject
+                });
+
+                this.ws_gui.send(answer);
+
+            } catch (error) {
+                console.error("Fehler beim Parsen von clusterdata:", error);
+            }
+
+            return;
+        }
+
+
+        //
+        // GUI COMMAND (PUSH zum Masterbot)
+        //
+        if (decodedobject.cmd === 'gui_command') {
+
+            console.log("gui_command:", decodedobject.value);
+
+            let param = this.sign(decodedobject.value);
+            let cmd = JSON.stringify({ cmd: "push", param }) + "\n";
+
+            this.client.write(cmd);
+            return;
+        }
+
+
+        //
+        // VERSION
+        //
+        if (decodedobject.cmd === 'version') {
+
+            answer = JSON.stringify({
+                answer: "answer_version",
+                version: this.version
+            });
+
+            this.ws_gui.send(answer);
+            console.log("VERSION...");
+            return;
+        }
+
+
+        //
+        // STRUCTURESCAN
+        //
+        if (decodedobject.cmd === 'structurescan') {
+            this.start_scan(1);
+            return;
+        }
+
+
+        //
+        // PREPARE MORPH
+        //
+        if (decodedobject.cmd === 'preparemorph') {
+            console.log("prepare morph:", decodedobject.structure);
+            this.prepare_morph(decodedobject.structure, decodedobject.algo);
+            return;
+        }
+
+
+        //
+        // GET PREVIEW TARGET
+        //
+        if (decodedobject.cmd === 'getpreviewtarget') {
+
+            console.log("getpreviewtarget:", decodedobject.structure);
+
+            const filepath = path.join(__dirname, 'structures', decodedobject.structure + '.json');
+            const data = fs.readFileSync(filepath, 'utf8');
+            const targetBots = JSON.parse(data);
+
+            answer = JSON.stringify({
+                answer: "answer_getpreviewtarget",
+                target: targetBots
+            });
+
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // REQUEST SEQUENCES
+        //
+        if (decodedobject.cmd === 'requestsequences') {
+
+            const structuresDir = path.join(__dirname, 'structures');
+
+            const getStructurePrefixes = () =>
+                fs.readdirSync(structuresDir)
+                    .filter(f => f.endsWith('.json'))
+                    .map(f => f.replace(/\.json$/i, ''));
+
+            answer = JSON.stringify({
+                answer: "answer_requestsequences",
+                list: getStructurePrefixes()
+            });
+
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // REQUEST MORPH ALGORITHMS
+        //
+        if (decodedobject.cmd === 'requestmorphalgorithms') {
+
+            answer = JSON.stringify({
+                answer: "answer_requestmorphalgorithms",
+                list: this.morphAlgorithms
+            });
+
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // QUIT (Weiterleitung zum Masterbot)
+        //
+        if (decodedobject.cmd === 'quit') {
+/*
+            const cmd = "{ \"cmd\":\"quit\" }\n";
+            this.client.write(cmd);
+
+            this.rl.close();
+            this.client.end();
+            */
+            
+            this.shutdown();
+            return;
+        }
+
+
+        //
+        // FALLBACK
+        //
+        console.log("Unknown GUI command:", decodedobject.cmd);
+
+        this.counter++;
+
+    } catch (err) {
+        console.error("Error parsing GUI message:", err);
+    }
+} // handleGUIMessage()
+
   
   
 } // botcontroller_class

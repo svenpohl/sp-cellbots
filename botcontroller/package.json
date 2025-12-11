@@ -1,7 +1,15 @@
 {
+  "name": "botcontroller",
+  "version": "1.3.2",
+  "private": true,
+
   "dependencies": {
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
     "ws": "^8.18.0"
+  },
+
+  "scripts": {
+    "start": "node botcontroller.js"
   }
 }
