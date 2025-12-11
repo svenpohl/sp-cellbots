@@ -6,7 +6,7 @@ const cmd_parser_class = require('./cmd_parser_class');
 
 const Logger = require('./logger');  
 
-const signature_class = require('./signature_class');   
+const signature_class = require('../common/signature/signature_class'); 
 
 //
 // Bot class
