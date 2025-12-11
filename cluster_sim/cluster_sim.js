@@ -23,6 +23,16 @@
  * SOFTWARE.
  */
 
+const args = process.argv.slice(2);
+const QUIET = args.includes("--quiet")
+
+if (!QUIET)
+   {
+   const { check_nodejs_version } = require('../common/system_utils');
+   check_nodejs_version("23.11.0");
+   }
+
+
 const net  = require('net');
 const path = require('path');
 const fs   = require('fs').promises;
@@ -34,18 +44,26 @@ const http = require('http');
 
 let masterbot_class_obj = null;
 
+
+
+ 
+
 async function main()
 {
 
+
+
 const masterbot_class = require('./masterbot_class');  
-masterbot_class_obj = new masterbot_class();
+masterbot_class_obj = new masterbot_class( { QUIET } );
 
 
 // Load config.cfg
 const configPath = path.join(__dirname, 'config.cfg');
 const config = masterbot_class_obj.loadconfig(configPath);
 
+ 
 await masterbot_class_obj.init("constructs/" + config.construct);
+ 
 
 
 
@@ -53,9 +71,16 @@ await masterbot_class_obj.init("constructs/" + config.construct);
 const version        = config.version;
 const PORT           = parseInt(config.port, 10);
 let   MASTERBOT_NAME = config.name;
-console.log(`Masterbot Version: ${version} - CellBots`);
-console.log(`Port: ${PORT}`);
-console.log(`MASTERBOT_NAME: ${MASTERBOT_NAME}`);
+
+
+
+
+if (!QUIET) 
+   {
+   console.log(`Masterbot Version: ${version} - CellBots`);
+   console.log(`Port: ${PORT}`);
+   console.log(`MASTERBOT_NAME: ${MASTERBOT_NAME}`);
+   }
 
  
 
@@ -63,7 +88,7 @@ console.log(`MASTERBOT_NAME: ${MASTERBOT_NAME}`);
 // Start Server socket (for botcontroller)
 //
 const server = net.createServer((socket) => {
-  console.log('Client connected');
+  if (!QUIET) console.log('Client connected');
 
   socket.on('data', (data) => {
 
@@ -89,12 +114,12 @@ const server = net.createServer((socket) => {
 
         case 'status':
         	jsonmsg = '{ "cmd": "submitstatus",  "masterbot_name":"'+MASTERBOT_NAME+'" }\n';
-        	console.log("Status " + MASTERBOT_NAME);
+        	if (!QUIET) console.log("Status " + MASTERBOT_NAME);
         	socket.write( jsonmsg );                   	     
         break;
         
         case 'quit':
-            console.log("Shutdown cluster_sim")
+            if (!QUIET) console.log("Shutdown cluster_sim")
             masterbot_class_obj.close_blender_logging();
             process.exit(0);
         break;
@@ -115,7 +140,7 @@ const server = net.createServer((socket) => {
         case 'debug':        
             masterbot_class_obj.debug();        
             jsonmsg = '{ "cmd": "msg",    "info": "debughandler", "msg":"debug executed" }\n';
-            console.log("DEBUG");
+            if (!QUIET) console.log("DEBUG");
             socket.write( jsonmsg );                
         break;
         
@@ -147,8 +172,11 @@ const server = net.createServer((socket) => {
    
        } catch (error) {
          console.error("Error parsing JSON:", error);
-         console.log( "json:" );
-         console.log(jsonstring);
+         if (!QUIET)
+            {
+            console.log( "json:" );
+            console.log(jsonstring);
+            }
          }
  
     
@@ -163,14 +191,14 @@ const server = net.createServer((socket) => {
   
 
   socket.on('end', () => {
-       console.log('Client disconnected');
+       if (!QUIET) console.log('Client disconnected');
        });
 
 });
 
  
 server.listen(PORT, () => {
-  console.log(`ClusterSim-Server running on Port ${PORT}`);
+  if (!QUIET) console.log(`ClusterSim-Server running on Port ${PORT}`);
   });
 
 
@@ -182,25 +210,57 @@ server.listen(PORT, () => {
 // ---
 // WebGUI (DEBUG)
 //
-
+if (!QUIET) console.log("start webserver...");
 
 let counter = 0;
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/') {
-    fs.readFile('index.html', (err, data) => {
-      if (err) {
-        res.writeHead(500);
-        res.end('Error loading index.html');
-      } else {
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.end(data);
-      }
-    });
+
+const httpserver = http.createServer(async (req, res) => {
+  if (!QUIET) console.log("REQUEST:", req.url);
+
+  let filePath = req.url;
+
+  // Wenn nur "/" angefragt, lade index.html
+  if (filePath === "/") {
+      filePath = "/index.html";
+  }
+
+  // Baue echten Dateipfad
+  const absPath = path.join(__dirname, "webguisim", filePath);
+
+  try {
+      const data = await fs.readFile(absPath);
+
+      // MIME-Typ bestimmen
+      const ext = path.extname(absPath).toLowerCase();
+      const mime = {
+          ".html": "text/html",
+          ".js": "application/javascript",
+          ".css": "text/css",
+          ".png": "image/png",
+          ".jpg": "image/jpeg",
+          ".gif": "image/gif",
+          ".svg": "image/svg+xml",
+          ".json": "application/json",
+      }[ext] || "application/octet-stream";
+
+      if (!QUIET) console.log("Serving:", absPath);
+      res.writeHead(200, { "Content-Type": mime });
+      res.end(data);
+
+  } catch (err) {
+      if (!QUIET) console.log("File not found:", absPath);
+      res.writeHead(404);
+      res.end("404 Not Found");
   }
 });
 
-const wss = new WebSocket.Server({ server });
+
+
+
+
+const wss = new WebSocket.Server( { server: httpserver } );
+
 
 wss.on('connection', (ws) => {
 
@@ -226,7 +286,7 @@ wss.on('connection', (ws) => {
 
         if (decodedobject.cmd === 'setlivelogging') 
            {       
-           console.log( "decodedobject.value : " + decodedobject.value);
+           if (!QUIET) console.log( "decodedobject.value : " + decodedobject.value);
            
            if (decodedobject.value == 'on')
               masterbot_class_obj.setlivelogging = true; else
@@ -236,7 +296,7 @@ wss.on('connection', (ws) => {
 
         if (decodedobject.cmd === 'quit') 
            {       
-           console.log("Shutdown cluster_sim (by Debug-Frontend)")
+           if (!QUIET) console.log("Shutdown cluster_sim (by Debug-Frontend)")
            masterbot_class_obj.close_blender_logging();           
            process.exit(0);        
            } else
@@ -264,7 +324,7 @@ wss.on('connection', (ws) => {
                
            } else
              {
-             console.log("Unknown command");
+             if (!QUIET) console.log("Unknown command");
              }
     
     
@@ -279,8 +339,11 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(3020, () => {
-  console.log('Server (webguisim) is running on http://localhost:3020');
+httpserver.listen(3020, () => 
+{
+ 
+if (!QUIET) console.log('Server (webguisim) is running on http://localhost:3020');
+
 });
 
 

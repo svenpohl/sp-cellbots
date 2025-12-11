@@ -45,9 +45,13 @@ class masterbot_class
 {
   
   
+ 
+      
 
-  constructor() 
+
+  constructor( options = {} ) 
   {
+  this.QUIET             = options.QUIET || false;
   this.config            = {}; 
   this.bots              = [];
   this.XMLLOADED         = 0;
@@ -61,7 +65,7 @@ class masterbot_class
   this.msgqueue_bc       = [];
   
   
-   
+  
   
   // Position and orientation
   this.x 				 = 0;
@@ -115,7 +119,7 @@ class masterbot_class
   
   
   // --> Blender-Logging
-  console.log( "blenderlogging: " + this.config.blenderlogging );
+  if (!this.QUIET) console.log( "blenderlogging: " + this.config.blenderlogging );
 
   LoggerBlender.setEnabled( this.config.blenderlogging );
   LoggerBlender.open();
@@ -162,10 +166,8 @@ this.ws = ws;
 //
 send_webgui( msg )
 {
-//console.log("Send 1: " + this.setlivelogging);
 if ( this.setlivelogging == true )
    {
-   // console.log("Send 2: " + msg);
    this.ws.send(msg);
    }
 } // send_webgui()
@@ -642,10 +644,10 @@ return(ret);
 // 
 dumpdebug()
 {
-console.log("---------");
-console.log("Dump Bots");
+if (!this.QUIET) console.log("---------");
+if (!this.QUIET) console.log("Dump Bots");
 
-console.log("");
+
 
   
                
@@ -653,8 +655,10 @@ for (let i=0; i < this.bots.length; i++)
         {
         let msgqueuesize =    this.bots[i].msgqueue.length;
         
-        console.log("---");
-        console.log("Id: " +  this.bots[i].id  +  
+        if (!this.QUIET) 
+           {
+           console.log("---");
+           console.log("Id: " +  this.bots[i].id  +  
                      " xyz: " 
                      +  this.bots[i].x  + " " +
                      +  this.bots[i].y  + " " +
@@ -675,18 +679,23 @@ for (let i=0; i < this.bots.length; i++)
                      
                      );
                      
-        console.log( this.bots[i].index_neighbors );             
+           console.log( this.bots[i].index_neighbors );             
         
-        console.log("MSG-Queue (BOT):");
-        // Print MSGQueue 
-        for (let i2=0; i2< this.bots[i].msgqueue.length; i2++)
-            {            
-            console.log(i2 + " - ["+ this.bots[i].msgqueue[i2] +"]");
-            }
+           console.log("MSG-Queue (BOT):");
+           // Print MSGQueue 
+           for (let i2=0; i2< this.bots[i].msgqueue.length; i2++)
+               {            
+               console.log(i2 + " - ["+ this.bots[i].msgqueue[i2] +"]");
+               }
+            
+           } // if (!this.QUIET) 
+    
                   
         } //
 
 
+if (!this.QUIET) 
+{
 console.log("---");
 console.log("Masterbot:");
 console.log("xyz: " + this.x + " " + this.y + " " + this.z + " vector: "  + this.vx + " " +  + this.vy + " "  + this.vz + " " );
@@ -695,27 +704,29 @@ console.log("mbconnection_id: " + this.mbconnection_id + " this.mbconnection_slo
    
 console.log("");
 console.log(this.index_neighbors);
+} // if (!this.QUIET) 
+
 
 let msgqueuesize =    this.msgqueue.length;
-console.log("msgqueuesize: " + msgqueuesize);  
+if (!this.QUIET) console.log("msgqueuesize: " + msgqueuesize);  
 
-console.log("MSG-Queue (MB):");
+if (!this.QUIET) console.log("MSG-Queue (MB):");
 
         // Print MSGQueue 
         for (let i2=0; i2< this.msgqueue.length; i2++)
             {            
-            console.log(i2 + " - ["+ this.msgqueue[i2] +"]");
+            if (!this.QUIET) console.log(i2 + " - ["+ this.msgqueue[i2] +"]");
             }
 
 
-console.log("---");      
+if (!this.QUIET) console.log("---");      
 
 let msgqueue_bc_size =    this.msgqueue_bc.length;
-console.log("msgqueue_bc_size: " + msgqueue_bc_size);  
+if (!this.QUIET) console.log("msgqueue_bc_size: " + msgqueue_bc_size);  
 
 
 
-console.log("---------");  
+if (!this.QUIET) console.log("---------");  
 
 } // dumpdebug()  
  
@@ -759,7 +770,7 @@ split_first(text, separator) {
 //
 debug()
 {
-console.log("Masterbot DEBUG...");
+if (!this.QUIET) console.log("Masterbot DEBUG...");
 
 //this.export_bot_snapshot( "logs/botsnapshot.json" );
 
@@ -1281,23 +1292,22 @@ for (let i=0; i < l; i++)
           
           if ( slot_inbound != "")
              {            
-             // console.log("LOCK - TEST ("+ this.bots[tmp_botindex].id+") inbound:" + slot_inbound+  " destslot: " + destslot );
+
              if ( 
                 this.bots[tmp_botindex].locked.includes( slot_inbound.toUpperCase() )                 
                 )               
                 {
-                // console.log("IN-LOCK FOR BOT " + this.bots[tmp_botindex].id );
                 LOCKED = true;
                 }
 
 
              let out_slot = msgarray['cmdnext'][0];
-             // console.log("out_slot: " + out_slot);
+
              if (               
                 this.bots[tmp_botindex].locked.includes( out_slot.toUpperCase() ) 
                 )               
                 {
-                // console.log("OUT-LOCK FOR BOT " + this.bots[tmp_botindex].id );
+
                 LOCKED = true;
                 }
 
@@ -1345,7 +1355,7 @@ for (let i=0; i < l; i++)
 this.counter++;
  
 
-this.spinner() ;
+if (!this.QUIET) this.spinner() ;
 
 
  
