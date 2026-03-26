@@ -354,8 +354,6 @@ addConsoleLine("Connected" );
         
          jsonstring = event.data;
          const decodedobject = JSON.parse(jsonstring);
-        
-         console.log(decodedobject.answer);  
  
             
           
@@ -377,12 +375,11 @@ addConsoleLine("Connected" );
           
           if (decodedobject.answer == "answer_getclusterdata")
           {
-          
           removeAllCubes( true );  
+          showForbidden(scene, decodedobject.structure_roles?.forbidden ?? []);
                       
           
           let size = decodedobject.jsondata.masterbot.length;
-          console.log("size: " + size);
            
           for (let i=0; i<size; i++)
               {
@@ -578,6 +575,10 @@ showTargets(scene, decodedobject.target);
         
             cmd = "{ \"cmd\":\"structurescan\" }";; 
             socket.send(cmd);
+
+            // Refresh cluster data so newly loaded forbidden cells can be visualized.
+            cmd = "{ \"cmd\":\"getclusterdata\" }";; 
+            socket.send(cmd);
         });
 
 
@@ -594,6 +595,10 @@ showTargets(scene, decodedobject.target);
         
         cmd = "{ \"cmd\":\"preparemorph\", \"algo\": \"" +algo+ "\" , \"structure\": \"" +structure+ "\" }";
  
+        socket.send(cmd);
+
+        // Refresh cluster data so newly loaded forbidden cells can be visualized.
+        cmd = "{ \"cmd\":\"getclusterdata\" }";; 
         socket.send(cmd);
      
         });
@@ -794,7 +799,7 @@ function removeAllCubes(remove_masterbot) {
         rotateGroup.remove(cube);
         cubes.splice(i, 1);
     }
-}
+} // removeAllCubes()
 
 
 
@@ -922,6 +927,7 @@ function add_base_grid({ cells = 10, cellSize = 1, y = 0, color = 0x888888, opac
 
 
 let targetGroup = null;
+let forbiddenGroup = null;
 
 //
 // showTargets()
@@ -940,7 +946,38 @@ function showTargets(scene, targetArray) {
   // Create new group
   targetGroup = createTargetGroup(targetArray);
   rotateGroup.add(targetGroup);
-}
+} // showTargets()
+
+
+//
+// showForbidden()
+//
+function showForbidden(scene, forbiddenArray) {
+  if (forbiddenGroup) {
+    rotateGroup.remove(forbiddenGroup);
+    forbiddenGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+    forbiddenGroup = null;
+  }
+
+  if (!Array.isArray(forbiddenArray) || forbiddenArray.length === 0) {
+    return;
+  }
+
+  forbiddenGroup = createTargetGroup(
+    forbiddenArray,
+    {
+      color: 0x7a2f1d,
+      opacity: 0.38,
+      cellSize: 1.02,
+      zPositiveIsDepth: true
+    }
+  );
+  forbiddenGroup.name = 'forbiddenGroup';
+  rotateGroup.add(forbiddenGroup);
+} // showForbidden()
 
 
 //
