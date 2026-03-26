@@ -71,6 +71,13 @@ constructor()
    this.bots           = [];
    this.botindex       = [];
 
+   this.structure_roles = {
+                          carrier: [],
+                          reserve: [],
+                          x: [],
+                          forbidden: [],
+                          inactive: []
+                          };
 
    // Save config to variables
    this.version           = this.config.version;
@@ -930,8 +937,47 @@ createAlgorithm(algoName, startBots, targetBots, params) {
     }
 } // createAlgorithm
 
+
+//
+// load_structure_definition()
+// Normalizes old array-based and new object-based structure JSON files.
+//
+load_structure_definition(structure)
+{
+const filepath = path.join(__dirname, 'structures', structure + '.json');
+const data = fs.readFileSync(filepath, 'utf8');
+const parsed = JSON.parse(data);
+
+if (Array.isArray(parsed))
+   {
+   return {
+          name: structure,
+          meta: {},
+          structure: parsed,
+          carrier: [],
+          reserve: [],
+          x: [],
+          forbidden: [],
+          inactive: [],
+          raw: parsed
+          };
+   }
+
+return {
+       name: parsed.meta?.name ?? structure,
+       meta: parsed.meta ?? {},
+       structure: Array.isArray(parsed.structure) ? parsed.structure : [],
+       carrier: Array.isArray(parsed.carrier) ? parsed.carrier : [],
+       reserve: Array.isArray(parsed.reserve) ? parsed.reserve : [],
+       x: Array.isArray(parsed.x) ? parsed.x : [],
+       forbidden: Array.isArray(parsed.forbidden) ? parsed.forbidden : [],
+       inactive: Array.isArray(parsed.inactive) ? parsed.inactive : [],
+       raw: parsed
+       };
+} // load_structure_definition()
   
  
+
 
 
 
@@ -958,14 +1004,16 @@ for (let i=0; i<size; i++)
        }
     }
 
+const targetDefinition = this.load_structure_definition(structure);
+const targetBots = targetDefinition.structure;
 
-
-const data = fs.readFileSync
-  (
-  path.join(__dirname, 'structures', structure + '.json'),
-  'utf8'
-  );
-const targetBots = JSON.parse(data);
+this.structure_roles = {
+                       carrier: targetDefinition.carrier,
+                       reserve: targetDefinition.reserve,
+                       x: targetDefinition.x,
+                       forbidden: targetDefinition.forbidden,
+                       inactive: targetDefinition.inactive
+                       };
 
 
  
@@ -3088,276 +3136,6 @@ const slotnames = ['f','r','b','l','t','d'];
  
  
 
-/*
-
-startWebGUI() 
-{
-console.log('Starting websocket...');
-    
-  
-
-
-// ---
-// WebGUI 
-//
-console.log('Starting websocket...');
-
-let counter = 0;
-let answer = "";
-
-
-
-
-
-const server = http.createServer(async (req, res) => {
-
-    // Debug:
-    console.log("REQUEST:", req.url);
-
-    let filePath = req.url;
-
-    // Default route → index.html
-    if (filePath === "/") {
-        filePath = "/index.html";
-    }
-
-    // Absolute Pfad basierend auf __dirname
-    const absPath = path.join(__dirname, "webgui", filePath);
-
-    try {
-        const data = await fs.readFile(absPath);
-
-        // MIME-Type ermitteln
-        const ext = path.extname(absPath).toLowerCase();
-        const mime = {
-            ".html": "text/html",
-            ".js": "application/javascript",
-            ".css": "text/css",
-            ".json": "application/json",
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".svg": "image/svg+xml"
-        }[ext] || "application/octet-stream";
-
-        res.writeHead(200, { "Content-Type": mime });
-        res.end(data);
-
-    } catch (err) {
-
-        console.log("404 Not found:", absPath);
-        res.writeHead(404);
-        res.end("404 Not Found");
-    }
-});
-
-// WebSocket-Server koppeln
-const wss = new WebSocket.Server({ server });
-
-
- 
- 
-
-
-wss.on('connection', (ws) => {
-
-  
-  this.ws = ws;
-    
-  ws.on('message', (message) => {
-  
-  
-
-    try {
-        const decodedobject = JSON.parse(message);
-
- 
-        if (decodedobject.cmd === 'status') 
-           {       
-           answer = "{ \"answer\":\"answer_status\" , \"masterbot_name\":\""+this.masterbot_name+"\" }"; 
-           ws.send(answer);          
-           }
-
-
-        if (decodedobject.cmd === 'getclusterdata') 
-           {   
-
-           let jsondata = this.getclusterdata_json();
-
-           
-           try {
-               let jsonObject = JSON.parse(jsondata);
-               
-               let jsonString = JSON.stringify(jsonObject);
-               
-               answer = "{ \"answer\":\"answer_getclusterdata\" , \"jsondata\": " +jsonString+ "    }"; 
-               
-               ws.send(answer);  
-           
-               } catch (error) 
-                 {
-                 console.error("Fehler beim Parsen des JSON-Strings:", error);
-                 }
-
-
-
-           
-               
-           } // getclusterdata
-           else
-           
-
-        if (decodedobject.cmd === 'gui_command') 
-           {  
-           console.log( "gui_command: " + decodedobject.value);
-            
-           let param = this.sign( decodedobject.value );
-                  
-           let cmd = "{ \"cmd\":\"push\", \"param\":\""+param+"\" }\n";
-           
-           this.client.write(cmd);
-              
-              
-           } else           
-
-           
-
-        if (decodedobject.cmd === 'version') 
-           {                  
-           answer = "{ \"answer\":\"answer_version\" , \"version\":\""+this.version+"\" }"; 
-           ws .send(answer);         
-           // version
-           console.log("VERSION....");
-           } // version
-           else
-
-
-        if (decodedobject.cmd === 'structurescan') 
-           {                             
-           this.start_scan(1);
-           } // structurescan
-           else
-           
-           
-        if (decodedobject.cmd === 'preparemorph') 
-           {                             
-           console.log("decodedobject.structure: " + decodedobject.structure);
-           this.prepare_morph( decodedobject.structure, decodedobject.algo ) ;
-           } // preparemorph
-           else
-
-
-        if (decodedobject.cmd === 'getpreviewtarget') 
-           {                             
-           console.log("decodedobject.structure: " + decodedobject.structure);
-           //this.answer_getpreviewtarget() ;
-           // alfalf
-                                 
-           const data = fs.readFileSync
-                (
-                path.join(__dirname, 'structures', decodedobject.structure + '.json'),
-                'utf8'
-                );
-           const targetBots = JSON.parse(data);
-           
-           answer = JSON.stringify({ answer: "answer_getpreviewtarget", target: targetBots });
-
-           console.log("ANSWER to send:");
-           console.log(answer);
-
-           ws.send(answer); 
-
-
-          
-           
-           } // getpreviewtarget
-           else
-
-
-
-        if (decodedobject.cmd === 'requestsequences') 
-           {                             
-        
-           
-           // Pfad to structures-directory
-           const structuresDir = path.join(__dirname, 'structures');
-
-           // only .json
-           function getStructurePrefixes() 
-           {
-                   return fs.readdirSync(structuresDir)
-                   .filter(filename => filename.endsWith('.json'))
-                   .map(filename => filename.replace(/\.json$/i, ''));
-           }
-
-           const list = getStructurePrefixes().join(',');
-
-           answer = JSON.stringify({ answer: "answer_requestsequences", list: getStructurePrefixes() });
-
-           
-
-           ws.send(answer);         
-
-           // console.log("REQUESTSEQUENCES....");
-           } // requestsequences
-           else
-           
-           
-           
-           
-        if (decodedobject.cmd === 'requestmorphalgorithms') 
-           {                             
-                    
-           answer = JSON.stringify({ answer: "answer_requestmorphalgorithms", list:  this.morphAlgorithms });
- 
-
-           ws.send(answer);         
-
-           } // requestmorphalgorithms
-           else        
-
-
-        if (decodedobject.cmd === 'quit') 
-           {                  
-               
-              let cmd = "{ \"cmd\":\"quit\" }\n";
-              this.client.write(cmd);
-             
-              this.rl.close();
-              this.client.end();
-              
-           }
-
-    
-        counter++;
-  
-        } catch (error) {
-                        console.error("Error parsing JSON:", error);
-                        }
- 
- 
-    
-
-  });
-});
-
-
- 
-
-
-server.listen(3010, () => {
-    console.log("BotController WebGUI available at http://localhost:3010");
-});
-
-
- 
-    
-} // startWebGUI() 
-
-*/
-
-
-
-
 attachGUIWebSocket(ws_gui) {
     this.ws_gui = ws_gui;
 
@@ -3399,7 +3177,8 @@ handleGUIMessage(message) {
                 let jsonObject = JSON.parse(jsondata);
                 answer = JSON.stringify({
                     answer: "answer_getclusterdata",
-                    jsondata: jsonObject
+                    jsondata: jsonObject,
+                    structure_roles: this.structure_roles
                 });
 
                 this.ws_gui.send(answer);
