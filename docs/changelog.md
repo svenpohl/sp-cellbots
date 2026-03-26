@@ -7,6 +7,15 @@
 ---
 
 
+- **1.4.1** (26.03.2026)  
+**Preparatory Structure Extension for Planned Repair Demo**
+  - Added initial support in BotController for an optional object-based structure format in **`/botcontroller/structures/[structure].json`**
+  - Existing plain voxel-array JSON files remain compatible; object-based files now use **`structure`** as the primary target voxel set
+  - Introduced preparatory role fields for extended structure definitions: **`carrier`**, **`reserve`**, **`x`** (planned storage area for inactive bots), **`forbidden`** (blocked voxel positions), and BotController-side handling of **`inactive`**
+  - Added minimal example file **`/botcontroller/structures/base_25_forbidden.json`** as a first extended-format demo structure
+  - BotController now keeps extended structure-role data separate from the main target bot coordinates for future repair and scenario logic
+  - Added initial WebGUI visualization for **`forbidden`** positions: exemplar voxels are rendered as semi-transparent dark wine-red markers
+
 - **1.4** (11.12.2025)  
 **Stability & Compatibility Update for Node.js v23.11.0**
   - Updated entire codebase for compatibility with **Node.js v23.11.0**
