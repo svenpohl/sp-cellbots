@@ -99,6 +99,11 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
      margin: 0;  
      }
 
+    .button-pending {
+     opacity: 0.45;
+     filter: grayscale(0.35);
+     }
+
 
     #canvas3d {
     width: 600px;
@@ -176,6 +181,10 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
 
     <button id="requeststructurescanbotcontroller">Start Scan</button>
 
+    <button id="requeststructurescanlevel2botcontroller" class="button-pending">Scan Level 2</button>
+
+    <button id="togglexraymode">X-Ray Mode</button>
+
     <button id="startmorph">Start Morph</button>
 
     <select id="morphalgorithms_list">
@@ -185,6 +194,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <select id="sequences_list">
     </select>
 
+    <div style="flex-basis:100%; height:0;"></div>
 
     <button id="targetpreview">Target Preview</button>
 
@@ -255,6 +265,8 @@ Command:<br>
     
         
     let connected = 0;    
+    let scan_level1_started = false;
+    let xray_mode_enabled = false;
     
     
     
@@ -313,13 +325,74 @@ console.log("Setcolor: " + color);
     // Das erste Kind suchen, das ein Mesh ist
     const mesh = group.children.find(child => child.isMesh && child.material);
     if (mesh) {
-        mesh.material.color.set("#" + color);
+        if (!Array.isArray(mesh.material) && mesh.material.color && color) {
+            mesh.material.color.set("#" + color);
+        } // if
     } else {
         console.log("Error - no mesh/material");
     }
 }
  
 } // handleSetColor
+
+
+
+function applyXrayMode() {
+
+for (let i=0; i<groups.length; i++)
+    {
+    const group = groups[i];
+    if (!group || !group.userData) continue;
+
+    const render_type = group.userData.render_type ?? "active";
+    const mesh = group.children.find(child => child.isMesh && child.material);
+
+    if (!mesh) continue;
+    if (Array.isArray(mesh.material)) continue;
+    if (!mesh.material.color) continue;
+
+    let target_color = group.userData.base_color ?? "#ffffff";
+    let target_opacity = group.userData.base_opacity ?? 1.0;
+    let target_transparent = group.userData.base_transparent ?? false;
+
+    if (xray_mode_enabled)
+       {
+       if (render_type == "active")
+          {
+          target_opacity = 0.16;
+          target_transparent = true;
+          } // if
+
+       if (render_type == "inactive")
+          {
+          target_color = "#ff4444";
+          target_opacity = 1.0;
+          target_transparent = false;
+          } // if
+       } // if
+
+    mesh.material.color.set(target_color);
+    mesh.material.opacity = target_opacity;
+    mesh.material.transparent = target_transparent;
+    mesh.material.needsUpdate = true;
+
+    for (let i2=0; i2<group.children.length; i2++)
+        {
+        const child = group.children[i2];
+
+        if (child.isMesh && child.geometry && child.geometry.type == "PlaneGeometry")
+           {
+           child.visible = xray_mode_enabled ? (render_type == "masterbot") : (group.userData.show_arrow !== false);
+           } // if
+        } // for
+    } // for
+
+const btn = document.getElementById('togglexraymode');
+if (btn)
+   {
+   btn.textContent = xray_mode_enabled ? "X-Ray Off" : "X-Ray Mode";
+   } // if
+} // applyXrayMode()
 
       
                
@@ -421,6 +494,32 @@ addConsoleLine("Connected" );
               addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 0, col  );       
                
               } // let i...size
+
+
+          size = decodedobject.jsondata.inactive_bots?.length ?? 0;
+
+          for (let i=0; i<size; i++)
+              {
+              let col = decodedobject.jsondata.inactive_bots[i].col;
+
+              theid = decodedobject.jsondata.inactive_bots[i].id;
+              thex  = decodedobject.jsondata.inactive_bots[i].x;
+              they  = decodedobject.jsondata.inactive_bots[i].y;
+              thez  = decodedobject.jsondata.inactive_bots[i].z;
+
+              thevx = decodedobject.jsondata.inactive_bots[i].vx;
+              thevy = decodedobject.jsondata.inactive_bots[i].vy;
+              thevz = decodedobject.jsondata.inactive_bots[i].vz;
+
+              addCube(
+                      theid,
+                      new THREE.Vector3(thex, they, thez),
+                      new THREE.Vector3(thevx, thevy, thevz),
+                      0,
+                      col,
+                      { opacity: 0.38, transparent: true, showArrow: false, renderType: "inactive" }
+                     );
+              } // for
           
          
   
@@ -550,6 +649,30 @@ showTargets(scene, decodedobject.target);
                {
                handleSetColor( decodedobject.msg[0] );               
                } // setcolor   
+
+
+            if (decodedobject.msg[0].event == 'addinactivebot')
+               {
+               let theid = decodedobject.msg[0].botid;
+               let thex  = decodedobject.msg[0].position.x;
+               let they  = decodedobject.msg[0].position.y;
+               let thez  = decodedobject.msg[0].position.z;
+
+               let thevx  = decodedobject.msg[0].orientation.x;
+               let thevy  = decodedobject.msg[0].orientation.y;
+               let thevz  = decodedobject.msg[0].orientation.z;
+
+               let thecolor  = decodedobject.msg[0].color;
+
+               addCube(
+                       theid,
+                       new THREE.Vector3(thex, they, thez),
+                       new THREE.Vector3(thevx, thevy, thevz),
+                       0,
+                       thecolor,
+                       { opacity: 0.38, transparent: true, showArrow: false, renderType: "inactive" }
+                      );
+               } // addinactivebot
             
            } // update
      
@@ -571,9 +694,26 @@ showTargets(scene, decodedobject.target);
         if (connected == 0) alert('No Connection');
         
         removeAllCubes( false );  
+
+        scan_level1_started = true;
+        document.getElementById('requeststructurescanlevel2botcontroller').classList.remove('button-pending');
                 
         
             cmd = "{ \"cmd\":\"structurescan\" }";; 
+            socket.send(cmd);
+
+            // Refresh cluster data so newly loaded forbidden cells can be visualized.
+            cmd = "{ \"cmd\":\"getclusterdata\" }";; 
+            socket.send(cmd);
+        });
+
+
+        document.getElementById('requeststructurescanlevel2botcontroller').addEventListener('click', function() {        
+        if (connected == 0) alert('No Connection');
+        
+        removeAllCubes( false );  
+
+            cmd = "{ \"cmd\":\"structurescan_lvl2\" }";; 
             socket.send(cmd);
 
             // Refresh cluster data so newly loaded forbidden cells can be visualized.
@@ -602,6 +742,12 @@ showTargets(scene, decodedobject.target);
         socket.send(cmd);
      
         });
+
+
+        document.getElementById('togglexraymode').addEventListener('click', function() {
+        xray_mode_enabled = !xray_mode_enabled;
+        applyXrayMode();
+        }); // togglexraymode
 
 
 
@@ -648,8 +794,13 @@ showTargets(scene, decodedobject.target);
 //
 //
 //        
-function addCube(botid, position,vector,masterbot,color)        
+function addCube(botid, position,vector,masterbot,color, options = {})        
 {
+const opacity = options.opacity ?? 1.0;
+const transparent = options.transparent ?? (opacity < 1.0);
+const showArrow = options.showArrow ?? true;
+const renderType = options.renderType ?? (masterbot == 1 ? "masterbot" : "active");
+const safeColor = color ?? "ffffff";
 
 position.z = -position.z;
 
@@ -658,6 +809,11 @@ let group_tmp = new THREE.Group();
 group_tmp.name = botid;
 group_tmp.userData = group_tmp.userData || {};
 group_tmp.userData.botid = botid;
+group_tmp.userData.render_type = renderType;
+group_tmp.userData.base_color = (masterbot == 1) ? "#ffffff" : ("#" + safeColor);
+group_tmp.userData.base_opacity = opacity;
+group_tmp.userData.base_transparent = transparent;
+group_tmp.userData.show_arrow = showArrow;
 
  
 if (masterbot == 1)
@@ -705,6 +861,7 @@ cube_tmp.geometry.computeVertexNormals();
         
         botid = "masterbot";
         botGroupMap[botid] = group_tmp;
+        applyXrayMode();
         
         
 } // if (masterbot == 1)
@@ -714,13 +871,13 @@ cube_tmp.geometry.computeVertexNormals();
 if (masterbot == 0)
 { 
 
-const material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 });
+const material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15, transparent: transparent, opacity: opacity });
 
 
 let cube_tmp = new THREE.Mesh(geometry, material);
 
 
-cube_tmp.material.color.set("#" + color); // color kann z.B. "ff0000" sein
+cube_tmp.material.color.set("#" + safeColor); // color kann z.B. "ff0000" sein
 cube_tmp.geometry.computeVertexNormals();
     
   
@@ -749,13 +906,16 @@ cube_tmp.geometry.computeVertexNormals();
         
         
         
-        let size = 1;
-        const rectGeometry = new THREE.PlaneGeometry(size, size); 
+        if (showArrow)
+           {
+           let size = 1;
+           const rectGeometry = new THREE.PlaneGeometry(size, size); 
         
-        let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow);
-        rectangle.rotation.x = -Math.PI / 2; 
-        rectangle.position.y = size / 2 + 0.01; 
-        group_tmp.add(rectangle); 
+           let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow);
+           rectangle.rotation.x = -Math.PI / 2; 
+           rectangle.position.y = size / 2 + 0.01; 
+           group_tmp.add(rectangle);
+           } // if (showArrow)
         
         rotateGroup.add(group_tmp);
         
@@ -766,6 +926,7 @@ cube_tmp.geometry.computeVertexNormals();
         
 
         botGroupMap[botid] = group_tmp;
+        applyXrayMode();
 
 
 
@@ -1037,7 +1198,7 @@ const materials = [
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 }), 
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 }), 
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 }), 
-    new THREE.MeshStandardMaterial({ color: 0xffffff, shininess: 15 }), 
+    new THREE.MeshStandardMaterial({ color: 0xffffff }), 
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 })  
 ];
 
