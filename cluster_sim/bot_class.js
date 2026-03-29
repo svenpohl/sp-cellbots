@@ -2,7 +2,7 @@
 // bot_class.js — Sven Pohl <sven.pohl@zen-systems.de> — MIT License © 2025
 //
 
-const cmd_parser_class = require('./cmd_parser_class');  
+const cmd_parser_class = require('../common/cmd_parser_class');  
 
 const Logger = require('./logger');  
 
@@ -33,6 +33,7 @@ constructor()
   this.mbconnection = 0;
   this.debug = "";
   this.active = 1;
+  this.inactive = 0;
   
   this.msgqueue        = [];
   this.index_neighbors = [];
@@ -84,7 +85,17 @@ this.vector_x = vx;
 this.vector_y = vy;
 this.vector_z = vz;
 
-this.inactive = inactive;
+if (Array.isArray(inactive))
+   {
+   inactive = inactive[0];
+   }
+
+this.inactive = (
+                 inactive === true ||
+                 inactive === 1 ||
+                 inactive === "1" ||
+                 inactive === "true"
+                 );
 
 this.color = color;
 
@@ -104,11 +115,16 @@ push_msg( msg )
 {
 let ret = 0;
 
+if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
+   {
+   return(0);
+   }
+
 let size = this.msgqueue.length;
 
 if (size < this.max_msgqueue)
    {   
-   Logger.log("push_msd("+this.id+") ["+msg+"]  size("+size+")");
+   Logger.log("push_msg("+this.id+") ["+msg+"]  size("+size+")");
    
    this.msgqueue.push( msg );
    return( 1 );
@@ -130,6 +146,11 @@ return(ret);
 pop_msg()
 {
 let ret = "";
+
+if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
+   {
+   return("");
+   }
 
 let size = this.msgqueue.length;
 
@@ -154,6 +175,11 @@ async run_cmd( cmdarray, caller )
 {
 let destination = null;
 let destreturn  = null;
+
+if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
+   {
+   return(false);
+   }
 
 
 // -> Reject all from locked slots
@@ -272,11 +298,32 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_INFO )
 
 if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_CHECK )
    { 
-   destreturn = cmdarray.destreturn;   
+   destreturn = cmdarray.destreturn;
+   let sourceslot = cmdarray.sourceslot.toUpperCase();
+
+   destreturn = destreturn.replace(/s/gi, sourceslot);
+
    let subcmd_destslot = cmdarray.subcmd[0][0].destslot;
    
-   
-   let status = caller.get_botstatus( this.x, this.y, this.z, subcmd_destslot );
+   let status = "";
+
+   if (subcmd_destslot == ".")
+      {
+      const slotnames = ['F','R','B','L','T','D'];
+
+      for (let i=0; i<slotnames.length; i++)
+          {
+          let tmpstatus = caller.get_botstatus( this.x, this.y, this.z, slotnames[i] );
+
+          if (tmpstatus == "OK") status += "a"; else
+          if (tmpstatus == "OFFL") status += "b"; else
+          if (tmpstatus == "EMPT") status += "c"; else
+                                 status += "d";
+          } // for
+      } else
+        {
+        status = caller.get_botstatus( this.x, this.y, this.z, subcmd_destslot );
+        } // else
    
    
    // Execute command
@@ -1072,5 +1119,3 @@ return new Promise(resolve => setTimeout(resolve, ms));
 
 
 module.exports = bot_class;
-
-
