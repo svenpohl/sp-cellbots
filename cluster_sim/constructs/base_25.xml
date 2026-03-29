@@ -16,6 +16,7 @@
 
 <cell>
 <id>B01</id>
+<col>eeeeff</col>
 <pos>
 <x>1</x>
 <y>0</y>
@@ -23,12 +24,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B02</id>
+<col>eeeeff</col>
 <pos>
 <x>1</x>
 <y>0</y>
@@ -36,12 +37,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B03</id>
+<col>eeeeff</col>
 <pos>
 <x>1</x>
 <y>0</y>
@@ -49,12 +50,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B04</id>
+<col>eeeeff</col>
 <pos>
 <x>1</x>
 <y>0</y>
@@ -62,12 +63,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B05</id>
+<col>eeeeff</col>
 <pos>
 <x>1</x>
 <y>0</y>
@@ -75,12 +76,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B06</id>
+<col>eeeeff</col>
 <pos>
 <x>2</x>
 <y>0</y>
@@ -88,12 +89,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B07</id>
+<col>eeeeff</col>
 <pos>
 <x>2</x>
 <y>0</y>
@@ -101,12 +102,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B08</id>
+<col>eeeeff</col>
 <pos>
 <x>2</x>
 <y>0</y>
@@ -114,12 +115,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B09</id>
+<col>eeeeff</col>
 <pos>
 <x>2</x>
 <y>0</y>
@@ -127,12 +128,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B10</id>
+<col>eeeeff</col>
 <pos>
 <x>2</x>
 <y>0</y>
@@ -140,12 +141,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B11</id>
+<col>eeeeff</col>
 <pos>
 <x>3</x>
 <y>0</y>
@@ -153,12 +154,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B12</id>
+<col>eeeeff</col>
 <pos>
 <x>3</x>
 <y>0</y>
@@ -166,12 +167,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B13</id>
+<col>eeeeff</col>
 <pos>
 <x>3</x>
 <y>0</y>
@@ -179,12 +180,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B14</id>
+<col>eeeeff</col>
 <pos>
 <x>3</x>
 <y>0</y>
@@ -192,12 +193,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B15</id>
+<col>ff8888</col>
 <pos>
 <x>3</x>
 <y>0</y>
@@ -205,12 +206,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>ff8888</col>
 </pos>
 </cell>
 
 <cell>
 <id>B16</id>
+<col>eeeeff</col>
 <pos>
 <x>4</x>
 <y>0</y>
@@ -218,12 +219,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B17</id>
+<col>eeeeff</col>
 <pos>
 <x>4</x>
 <y>0</y>
@@ -231,12 +232,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B18</id>
+<col>eeeeff</col>
 <pos>
 <x>4</x>
 <y>0</y>
@@ -244,12 +245,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B19</id>
+<col>eeeeff</col>
 <pos>
 <x>4</x>
 <y>0</y>
@@ -257,12 +258,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B20</id>
+<col>88ff88</col>
 <pos>
 <x>4</x>
 <y>0</y>
@@ -270,12 +271,12 @@
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz>
-<col>88ff88</col>
 </pos>
 </cell>
 
 <cell>
 <id>B21</id>
+<col>eeeeff</col>
 <pos>
 <x>5</x>
 <y>0</y>
@@ -283,12 +284,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B22</id>
+<col>eeeeff</col>
 <pos>
 <x>5</x>
 <y>0</y>
@@ -296,12 +297,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B23</id>
+<col>eeeeff</col>
 <pos>
 <x>5</x>
 <y>0</y>
@@ -309,12 +310,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B24</id>
+<col>eeeeff</col>
 <pos>
 <x>5</x>
 <y>0</y>
@@ -322,12 +323,12 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>eeeeff</col>
 </pos>
 </cell>
 
 <cell>
 <id>B25</id>
+<col>8888ff</col>
 <pos>
 <x>5</x>
 <y>0</y>
@@ -335,7 +336,6 @@
 <vx>1</vx>
 <vy>0</vy>
 <vz>0</vz>
-<col>8888ff</col>
 </pos>
 </cell>
 
