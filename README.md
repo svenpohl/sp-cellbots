@@ -1,6 +1,6 @@
 # SP-CellBots – A Simulator for Programmable Matter
 
-Sven Pohl B.Sc. <sven.pohl@zen-systems.de> — MIT License © 2025  
+Sven Pohl B.Sc. <sven.pohl@zen-systems.de> — MIT License © 2026  
 This project is licensed under the [MIT License](./LICENSE).
 
 **SP-CellBots** is an open simulation and control system for programmable matter.  
@@ -59,20 +59,20 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.4.1**  
+Current version: **1.4.2**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
 
-- **1.4.1** (26.03.2026)  
-**Preparatory Structure Extension for Planned Repair Demo**
-  - Added initial support in BotController for an optional object-based structure format in **`/botcontroller/structures/[structure].json`**
-  - Existing plain voxel-array JSON files remain compatible; object-based files now use **`structure`** as the primary target voxel set
-  - Introduced preparatory role fields for extended structure definitions: **`carrier`**, **`reserve`**, **`x`** (planned storage area for inactive bots), **`forbidden`** (blocked voxel positions), and BotController-side handling of **`inactive`**
-  - Added minimal example file **`/botcontroller/structures/base_25_forbidden.json`** as a first extended-format demo structure
-  - BotController now keeps extended structure-role data separate from the main target bot coordinates for future repair and scenario logic
-  - Added initial WebGUI visualization for **`forbidden`** positions: exemplar voxels are rendered as semi-transparent dark wine-red markers
+- **1.4.2** (30.03.2026)  
+**Inactive Bot Detection, Universal Scan, and X-Ray Visualization**
+  - Added a two-stage scan workflow in BotController WebGUI: **`Start Scan`** for active structure discovery and **`Scan Level 2`** for secondary inactive-bot diagnostics
+  - Implemented first end-to-end detection of **inactive bots** across **ClusterSim** and **BotController**: inactive bots now drop out of the normal active scan but can be detected and reinserted as diagnostic placeholders
+  - Extended **`CHECK` / `RCHECK`** in the protocol with a backward-compatible universal scan mode using **`.`** as wildcard target and compact slot-state reports in **`FRBLTD`** order
+  - Added BotController frontend visualization for detected inactive bots as **semi-transparent red markers**
+  - Added **X-Ray Mode** in the BotController frontend: active bots are rendered transparent while inactive bots are highlighted more clearly for diagnostics
+  - Unified the command parser into a single shared implementation in **`/common/cmd_parser_class.js`** so ClusterSim and BotController use the same protocol parser
 
 👉 Full changelog is available at:  
 ➡️ [docs/changelog.md](docs/changelog.md)
