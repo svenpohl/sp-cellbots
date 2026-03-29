@@ -41,7 +41,7 @@ const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
 
 const Logger = require('./logger');
 
-const cmd_parser_class = require('./cmd_parser_class');  
+const cmd_parser_class = require('../common/cmd_parser_class');  
 
 const bot_class_mini = require('./bot_class_mini');
 
@@ -105,17 +105,23 @@ constructor()
    this.masterbot_first_scan = 1;
 
    this.scan_status  = 0;
+   this.scan_status_lvl2 = 0;
    this.tmpid_cnt    = 0;
  
    this.scan_waiting_info          = {}; 
+   this.scan_waiting_check         = {};
+   this.scan_targets_lvl2          = [];
+   this.scan_targets_lvl2_index    = 0;
    this.scan_timeout = 0;
 
 
    this.threadcounter          = 0;
    this.scanwaitingcounter     = 0;
+   this.scanwaitingcounter_lvl2 = 0;
    this.max_scanwaitingcounter = 80;
 
    this.signal_botids = null;
+   this.detected_inactive_bots = [];
    
    this.ws_gui = null;
    
@@ -919,7 +925,28 @@ this.threadcounter      = 0;
 
 
 
-  
+//
+//
+//  
+start_scan_lvl2( reset = 1)
+{
+this.scan_waiting_check      = {};
+this.scan_targets_lvl2       = [];
+this.scan_targets_lvl2_index = 0;
+this.scanwaitingcounter_lvl2 = 0;
+this.detected_inactive_bots  = [];
+
+let size = this.bots.length;
+
+for (let i=1; i<size; i++)
+    {
+    this.scan_targets_lvl2.push(this.bots[i].id);
+    } // for
+
+this.scan_status_lvl2 = 1;
+
+this.notify_frontend_console("Start Scan Level 2");
+} // start_scan_lvl2
   
 
 
@@ -1949,6 +1976,30 @@ for (let i=1; i < l; i++)
     } // for i...
      
 jsondata += "]";       
+jsondata += ", \"inactive_bots\": [";
+
+let inactive_size = this.detected_inactive_bots.length;
+
+for (let i=0; i<inactive_size; i++)
+    {
+    jsondata += "   { ";
+    jsondata += "   \"id\": \""+ this.detected_inactive_bots[i].id +"\" ,  ";
+    jsondata += "   \"x\": "+ this.detected_inactive_bots[i].x +",  ";
+    jsondata += "   \"y\": "+ this.detected_inactive_bots[i].y +",  ";
+    jsondata += "   \"z\": "+ this.detected_inactive_bots[i].z +",  ";
+    jsondata += "   \"vx\": "+ this.detected_inactive_bots[i].vx +",  ";
+    jsondata += "   \"vy\": "+ this.detected_inactive_bots[i].vy +",  ";
+    jsondata += "   \"vz\": "+ this.detected_inactive_bots[i].vz +",  ";
+    jsondata += "   \"col\": \""+ this.detected_inactive_bots[i].col +"\"  ";
+    jsondata += "   }    ";
+
+    if (i < ( inactive_size-1) )
+       {
+       jsondata += "   ,    ";
+       } // if
+    } // for
+
+jsondata += "]";
         
 
   
@@ -2440,6 +2491,64 @@ return (ret);
 
 
 //
+// register_inactive_detected()
+//
+register_inactive_detected( x, y, z, vx, vy, vz, source_bot_id, source_slot )
+{
+let target_key = this.getKey_3d(x, y, z);
+let size = this.detected_inactive_bots.length;
+
+for (let i=0; i<size; i++)
+    {
+    let tmpkey = this.getKey_3d(
+                               this.detected_inactive_bots[i].x,
+                               this.detected_inactive_bots[i].y,
+                               this.detected_inactive_bots[i].z
+                               );
+
+    if (tmpkey == target_key)
+       {
+       return(false);
+       } // if
+    } // for
+
+let inactive_id = "IBOT_" + x + "_" + y + "_" + z;
+
+this.detected_inactive_bots.push(
+                                 {
+                                 id: inactive_id,
+                                 x: x,
+                                 y: y,
+                                 z: z,
+                                 vx: vx,
+                                 vy: vy,
+                                 vz: vz,
+                                 col: "ff6666",
+                                 source_bot_id: source_bot_id,
+                                 source_slot: source_slot
+                                 }
+                                );
+
+const events = [];
+
+let notify_msg =
+    {
+    event: "addinactivebot",
+    botid: inactive_id,
+    position: { x: Number(x), y: Number(y), z: Number(z) },
+    orientation: { x: Number(vx), y: Number(vy), z: Number(vz) },
+    color: "ff6666"
+    };
+
+events.push( notify_msg );
+this.notify_frontend( events );
+
+return(true);
+} // register_inactive_detected()
+
+
+
+//
 // handle_answer (e.g. RINFO-handling)
 //
 handle_answer( decodedobject )
@@ -2704,6 +2813,54 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
    
    } // CMD_RALIFE  
 
+
+if ( msgarray.cmd == cmd_parser_class_obj.CMD_RCHECK )
+   {
+   if (this.scan_waiting_check[msgarray.botid] !== undefined)
+      {
+      this.scan_waiting_check[msgarray.botid].status = 1;
+      } // if
+
+   if (msgarray.status_mode == "compact")
+      {
+      let scanbot_index = this.get_bot_by_id( msgarray.botid, this.bots );
+      const slotnames_lvl2 = ['F','R','B','L','T','D'];
+
+      if (scanbot_index != null)
+         {
+         for (let i=0; i<slotnames_lvl2.length; i++)
+             {
+             let slotname = slotnames_lvl2[i];
+             let statuschar = msgarray.status[i];
+
+             if (statuschar == 'b')
+                {
+                let target_xyz = this.get_next_target_coor(
+                                                        this.bots[scanbot_index].x,
+                                                        this.bots[scanbot_index].y,
+                                                        this.bots[scanbot_index].z,
+                                                        this.bots[scanbot_index].vector_x,
+                                                        this.bots[scanbot_index].vector_y,
+                                                        this.bots[scanbot_index].vector_z,
+                                                        slotname
+                                                        );
+
+                this.register_inactive_detected(
+                                              target_xyz.x,
+                                              target_xyz.y,
+                                              target_xyz.z,
+                                              this.bots[scanbot_index].vector_x,
+                                              this.bots[scanbot_index].vector_y,
+                                              this.bots[scanbot_index].vector_z,
+                                              msgarray.botid,
+                                              slotname
+                                              );
+                } // if
+             } // for
+         } // if
+      } // if compact
+   } // CMD_RCHECK
+
    
  if ( msgarray.cmd == "XRRC" )
    {
@@ -2919,6 +3076,53 @@ if (this.masterbot_first_scan == 1)
 
 
 
+//
+// scan_step_lvl2()
+//
+scan_step_lvl2()
+{
+if (this.scan_targets_lvl2_index < this.scan_targets_lvl2.length)
+   {
+   let target_bot_id = this.scan_targets_lvl2[this.scan_targets_lvl2_index];
+   let target_bot_index = this.get_bot_by_id( target_bot_id, this.bots );
+
+   if (target_bot_index != null)
+      {
+      let firstindex = this.getKey_3d(this.mb['x'], this.mb['y'], this.mb['z']);
+      let target_addr = this.bots[target_bot_index].adress;
+      let retaddr = this.get_inverse_address(firstindex, target_addr);
+      let cmd = target_addr + "#CHECK#.#" + retaddr;
+
+      this.scan_waiting_check[target_bot_id] = {
+                                                botid: target_bot_id,
+                                                status: 0,
+                                                addr: target_addr
+                                                };
+
+      cmd = this.sign( cmd );
+
+      let cellbot_cmd = "{ \"cmd\":\"push\", \"param\":\""+cmd+"\" }\n";
+      this.client.write(cellbot_cmd);
+      } // if
+
+   this.scan_targets_lvl2_index++;
+   this.scanwaitingcounter_lvl2 = 0;
+   return;
+   } // if
+
+
+this.scanwaitingcounter_lvl2++;
+
+if (this.scanwaitingcounter_lvl2 > this.max_scanwaitingcounter)
+   {
+   this.scan_status_lvl2 = 0;
+   this.scanwaitingcounter_lvl2 = 0;
+   this.notify_frontend_console("Scan Level 2 complete");
+   } // if
+} // scan_step_lvl2()
+
+
+
 
  
  
@@ -3089,6 +3293,17 @@ const slotnames = ['f','r','b','l','t','d'];
                 
         } /// if (scan_status == 1)
 
+
+     if (this.scan_status_lvl2 == 1)
+        {
+        this.scan_step_lvl2();
+
+        let param = "";
+        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
+
+        this.client.write(cmd_pop);
+        } /// if (scan_status_lvl2 == 1)
+
      
      
      if ( this.self_assembly_obj.assembly_status == 1 )
@@ -3227,6 +3442,15 @@ handleGUIMessage(message) {
         //
         if (decodedobject.cmd === 'structurescan') {
             this.start_scan(1);
+            return;
+        }
+        
+        
+        //
+        // STRUCTURESCAN Level 2
+        //
+        if (decodedobject.cmd === 'structurescan_lvl2') {
+            this.start_scan_lvl2(1);
             return;
         }
 
