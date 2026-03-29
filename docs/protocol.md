@@ -83,6 +83,34 @@ Checks if a CellBot is present at a given slot (e.g., neighbor position) and whe
 **Example:**
 `[F#CHECK#R#B]`
 
+### Wildcard Extension for Universal Scan
+
+The `CHECK` command can also be used in an extended wildcard mode.
+Instead of a single target slot, the special character `.` is used.
+
+**Extended message format:**
+`[(address)#CHECK#.#(Return-Address)]`
+
+**Example:**
+`[F#CHECK#.#B]`
+
+**Meaning:**
+- `.` triggers a compact local neighborhood scan
+- the queried CellBot checks all currently defined physical neighbor slots
+- the scan result is returned through the existing `RCHECK` command
+- this keeps the protocol backward compatible while reducing overhead compared to sending multiple single-slot `CHECK` commands
+
+**Current slot order for the compact response:**
+`FRBLTD`
+
+This order refers to the six physical neighbor slots:
+- `F` = Front
+- `R` = Right
+- `B` = Back
+- `L` = Left
+- `T` = Top
+- `D` = Down
+
 ---
 
 ## 4. Command: RCHECK
@@ -101,6 +129,36 @@ Response to a CHECK command with status information about the slot.
 - **OK**: CellBot is functional (responds)
 - **OFFL**: CellBot detected but offline
 - **EMPT**: No CellBot at this position
+
+### Compact RCHECK Response for Universal Scan
+
+If `CHECK` is used with the wildcard target `.`, then `RCHECK` returns a compact scan report instead of one of the legacy status strings.
+
+**Extended example:**
+`[B#RCHECK#B01;aabcca]`
+
+**Interpretation rules:**
+- if the status starts with `O` or `E`, the legacy logic applies (`OK`, `OFFL`, `EMPT`)
+- if the status starts with `a`, `b`, `c`, or `d`, the compact universal-scan logic applies
+
+**Compact status order:**
+`FRBLTD`
+
+**Compact status codes:**
+- `a` = `OK`
+- `b` = `OFFL`
+- `c` = `EMPT`
+- `d` = `NOSENSOR`
+
+**Example interpretation for** `aabcca`:
+- `F = a = OK`
+- `R = a = OK`
+- `B = b = OFFL`
+- `L = c = EMPT`
+- `T = c = EMPT`
+- `D = a = OK`
+
+This compact response is intended for higher-level structure diagnostics such as a slower, more detailed secondary scan (`Scan Level 2`), while the original `CHECK` / `RCHECK` behavior remains unchanged for simple single-slot checks.
 
 ---
 
@@ -473,4 +531,3 @@ A core principle of this project is that the **BotController never depends on si
 
 [⬅️ Back to Overview](../README.md)
 **Previous:** [Installation & Quickstart](install.md) | **Next:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md)
-

@@ -6,6 +6,15 @@
 
 ---
 
+- **1.4.2** (30.03.2026)  
+**Inactive Bot Detection, Universal Scan, and X-Ray Visualization**
+  - Added a two-stage scan workflow in BotController WebGUI: **`Start Scan`** for active structure discovery and **`Scan Level 2`** for secondary inactive-bot diagnostics
+  - Implemented first end-to-end detection of **inactive bots** across **ClusterSim** and **BotController**: inactive bots now drop out of the normal active scan but can be detected and reinserted as diagnostic placeholders
+  - Extended **`CHECK` / `RCHECK`** with a backward-compatible universal scan mode using **`.`** as wildcard target and compact slot-state reports in **`FRBLTD`** order
+  - Added BotController frontend visualization for detected inactive bots as **semi-transparent red markers**
+  - Added **X-Ray Mode** in the BotController frontend: active bots are rendered transparent while inactive bots are highlighted more clearly for diagnostics
+  - Unified the command parser into a single shared implementation in **`/common/cmd_parser_class.js`** so ClusterSim and BotController use the same protocol parser
+
 
 - **1.4.1** (26.03.2026)  
 **Preparatory Structure Extension for Planned Repair Demo**
