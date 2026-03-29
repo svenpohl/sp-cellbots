@@ -29,7 +29,7 @@ const WebSocket = require('ws');
 const path = require('path');
 
 const bot_class = require('./bot_class');
-const cmd_parser_class = require('./cmd_parser_class');  
+const cmd_parser_class = require('../common/cmd_parser_class');  
 
 const Logger = require('./logger');
 Logger.reset();
@@ -229,7 +229,7 @@ const xml2js = require('xml2js');
                            cell.pos[0].vy[0],
                            cell.pos[0].vz[0],
                            cell.inactive,
-                           cell.pos[0].col[0],
+                           cell.col[0],
                            this.config.physical_bot_move_delay,
                            
                            this.config.enable_signing, 
@@ -1188,17 +1188,30 @@ if (message != "")
       {
       let indexdestbot = this.index_neighbors[destslot]; // e.g. (1.0,0) - null if does not exist
 
+      if (indexdestbot == undefined)
+         {
+         if (destslot == ".")
+            {
+            msgarray['destslot'] = "";
+            this.move_botcontroller_queue( msgarray, message );
+            } // if (destslot == ".")
+         else
+            {
+            Logger.log("Invalid masterbot routing destslot: " + destslot + " message: " + message);
+            } // else
+         } else
+           {
 
  
+      
+          let koor_x = Number(this.x) + Number(indexdestbot[0]);
+          let koor_y = Number(this.y) + Number(indexdestbot[1]);
+          let koor_z = Number(this.z) + Number(indexdestbot[2]);
    
-      let koor_x = Number(this.x) + Number(indexdestbot[0]);
-      let koor_y = Number(this.y) + Number(indexdestbot[1]);
-      let koor_z = Number(this.z) + Number(indexdestbot[2]);
-   
-      let tmp_botindex = this.get_3d(koor_x,koor_y,koor_z); // e.g. "x,y,z" 
+          let tmp_botindex = this.get_3d(koor_x,koor_y,koor_z); // e.g. "x,y,z" 
  
     
-      let slot_inbound = this.calc_inbound_slot(tmp_botindex, indexdestbot);
+          let slot_inbound = this.calc_inbound_slot(tmp_botindex, indexdestbot);
  
       
       if ( slot_inbound != "")
@@ -1211,6 +1224,7 @@ if (message != "")
       this.bots[tmp_botindex].push_msg( cmdnext );
       
       // LoggerBlender.event_log( "Routing: " + cmdnext );
+          } // else
       } // if (destslot != "")
    
    
@@ -1258,6 +1272,19 @@ for (let i=0; i < l; i++)
           {
 
           let indexdestbot = this.bots[i].index_neighbors[destslot];
+
+          if (indexdestbot == undefined)
+             {
+             if (destslot == ".")
+                {
+                msgarray['destslot'] = "";
+                await this.bots[i].run_cmd( msgarray, this );
+                continue;
+                } // if (destslot == ".")
+
+             Logger.log("Invalid bot routing destslot: " + destslot + " message: " + message);
+             continue;
+             } // if (indexdestbot == undefined)
     
           let koor_x = Number(this.bots[i].x) + Number(indexdestbot[0]);
           let koor_y = Number(this.bots[i].y) + Number(indexdestbot[1]);
@@ -1483,7 +1510,11 @@ if (botindex2 != null)
    {
    status = "OK";
    
-   if (this.bots[botindex2].inactive == 'true') status = "OFFL";
+   if (
+       this.bots[botindex2].inactive == 'true' ||
+       this.bots[botindex2].inactive === true ||
+       this.bots[botindex2].inactive == 1
+      ) status = "OFFL";
    }
 
 
@@ -1737,7 +1768,3 @@ async thread_bots() {
 
  
 module.exports = masterbot_class;
-
-
-
-
