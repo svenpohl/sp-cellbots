@@ -6,6 +6,15 @@
 
 ---
 
+- **1.5** (04.04.2026)  
+**API V1 becomes practically usable**
+  - Expanded the BotController API into a much more complete control layer for humans, scripts, and LLM tooling
+  - Added high-level transport helpers such as **`move_carrier_to`** and **`diagnose_move_carrier_to`**
+  - Added small Morph API building blocks such as **`morph_get_structures`**, **`morph_get_algos`**, **`morph_start`**, and **`morph_check_progress`**
+  - Improved payload-aware path planning, payload synchronization after carrier rotations, and bundled rotation execution with cleaner ACK routing
+  - Fixed important simulator/controller consistency issues around payload transport, blocked rotations, ACK routing after rotations, and morph progress reporting
+  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
+
 - **1.4.2** (30.03.2026)  
 **Inactive Bot Detection, Universal Scan, and X-Ray Visualization**
   - Added a two-stage scan workflow in BotController WebGUI: **`Start Scan`** for active structure discovery and **`Scan Level 2`** for secondary inactive-bot diagnostics

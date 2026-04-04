@@ -219,6 +219,13 @@ real-world deployment of morphogenic robotics in complex environments.
 
 ---
 
-[⬅️ Back to Overview](../README.md)\
-**Previous chapter:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md) | **Next chapter:** [Morphing](morphing.md)
+## 🔌 API Transition
 
+If you want to move from manual usage and GUI experiments to programmatic control, continue with:
+
+➡️ [API](api.md)
+
+---
+
+[⬅️ Back to Overview](../README.md)  
+**Previous chapter:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md) | **Next chapter:** [API](api.md)
