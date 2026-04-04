@@ -6,6 +6,16 @@
 
 ---
 
+- **1.5.1** (04.04.2026)  
+**Communication and address stability update**
+  - Added address-focused API helpers such as **`safe_mode`**, **`recalibrate_bot_address`**, **`recalibrate_bot_addresses`**, and **`diagnose_ack_route`**
+  - Introduced a staged **safe mode** model for BotController actions, including global address recalibration after confirmed structural changes
+  - Stabilized temporary ACK route planning by fixing numeric coordinate normalization inside the internal return-address search
+  - Added an optional **`minimal`** recalibration mode to prefer shorter and simpler local bot addresses in stable structures such as **`base_25`**
+  - Hardened MOVE path-to-primitive translation so the diagnostic primitive grouping is now much closer to the legacy translator used for real execution
+  - Improved confidence that direct API stacking, restacking, and remorphing flows can be executed without constantly resetting the test setup
+  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
+
 - **1.5** (04.04.2026)  
 **API V1 becomes practically usable**
   - Expanded the BotController API into a much more complete control layer for humans, scripts, and LLM tooling
