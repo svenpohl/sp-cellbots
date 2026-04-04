@@ -84,6 +84,8 @@ constructor()
    this.connect_masterbot = this.config.connect_masterbot;
    this.HOST              = this.config.masterbot_host;
    this.PORT = parseInt( this.config.masterbot_port, 10 );
+   this.ENABLE_API        = this.config.enable_api;
+   this.API_PORT          = parseInt( this.config.api_port, 10 );
 
  
  
@@ -122,8 +124,35 @@ constructor()
 
    this.signal_botids = null;
    this.detected_inactive_bots = [];
+   this.api_message_log = [];
+   this.api_message_log_max = 500;
+   this.api_action_log = [];
+   this.api_action_log_max = 100;
+   this.api_bot_history_log = [];
+   this.api_bot_history_log_max = 300;
+   this.api_raw_cmd_log = [];
+   this.api_raw_cmd_log_max = 100;
+   this.api_ack_map = {};
+   this.api_ack_counter = 0;
+   this.api_grab_state_map = {};
+   this.api_payload_links = {};
+   this.debug_move_enabled = false;
+   this.masterbot_incoming_buffer = "";
+   this.morph_status = {
+                       running: false,
+                       phase: "idle",
+                       progress: 0,
+                       structure: null,
+                       algo: null,
+                       success: null,
+                       started_at: null,
+                       finished_at: null,
+                       last_update: null,
+                       message: ""
+                       };
    
    this.ws_gui = null;
+   this.api_server = null;
    
    // Define supportet morph-Algorithms
    this.morphAlgorithms = [
@@ -147,6 +176,8 @@ constructor()
 
    console.log(`BotController Version: ${this.version} - CellBots`);
    console.log(`Port: ${this.PORT}`);
+   console.log(`enable_api: ${this.ENABLE_API}`);
+   console.log(`API Port: ${this.API_PORT}`);
    console.log(`connect_masterbot: ${this.connect_masterbot}`);
 
 
@@ -160,6 +191,7 @@ constructor()
 
 
    this.connect_to_external_masterbot();
+   this.start_api_service();
 
    // Start thread
    this.thread_botcontroller();
@@ -172,6 +204,1827 @@ constructor()
    startWebGUI(this);
 
    } // constructor()
+
+
+append_api_message_log(raw_message, parsed_message)
+{
+const cmd = parsed_message?.cmd ?? null;
+const cmd_name = this.apicall_get_cmd_name(cmd);
+const bot_id = parsed_message?.botid ?? null;
+const bottmpid = parsed_message?.bottmpid ?? null;
+const status = parsed_message?.status ?? null;
+const status_mode = parsed_message?.status_mode ?? null;
+
+this.api_message_log.push(
+                         {
+                         ts: new Date().toISOString(),
+                         raw: raw_message,
+                         cmd: cmd,
+                         cmd_name: cmd_name,
+                         bot_id: bot_id,
+                         bottmpid: bottmpid,
+                         status: status,
+                         status_mode: status_mode,
+                         parsed: parsed_message
+                         }
+                         );
+
+while (this.api_message_log.length > this.api_message_log_max)
+      {
+      this.api_message_log.shift();
+      } // while
+} // append_api_message_log()
+
+
+apicall_get_cmd_name(cmd)
+{
+const cmd_parser_class_obj = new cmd_parser_class();
+
+if (cmd == cmd_parser_class_obj.CMD_INFO)   return("INFO");
+if (cmd == cmd_parser_class_obj.CMD_RINFO)  return("RINFO");
+if (cmd == cmd_parser_class_obj.CMD_CHECK)  return("CHECK");
+if (cmd == cmd_parser_class_obj.CMD_RCHECK) return("RCHECK");
+if (cmd == cmd_parser_class_obj.CMD_ALIFE)  return("ALIFE");
+if (cmd == cmd_parser_class_obj.CMD_RALIFE) return("RALIFE");
+if (cmd == cmd_parser_class_obj.CMD_MOVE)   return("MOVE");
+if (cmd == cmd_parser_class_obj.CMD_SYS)    return("SYS");
+
+if (cmd == null || cmd == "") return("");
+
+return(String(cmd));
+} // apicall_get_cmd_name()
+
+
+reset_api_message_log()
+{
+this.api_message_log = [];
+} // reset_api_message_log()
+
+
+append_api_action_log(cmd_name, payload, result)
+{
+this.api_action_log.push(
+                        {
+                        ts: new Date().toISOString(),
+                        cmd: cmd_name,
+                        payload: payload ?? {},
+                        result: result ?? {}
+                        }
+                        );
+
+while (this.api_action_log.length > this.api_action_log_max)
+      {
+      this.api_action_log.shift();
+      } // while
+} // append_api_action_log()
+
+
+append_api_raw_cmd_log(raw_value, bot_id = null, accepted = false)
+{
+let raw_parts = String(raw_value ?? "").split("#");
+let target_address = String(raw_parts[0] ?? "");
+
+this.api_raw_cmd_log.push(
+                          {
+                          ts: new Date().toISOString(),
+                          raw_value: String(raw_value ?? ""),
+                          target_address: target_address,
+                          bot_id: bot_id,
+                          accepted: accepted === true
+                          }
+                          );
+
+while (this.api_raw_cmd_log.length > this.api_raw_cmd_log_max)
+      {
+      this.api_raw_cmd_log.shift();
+      } // while
+} // append_api_raw_cmd_log()
+
+
+apicall_get_bot_snapshot(bot_id)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+
+if (botindex == null)
+   {
+   return(null);
+   } // if
+
+return({
+       id: this.bots[botindex].id,
+       position: {
+                  x: Number(this.bots[botindex].x),
+                  y: Number(this.bots[botindex].y),
+                  z: Number(this.bots[botindex].z)
+                  },
+       orientation: {
+                     x: Number(this.bots[botindex].vector_x),
+                     y: Number(this.bots[botindex].vector_y),
+                     z: Number(this.bots[botindex].vector_z)
+                     },
+       adress: this.apicall_get_safe_adress(this.bots[botindex])
+       });
+} // apicall_get_bot_snapshot()
+
+
+append_api_bot_history(bot_id, cmd_name, payload, result)
+{
+if (!bot_id)
+   {
+   return(false);
+   } // if
+
+this.api_bot_history_log.push(
+                             {
+                             ts: new Date().toISOString(),
+                             bot_id: bot_id,
+                             cmd: cmd_name,
+                             payload: payload ?? {},
+                             result: result ?? {},
+                             snapshot: this.apicall_get_bot_snapshot(bot_id)
+                             }
+                             );
+
+while (this.api_bot_history_log.length > this.api_bot_history_log_max)
+      {
+      this.api_bot_history_log.shift();
+      } // while
+
+return(true);
+} // append_api_bot_history()
+
+
+apicall_get_bot_history(bot_id, limit)
+{
+let normalized_limit = Number(limit);
+let history = this.api_bot_history_log.filter((entry) => entry.bot_id === bot_id);
+
+if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
+   {
+   normalized_limit = 10;
+   } // if
+
+if (history.length > normalized_limit)
+   {
+   history = history.slice(history.length - normalized_limit);
+   } // if
+
+return({
+       ok: true,
+       answer: "api_get_bot_history",
+       bot_id: bot_id,
+       limit: normalized_limit,
+       count: history.length,
+       history: history
+       });
+} // apicall_get_bot_history()
+
+
+apicall_generate_ack_id(bot_id = "")
+{
+this.api_ack_counter++;
+
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (normalized_bot_id == "")
+   {
+   return("API" + this.api_ack_counter);
+   } // if
+
+return("API_" + normalized_bot_id + "_" + this.api_ack_counter);
+} // apicall_generate_ack_id()
+
+
+apicall_register_ack(ack_id, ack_payload = {})
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+
+if (normalized_ack_id == "")
+   {
+   return(false);
+   } // if
+
+this.api_ack_map[normalized_ack_id] = {
+                                      ack_id: normalized_ack_id,
+                                      bot_id: ack_payload.bot_id ?? "",
+                                      mode: ack_payload.mode ?? "move",
+                                      payload_bot_id: ack_payload.payload_bot_id ?? null,
+                                      to: ack_payload.to ?? null,
+                                      orientation: ack_payload.orientation ?? null,
+                                      planned_raw_cmd: ack_payload.planned_raw_cmd ?? "",
+                                      retaddr: ack_payload.retaddr ?? "",
+                                      status: ack_payload.status ?? "pending",
+                                      created_ts: new Date().toISOString(),
+                                      ack_ts: null
+                                      };
+
+return(true);
+} // apicall_register_ack()
+
+
+apicall_get_ack(ack_id)
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+
+if (normalized_ack_id == "")
+   {
+   return(null);
+   } // if
+
+if (this.api_ack_map[normalized_ack_id] === undefined)
+   {
+   return(null);
+   } // if
+
+return(this.api_ack_map[normalized_ack_id]);
+} // apicall_get_ack()
+
+
+apicall_get_front_neighbor_bot_id(bot_snapshot)
+{
+if (!bot_snapshot)
+   {
+   return(null);
+   } // if
+
+let rel_vector = this.get_cell_relation_vector_byslot(
+                                                  "F",
+                                                  Number(bot_snapshot.orientation.x),
+                                                  Number(bot_snapshot.orientation.y),
+                                                  Number(bot_snapshot.orientation.z)
+                                                  );
+
+if (!rel_vector)
+   {
+   return(null);
+   } // if
+
+let target_x = Number(bot_snapshot.position.x) + Number(rel_vector.x);
+let target_y = Number(bot_snapshot.position.y) + Number(rel_vector.y);
+let target_z = Number(bot_snapshot.position.z) + Number(rel_vector.z);
+let target_index = this.get_3d(target_x, target_y, target_z);
+
+if (target_index != null && this.bots[target_index] !== undefined)
+   {
+   if (this.bots[target_index].id == "masterbot")
+      {
+      return(null);
+      } // if
+
+   return(String(this.bots[target_index].id));
+   } // if
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i] === undefined || this.bots[i] === null)
+       {
+       continue;
+       } // if
+
+    if (String(this.bots[i].id) == "masterbot")
+       {
+       continue;
+       } // if
+
+    if (
+       Number(this.bots[i].x) == Number(target_x) &&
+       Number(this.bots[i].y) == Number(target_y) &&
+       Number(this.bots[i].z) == Number(target_z)
+       )
+       {
+       return(String(this.bots[i].id));
+       } // if
+    } // for
+
+return(null);
+} // apicall_get_front_neighbor_bot_id()
+
+
+apicall_get_payload_target_from_carrier_state(position, orientation)
+{
+if (!position || !orientation)
+   {
+   return(null);
+   } // if
+
+let rel_vector = this.get_cell_relation_vector_byslot(
+                                                  "F",
+                                                  Number(orientation.x),
+                                                  Number(orientation.y),
+                                                  Number(orientation.z)
+                                                  );
+
+if (!rel_vector)
+   {
+   return(null);
+   } // if
+
+return({
+       x: Number(position.x) + Number(rel_vector.x),
+       y: Number(position.y) + Number(rel_vector.y),
+       z: Number(position.z) + Number(rel_vector.z)
+       });
+} // apicall_get_payload_target_from_carrier_state()
+
+
+apicall_get_rotation_plan_between_orientations(from_orientation, to_orientation)
+{
+if (!from_orientation || !to_orientation)
+   {
+   return([]);
+   } // if
+
+let from_x = Number(from_orientation.x);
+let from_y = Number(from_orientation.y);
+let from_z = Number(from_orientation.z);
+let target_x = Number(to_orientation.x);
+let target_y = Number(to_orientation.y);
+let target_z = Number(to_orientation.z);
+
+if (from_x === target_x && from_y === target_y && from_z === target_z)
+   {
+   return([]);
+   } // if
+
+let rotate_right_once = this.apicall_rotate_orientation(from_x, from_y, from_z, "R");
+if (
+   rotate_right_once &&
+   Number(rotate_right_once.x) === target_x &&
+   Number(rotate_right_once.y) === target_y &&
+   Number(rotate_right_once.z) === target_z
+   )
+   {
+   return(["R"]);
+   } // if
+
+let rotate_left_once = this.apicall_rotate_orientation(from_x, from_y, from_z, "L");
+if (
+   rotate_left_once &&
+   Number(rotate_left_once.x) === target_x &&
+   Number(rotate_left_once.y) === target_y &&
+   Number(rotate_left_once.z) === target_z
+   )
+   {
+   return(["L"]);
+   } // if
+
+let rotate_right_twice = rotate_right_once
+                         ? this.apicall_rotate_orientation(
+                                                          Number(rotate_right_once.x),
+                                                          Number(rotate_right_once.y),
+                                                          Number(rotate_right_once.z),
+                                                          "R"
+                                                          )
+                         : null;
+
+if (
+   rotate_right_twice &&
+   Number(rotate_right_twice.x) === target_x &&
+   Number(rotate_right_twice.y) === target_y &&
+   Number(rotate_right_twice.z) === target_z
+   )
+   {
+   return(["R", "R"]);
+   } // if
+
+return([]);
+} // apicall_get_rotation_plan_between_orientations()
+
+
+apicall_register_payload_link(carrier_bot_id, payload_bot_id, relative_slot = "F", attached = true)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+
+if (normalized_carrier_bot_id == "" || normalized_payload_bot_id == "")
+   {
+   return(null);
+   } // if
+
+let payload_link = {
+                   carrier_bot_id: normalized_carrier_bot_id,
+                   payload_bot_id: normalized_payload_bot_id,
+                   relative_slot: String(relative_slot ?? "F").trim().toUpperCase(),
+                   attached: attached === true
+                   };
+
+this.api_payload_links[normalized_carrier_bot_id] = payload_link;
+this.api_grab_state_map[normalized_carrier_bot_id] = normalized_payload_bot_id;
+
+return(payload_link);
+} // apicall_register_payload_link()
+
+
+apicall_clear_payload_link(carrier_bot_id)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+
+if (normalized_carrier_bot_id == "")
+   {
+   return(false);
+   } // if
+
+delete this.api_payload_links[normalized_carrier_bot_id];
+delete this.api_grab_state_map[normalized_carrier_bot_id];
+
+return(true);
+} // apicall_clear_payload_link()
+
+
+apicall_get_payload_link_for_carrier(carrier_bot_id)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let payload_link = null;
+let legacy_payload_bot_id = null;
+
+if (normalized_carrier_bot_id == "")
+   {
+   return(null);
+   } // if
+
+payload_link = this.api_payload_links[normalized_carrier_bot_id] ?? null;
+
+if (payload_link)
+   {
+   return(payload_link);
+   } // if
+
+legacy_payload_bot_id = this.api_grab_state_map[normalized_carrier_bot_id] ?? null;
+
+if (String(legacy_payload_bot_id ?? "").trim() == "")
+   {
+   return(null);
+   } // if
+
+return(
+      this.apicall_register_payload_link(
+                                        normalized_carrier_bot_id,
+                                        legacy_payload_bot_id,
+                                        "F",
+                                        true
+                                        )
+      );
+} // apicall_get_payload_link_for_carrier()
+
+
+apicall_get_carried_payload_bot_id(carrier_bot_id)
+{
+let payload_link = this.apicall_get_payload_link_for_carrier(carrier_bot_id);
+
+if (!payload_link || payload_link.attached !== true)
+   {
+   return(null);
+   } // if
+
+return(String(payload_link.payload_bot_id ?? "").trim() || null);
+} // apicall_get_carried_payload_bot_id()
+
+
+apicall_morph_get_structures()
+{
+const structures_dir = path.join(__dirname, 'structures');
+let structures = [];
+
+try
+   {
+   structures = fs.readdirSync(structures_dir)
+                  .filter((filename) => filename.endsWith('.json'))
+                  .map((filename) => filename.replace(/\.json$/i, ''))
+                  .sort();
+   } catch (err)
+     {
+     return({
+            ok: false,
+            answer: "api_morph_get_structures",
+            error: "STRUCTURES_READ_FAILED",
+            details: String(err?.message ?? err)
+            });
+     } // catch
+
+return({
+       ok: true,
+       answer: "api_morph_get_structures",
+       count: structures.length,
+       list: structures
+       });
+} // apicall_morph_get_structures()
+
+
+apicall_morph_get_algos()
+{
+return({
+       ok: true,
+       answer: "api_morph_get_algos",
+       count: Array.isArray(this.morphAlgorithms) ? this.morphAlgorithms.length : 0,
+       list: Array.isArray(this.morphAlgorithms) ? this.morphAlgorithms : []
+       });
+} // apicall_morph_get_algos()
+
+
+apicall_morph_start(algo, structure)
+{
+let normalized_algo = String(algo ?? "").trim();
+let normalized_structure = String(structure ?? "").trim();
+let structures_ret = this.apicall_morph_get_structures();
+let algos_ret = this.apicall_morph_get_algos();
+let selected_algo = null;
+
+if (normalized_algo == "")
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start",
+          error: "MORPH_ALGO_MISSING"
+          });
+   } // if
+
+if (normalized_structure == "")
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start",
+          error: "MORPH_STRUCTURE_MISSING",
+          algo: normalized_algo
+          });
+   } // if
+
+selected_algo = (algos_ret.list ?? []).find((entry) => String(entry?.id ?? "").trim() == normalized_algo) ?? null;
+
+if (!selected_algo)
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start",
+          error: "MORPH_ALGO_NOT_FOUND",
+          algo: normalized_algo,
+          available_algos: algos_ret.list ?? []
+          });
+   } // if
+
+if (!(structures_ret.list ?? []).includes(normalized_structure))
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start",
+          error: "MORPH_STRUCTURE_NOT_FOUND",
+          algo: normalized_algo,
+          structure: normalized_structure,
+          available_structures: structures_ret.list ?? []
+          });
+   } // if
+
+this.prepare_morph(normalized_structure, normalized_algo);
+
+return({
+       ok: true,
+       answer: "api_morph_start",
+       accepted: true,
+       algo: normalized_algo,
+       structure: normalized_structure
+       });
+} // apicall_morph_start()
+
+
+apicall_update_morph_status(patch = {})
+{
+let now_iso = new Date().toISOString();
+
+this.morph_status = {
+                    ...this.morph_status,
+                    ...(patch ?? {}),
+                    last_update: now_iso
+                    };
+
+return(this.morph_status);
+} // apicall_update_morph_status()
+
+
+apicall_get_morph_status()
+{
+return({
+       ok: true,
+       answer: "api_morph_check_progress",
+       running: Boolean(this.morph_status?.running),
+       phase: this.morph_status?.phase ?? "idle",
+       progress: Number(this.morph_status?.progress ?? 0),
+       structure: this.morph_status?.structure ?? null,
+       algo: this.morph_status?.algo ?? null,
+       success: this.morph_status?.success ?? null,
+       started_at: this.morph_status?.started_at ?? null,
+       finished_at: this.morph_status?.finished_at ?? null,
+       last_update: this.morph_status?.last_update ?? null,
+       message: this.morph_status?.message ?? ""
+       });
+} // apicall_get_morph_status()
+
+
+apicall_sync_payload_from_carrier(carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [])
+{
+let payload_link = this.apicall_get_payload_link_for_carrier(carrier_bot_id);
+let payload_bot_id = payload_link?.payload_bot_id ?? null;
+
+if (!payload_bot_id)
+   {
+   this.append_api_bot_history(
+                              carrier_bot_id,
+                              "payload_sync_debug",
+                              {
+                              carrier_bot_id: carrier_bot_id,
+                              stage: "no_grab_state"
+                              },
+                              {
+                              ok: false,
+                              answer: "api_payload_sync_skipped",
+                              payload_bot_id: null
+                              }
+                              );
+   return(false);
+   } // if
+
+let payload_target = this.apicall_get_payload_target_from_carrier_state(carrier_position, carrier_orientation);
+
+if (!payload_target)
+   {
+   this.append_api_bot_history(
+                              carrier_bot_id,
+                              "payload_sync_debug",
+                              {
+                              carrier_bot_id: carrier_bot_id,
+                              stage: "no_payload_target",
+                              payload_bot_id: payload_bot_id
+                              },
+                              {
+                              ok: false,
+                              answer: "api_payload_sync_skipped"
+                              }
+                              );
+   return(false);
+   } // if
+
+let payload_index = this.get_bot_by_id(payload_bot_id, this.bots);
+
+if (payload_index == null)
+   {
+   this.append_api_bot_history(
+                              carrier_bot_id,
+                              "payload_sync_debug",
+                              {
+                              carrier_bot_id: carrier_bot_id,
+                              stage: "payload_bot_not_found",
+                              payload_bot_id: payload_bot_id,
+                              payload_target: payload_target
+                              },
+                              {
+                              ok: false,
+                              answer: "api_payload_sync_skipped"
+                              }
+                              );
+   return(false);
+   } // if
+
+let oldx = Number(this.bots[payload_index].x);
+let oldy = Number(this.bots[payload_index].y);
+let oldz = Number(this.bots[payload_index].z);
+let old_vx = Number(this.bots[payload_index].vector_x);
+let old_vy = Number(this.bots[payload_index].vector_y);
+let old_vz = Number(this.bots[payload_index].vector_z);
+let normalized_rotation_plan = Array.isArray(payload_rotation_plan) ? payload_rotation_plan : [];
+let payload_orientation_target = {
+                                 x: old_vx,
+                                 y: old_vy,
+                                 z: old_vz
+                                 };
+
+for (let i = 0; i < normalized_rotation_plan.length; i++)
+    {
+    let next_orientation = this.apicall_rotate_orientation(
+                                                         Number(payload_orientation_target.x),
+                                                         Number(payload_orientation_target.y),
+                                                         Number(payload_orientation_target.z),
+                                                         normalized_rotation_plan[i]
+                                                         );
+
+    if (!next_orientation)
+       {
+       break;
+       } // if
+
+    payload_orientation_target = {
+                                 x: Number(next_orientation.x),
+                                 y: Number(next_orientation.y),
+                                 z: Number(next_orientation.z)
+                                 };
+    } // for
+
+this.update_keyindex(oldx, oldy, oldz, payload_target.x, payload_target.y, payload_target.z);
+this.bots[payload_index].x = Number(payload_target.x);
+this.bots[payload_index].y = Number(payload_target.y);
+this.bots[payload_index].z = Number(payload_target.z);
+this.bots[payload_index].vector_x = Number(payload_orientation_target.x);
+this.bots[payload_index].vector_y = Number(payload_orientation_target.y);
+this.bots[payload_index].vector_z = Number(payload_orientation_target.z);
+this.bots[payload_index].adress = this.get_mb_returnaddr(
+                                                       {x:this.mb.x, y:this.mb.y, z:this.mb.z },
+                                                       {x:payload_target.x, y:payload_target.y, z:payload_target.z },
+                                                       this.bots
+                                                       );
+
+const events = [];
+events.push(
+            {
+            event: "move",
+            botid: payload_bot_id,
+            to: {
+                x: Number(payload_target.x),
+                y: Number(payload_target.y),
+                z: Number(payload_target.z)
+                }
+            }
+            );
+
+if (
+   Number(old_vx) !== Number(payload_orientation_target.x) ||
+   Number(old_vy) !== Number(payload_orientation_target.y) ||
+   Number(old_vz) !== Number(payload_orientation_target.z)
+   )
+   {
+   events.push(
+               {
+               event: "spin",
+               botid: payload_bot_id,
+               from: {
+                     x: Number(payload_target.x),
+                     y: Number(payload_target.y),
+                     z: Number(payload_target.z),
+                     vx: Number(old_vx),
+                     vy: Number(old_vy),
+                     vz: Number(old_vz)
+                     },
+               to: {
+                   x: Number(payload_target.x),
+                   y: Number(payload_target.y),
+                   z: Number(payload_target.z),
+                   vx: Number(payload_orientation_target.x),
+                   vy: Number(payload_orientation_target.y),
+                   vz: Number(payload_orientation_target.z)
+                   },
+               parent: "",
+               duration: 0,
+               ts: Number(new Date().getTime())
+               }
+               );
+   } // if
+
+this.notify_frontend(events);
+
+this.append_api_bot_history(
+                           payload_bot_id,
+                           "payload_sync",
+                           { carrier_bot_id: carrier_bot_id },
+                           {
+                           ok: true,
+                           answer: "api_payload_sync_applied",
+                           to: payload_target,
+                           orientation: payload_orientation_target
+                           }
+                           );
+
+this.append_api_bot_history(
+                           carrier_bot_id,
+                           "payload_sync_debug",
+                           {
+                           carrier_bot_id: carrier_bot_id,
+                           stage: "applied",
+                           payload_bot_id: payload_bot_id,
+                           payload_target: payload_target
+                           },
+                           {
+                           ok: true,
+                           answer: "api_payload_sync_applied",
+                           payload_orientation: payload_orientation_target
+                           }
+                           );
+
+return(true);
+} // apicall_sync_payload_from_carrier()
+
+
+apicall_mark_ack_received(ack_id, ack_status = "ack")
+{
+let ack_entry = this.apicall_get_ack(ack_id);
+
+if (!ack_entry)
+   {
+   return(false);
+   } // if
+
+ack_entry.status = ack_status;
+ack_entry.ack_ts = new Date().toISOString();
+
+return(true);
+} // apicall_mark_ack_received()
+
+
+apicall_mark_ack_recovered(ack_id)
+{
+return(this.apicall_mark_ack_received(ack_id, "recovered"));
+} // apicall_mark_ack_recovered()
+
+
+apicall_remove_ack(ack_id)
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+
+if (normalized_ack_id == "")
+   {
+   return(false);
+   } // if
+
+if (this.api_ack_map[normalized_ack_id] === undefined)
+   {
+   return(false);
+   } // if
+
+delete this.api_ack_map[normalized_ack_id];
+return(true);
+} // apicall_remove_ack()
+
+
+apicall_sleep(ms)
+{
+return(new Promise((resolve) => setTimeout(resolve, ms)));
+} // apicall_sleep()
+
+
+async apicall_wait_for_ack(ack_id, max_rounds = 3, delay_ms = 350)
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+
+if (normalized_ack_id == "")
+   {
+   return({
+          ack_id: normalized_ack_id,
+          ack_received: false,
+          ack_status: "missing_ack_id",
+          rounds_used: 0
+          });
+   } // if
+
+let normalized_rounds = Number(max_rounds);
+if (!Number.isFinite(normalized_rounds) || normalized_rounds <= 0)
+   {
+   normalized_rounds = 3;
+   } // if
+
+let normalized_delay = Number(delay_ms);
+if (!Number.isFinite(normalized_delay) || normalized_delay < 0)
+   {
+   normalized_delay = 350;
+   } // if
+
+let delay_schedule = [];
+
+for (let i = 0; i < normalized_rounds; i++)
+    {
+    let next_delay = normalized_delay * Math.pow(2, i);
+
+    if (next_delay > 5000)
+       {
+       next_delay = 5000;
+       } // if
+
+    delay_schedule.push(next_delay);
+    } // for
+
+for (let i = 0; i < normalized_rounds; i++)
+    {
+    this.apicall_poll_masterbot_queue();
+    await this.apicall_sleep(delay_schedule[i]);
+
+    let ack_entry = this.apicall_get_ack(normalized_ack_id);
+    if (ack_entry && ack_entry.status == "ack")
+       {
+       return({
+              ack_id: normalized_ack_id,
+              ack_received: true,
+              ack_status: ack_entry.status,
+              rounds_used: (i + 1),
+              ack_ts: ack_entry.ack_ts ?? null,
+              delay_schedule_ms: delay_schedule.slice(0, i + 1)
+              });
+       } // if
+    } // for
+
+let final_ack_entry = this.apicall_get_ack(normalized_ack_id);
+
+return({
+       ack_id: normalized_ack_id,
+       ack_received: false,
+       ack_status: final_ack_entry?.status ?? "pending",
+       rounds_used: normalized_rounds,
+       ack_ts: final_ack_entry?.ack_ts ?? null,
+       delay_schedule_ms: delay_schedule
+       });
+} // apicall_wait_for_ack()
+
+
+async apicall_attach_ack_wait_and_recovery(ret)
+{
+if (!ret || typeof ret != "object" || !ret.ack_id)
+   {
+   return(ret);
+   } // if
+
+let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
+ret.ack_wait = ack_wait_ret;
+ret.ack_received = ack_wait_ret.ack_received;
+
+if (ack_wait_ret.ack_received !== true)
+   {
+   ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
+   } // if
+
+return(ret);
+} // apicall_attach_ack_wait_and_recovery()
+
+
+apicall_positions_equal(pos1, pos2)
+{
+if (!pos1 || !pos2)
+   {
+   return(false);
+   } // if
+
+return(
+       Number(pos1.x) === Number(pos2.x) &&
+       Number(pos1.y) === Number(pos2.y) &&
+       Number(pos1.z) === Number(pos2.z)
+       );
+} // apicall_positions_equal()
+
+
+apicall_orientations_equal(ori1, ori2)
+{
+if (!ori1 || !ori2)
+   {
+   return(false);
+   } // if
+
+return(
+       Number(ori1.x) === Number(ori2.x) &&
+       Number(ori1.y) === Number(ori2.y) &&
+       Number(ori1.z) === Number(ori2.z)
+       );
+} // apicall_orientations_equal()
+
+
+apicall_collect_neighbor_probe(bot_id, expected_position, snapshot)
+{
+let probe = {
+            bot_id: String(bot_id ?? "").trim(),
+            expected_position: expected_position ?? null,
+            target_state: "unknown",
+            occupied_orthogonal_count: 0,
+            occupied_orthogonal_ids: [],
+            orthogonal_neighbors: {},
+            snapshot_neighbors: null
+            };
+
+if (expected_position)
+   {
+   const neighbor_offsets = [
+                             { key: "XP", x:  1, y:  0, z:  0 },
+                             { key: "XM", x: -1, y:  0, z:  0 },
+                             { key: "YP", x:  0, y:  1, z:  0 },
+                             { key: "YM", x:  0, y: -1, z:  0 },
+                             { key: "ZP", x:  0, y:  0, z:  1 },
+                             { key: "ZM", x:  0, y:  0, z: -1 }
+                             ];
+   let expected_x = Number(expected_position.x);
+   let expected_y = Number(expected_position.y);
+   let expected_z = Number(expected_position.z);
+   let target_bot_index = this.get_3d(expected_x, expected_y, expected_z);
+   let target_inactive_bot = this.apicall_get_inactive_bot_by_xyz(expected_x, expected_y, expected_z);
+
+   if (target_bot_index != null)
+      {
+      probe.target_state = "active";
+      probe.target_bot_id = this.bots[target_bot_index].id;
+      } // if
+   else if (target_inactive_bot != null)
+      {
+      probe.target_state = "inactive";
+      probe.target_bot_id = target_inactive_bot.id;
+      } // else if
+   else
+      {
+      probe.target_state = "empty";
+      } // else
+
+   for (let i = 0; i < neighbor_offsets.length; i++)
+       {
+       let offset = neighbor_offsets[i];
+       let nx = expected_x + offset.x;
+       let ny = expected_y + offset.y;
+       let nz = expected_z + offset.z;
+       let neighbor_index = this.get_3d(nx, ny, nz);
+       let inactive_neighbor = this.apicall_get_inactive_bot_by_xyz(nx, ny, nz);
+       let neighbor_entry = {
+                            position: {
+                                       x: nx,
+                                       y: ny,
+                                       z: nz
+                                       },
+                            state: "empty"
+                            };
+
+       if (inactive_neighbor != null)
+          {
+          neighbor_entry = {
+                           position: {
+                                      x: nx,
+                                      y: ny,
+                                      z: nz
+                                      },
+                           state: "inactive",
+                           id: inactive_neighbor.id
+                           };
+          } // if
+
+       if (neighbor_index != null)
+          {
+          neighbor_entry = {
+                           position: {
+                                      x: nx,
+                                      y: ny,
+                                      z: nz
+                                      },
+                           state: "active",
+                           id: this.bots[neighbor_index].id
+                           };
+          } // if
+
+       if (neighbor_entry.state != "empty")
+          {
+          probe.occupied_orthogonal_count++;
+
+          if (neighbor_entry.id !== undefined)
+             {
+             probe.occupied_orthogonal_ids.push(neighbor_entry.id);
+             } // if
+          } // if
+
+       probe.orthogonal_neighbors[offset.key] = neighbor_entry;
+       } // for
+   } // if
+
+if (snapshot && probe.bot_id != "")
+   {
+   let snapshot_neighbors_ret = this.apicall_get_neighbors(probe.bot_id);
+
+   if (snapshot_neighbors_ret.ok === true)
+      {
+      probe.snapshot_neighbors = snapshot_neighbors_ret.neighbors ?? null;
+      } // if
+   } // if
+
+return(probe);
+} // apicall_collect_neighbor_probe()
+
+
+async apicall_recover_after_ack_timeout(ack_id)
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+let ack_entry = this.apicall_get_ack(normalized_ack_id);
+
+if (normalized_ack_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_ack_recovery",
+          ack_id: normalized_ack_id,
+          recovery_status: "missing_ack_id"
+          });
+   } // if
+
+if (!ack_entry)
+   {
+   return({
+          ok: false,
+          answer: "api_ack_recovery",
+          ack_id: normalized_ack_id,
+          recovery_status: "ack_entry_missing"
+          });
+   } // if
+
+let bot_id = String(ack_entry.bot_id ?? "").trim();
+let expected_position = ack_entry.to ?? null;
+let expected_orientation = ack_entry.orientation ?? null;
+
+this.append_api_action_log(
+                           "ack_recovery_start",
+                           {
+                           ack_id: normalized_ack_id,
+                           bot_id: bot_id,
+                           mode: ack_entry.mode ?? null
+                           },
+                           {
+                           ok: true,
+                           answer: "api_ack_recovery",
+                           recovery_status: "started",
+                           expected_position: expected_position,
+                           expected_orientation: expected_orientation
+                           }
+                           );
+
+if (bot_id != "")
+   {
+   this.append_api_bot_history(
+                              bot_id,
+                              "ack_recovery_start",
+                              {
+                              ack_id: normalized_ack_id,
+                              mode: ack_entry.mode ?? null
+                              },
+                              {
+                              ok: true,
+                              answer: "api_ack_recovery",
+                              recovery_status: "started",
+                              expected_position: expected_position,
+                              expected_orientation: expected_orientation
+                              }
+                              );
+   } // if
+
+this.append_api_action_log(
+                           "ack_recovery_probe",
+                           {
+                           ack_id: normalized_ack_id,
+                           bot_id: bot_id,
+                           probe_kind: "late_ack_poll",
+                           mode: ack_entry.mode ?? null
+                           },
+                           {
+                           ok: true,
+                           answer: "api_ack_recovery",
+                           recovery_status: "probing"
+                           }
+                           );
+
+if (bot_id != "")
+   {
+   this.append_api_bot_history(
+                              bot_id,
+                              "ack_recovery_probe",
+                              {
+                              ack_id: normalized_ack_id,
+                              probe_kind: "late_ack_poll",
+                              mode: ack_entry.mode ?? null
+                              },
+                              {
+                              ok: true,
+                              answer: "api_ack_recovery",
+                              recovery_status: "probing"
+                              }
+                              );
+   } // if
+
+this.apicall_poll_masterbot_queue();
+await this.apicall_sleep(250);
+
+let late_ack_entry = this.apicall_get_ack(normalized_ack_id);
+
+if (late_ack_entry && late_ack_entry.status == "ack")
+   {
+   let late_ret = {
+                  ok: true,
+                  answer: "api_ack_recovery",
+                  ack_id: normalized_ack_id,
+                  bot_id: bot_id,
+                  recovery_status: "late_ack",
+                  ack_status: late_ack_entry.status,
+                  ack_ts: late_ack_entry.ack_ts ?? null
+                  };
+
+   this.append_api_action_log(
+                              "ack_recovery_result",
+                              {
+                              ack_id: normalized_ack_id,
+                              bot_id: bot_id
+                              },
+                              late_ret
+                              );
+
+   if (bot_id != "")
+      {
+      this.append_api_bot_history(
+                                 bot_id,
+                                 "ack_recovery_result",
+                                 {
+                                 ack_id: normalized_ack_id
+                                 },
+                                 late_ret
+                                 );
+      } // if
+
+   return(late_ret);
+   } // if
+
+let snapshot = (bot_id != "" ? this.apicall_get_bot_snapshot(bot_id) : null);
+let recovery_status = "unresolved";
+let matches_expected_position = false;
+let matches_expected_orientation = false;
+let mode = String(ack_entry.mode ?? "").trim();
+let likely_blocked_motion = false;
+let likely_late_ack_only = false;
+let recovery_hint = "";
+let neighbor_probe = this.apicall_collect_neighbor_probe(bot_id, expected_position, snapshot);
+let effectively_done = false;
+let resolved_locally = false;
+
+this.append_api_action_log(
+                           "ack_recovery_probe",
+                           {
+                           ack_id: normalized_ack_id,
+                           bot_id: bot_id,
+                           probe_kind: "local_snapshot",
+                           mode: ack_entry.mode ?? null
+                           },
+                           {
+                           ok: true,
+                           answer: "api_ack_recovery",
+                           recovery_status: "probing",
+                           snapshot_available: (snapshot ? true : false)
+                           }
+                           );
+
+if (bot_id != "")
+   {
+   this.append_api_bot_history(
+                              bot_id,
+                              "ack_recovery_probe",
+                              {
+                              ack_id: normalized_ack_id,
+                              probe_kind: "local_snapshot",
+                              mode: ack_entry.mode ?? null
+                              },
+                              {
+                              ok: true,
+                              answer: "api_ack_recovery",
+                              recovery_status: "probing",
+                              snapshot_available: (snapshot ? true : false)
+                              }
+                              );
+   } // if
+
+this.append_api_action_log(
+                           "ack_recovery_probe",
+                           {
+                           ack_id: normalized_ack_id,
+                           bot_id: bot_id,
+                           probe_kind: "neighbor_probe",
+                           mode: ack_entry.mode ?? null
+                           },
+                           {
+                           ok: true,
+                           answer: "api_ack_recovery",
+                           recovery_status: "probing",
+                           target_state: neighbor_probe.target_state,
+                           occupied_orthogonal_count: neighbor_probe.occupied_orthogonal_count
+                           }
+                           );
+
+if (bot_id != "")
+   {
+   this.append_api_bot_history(
+                              bot_id,
+                              "ack_recovery_probe",
+                              {
+                              ack_id: normalized_ack_id,
+                              probe_kind: "neighbor_probe",
+                              mode: ack_entry.mode ?? null
+                              },
+                              {
+                              ok: true,
+                              answer: "api_ack_recovery",
+                              recovery_status: "probing",
+                              target_state: neighbor_probe.target_state,
+                              occupied_orthogonal_count: neighbor_probe.occupied_orthogonal_count
+                              }
+                              );
+   } // if
+
+if (snapshot && expected_position)
+   {
+   matches_expected_position = this.apicall_positions_equal(snapshot.position, expected_position);
+   } // if
+
+if (snapshot && expected_orientation)
+   {
+   matches_expected_orientation = this.apicall_orientations_equal(snapshot.orientation, expected_orientation);
+   } // if
+
+if (matches_expected_position && matches_expected_orientation)
+   {
+   recovery_status = "state_matches_expected";
+   } // if
+else if (matches_expected_position)
+   {
+   recovery_status = "position_matches_expected";
+   } // else if
+else if (matches_expected_orientation)
+   {
+   recovery_status = "orientation_matches_expected";
+   } // else if
+else if (snapshot)
+   {
+   recovery_status = "snapshot_collected";
+   } // else if
+
+if (mode == "spin" && matches_expected_position === true && matches_expected_orientation === false)
+   {
+   likely_blocked_motion = true;
+   recovery_hint = "position stable but orientation unchanged after spin timeout";
+
+   if (neighbor_probe.occupied_orthogonal_count > 0)
+      {
+      recovery_hint += "; local neighborhood may be blocking rotation";
+      } // if
+   } // if
+else if ((mode == "move" || mode == "grab" || mode == "release") && matches_expected_position === true)
+   {
+   likely_late_ack_only = true;
+   recovery_hint = "expected position already visible locally despite missing ack";
+   } // else if
+else if (recovery_status == "unresolved")
+   {
+   recovery_hint = "local snapshot does not yet explain missing ack";
+   } // else if
+else if (recovery_status == "snapshot_collected")
+   {
+   recovery_hint = "snapshot collected but does not match expected target state";
+   } // else if
+else if (recovery_status == "state_matches_expected")
+   {
+   recovery_hint = "local state already matches expected target state";
+   } // else if
+else if (recovery_status == "position_matches_expected")
+   {
+   recovery_hint = "position matches expected target state";
+   } // else if
+else if (recovery_status == "orientation_matches_expected")
+   {
+   recovery_hint = "orientation matches expected target state";
+   } // else if
+
+if (mode == "spin" && matches_expected_position === true && matches_expected_orientation === true)
+   {
+   effectively_done = true;
+   resolved_locally = true;
+   } // if
+
+if (mode == "move" && matches_expected_position === true)
+   {
+   effectively_done = true;
+   resolved_locally = true;
+   } // if
+
+if (resolved_locally === true)
+   {
+   this.apicall_mark_ack_recovered(normalized_ack_id);
+
+   if (recovery_hint != "")
+      {
+      recovery_hint += "; local state is sufficient to treat the command as completed";
+      } // if
+   else
+      {
+      recovery_hint = "local state is sufficient to treat the command as completed";
+      } // else
+   } // if
+
+let recovery_ret = {
+                   ok: true,
+                   answer: "api_ack_recovery",
+                   ack_id: normalized_ack_id,
+                   bot_id: bot_id,
+                   mode: ack_entry.mode ?? null,
+                   recovery_status: recovery_status,
+                   expected_position: expected_position,
+                   expected_orientation: expected_orientation,
+                   matches_expected_position: matches_expected_position,
+                   matches_expected_orientation: matches_expected_orientation,
+                   effectively_done: effectively_done,
+                   resolved_locally: resolved_locally,
+                   likely_blocked_motion: likely_blocked_motion,
+                   likely_late_ack_only: likely_late_ack_only,
+                   recovery_hint: recovery_hint,
+                   neighbor_probe: neighbor_probe,
+                   snapshot: snapshot
+                   };
+
+this.append_api_action_log(
+                           "ack_recovery_result",
+                           {
+                           ack_id: normalized_ack_id,
+                           bot_id: bot_id
+                           },
+                           recovery_ret
+                           );
+
+if (bot_id != "")
+   {
+   this.append_api_bot_history(
+                              bot_id,
+                              "ack_recovery_result",
+                              {
+                              ack_id: normalized_ack_id
+                              },
+                              recovery_ret
+                              );
+   } // if
+
+return(recovery_ret);
+} // apicall_recover_after_ack_timeout()
+
+
+apicall_resolve_bot_id_by_address(address)
+{
+let normalized_address = String(address ?? "").trim();
+
+if (normalized_address == "")
+   {
+   return(null);
+   } // if
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i].id == "masterbot")
+       {
+       continue;
+       } // if
+
+    if (String(this.apicall_get_safe_adress(this.bots[i])) === normalized_address)
+       {
+       return(this.bots[i].id);
+       } // if
+    } // for
+
+for (let i = this.api_bot_history_log.length - 1; i >= 0; i--)
+    {
+    let entry = this.api_bot_history_log[i];
+
+    if (!entry.snapshot || !entry.snapshot.adress)
+       {
+       continue;
+       } // if
+
+    if (String(entry.snapshot.adress) === normalized_address)
+       {
+       return(entry.bot_id);
+       } // if
+    } // for
+
+return(null);
+} // apicall_resolve_bot_id_by_address()
+
+
+apicall_get_last_moves(limit)
+{
+let normalized_limit = Number(limit);
+if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
+   {
+   normalized_limit = 10;
+   } // if
+
+let moves = this.api_action_log;
+
+if (moves.length > normalized_limit)
+   {
+   moves = moves.slice(moves.length - normalized_limit);
+   } // if
+
+return(
+       {
+       ok: true,
+       answer: "api_get_last_moves",
+       limit: normalized_limit,
+       count: moves.length,
+       moves: moves
+       }
+       );
+} // apicall_get_last_moves()
+
+
+apicall_get_last_raw_cmds(limit)
+{
+let normalized_limit = Number(limit);
+let raw_cmds = this.api_raw_cmd_log;
+
+if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
+   {
+   normalized_limit = 10;
+   } // if
+
+if (raw_cmds.length > normalized_limit)
+   {
+   raw_cmds = raw_cmds.slice(raw_cmds.length - normalized_limit);
+   } // if
+
+return({
+       ok: true,
+       answer: "api_get_last_raw_cmds",
+       limit: normalized_limit,
+       count: raw_cmds.length,
+       raw_cmds: raw_cmds
+       });
+} // apicall_get_last_raw_cmds()
+
+
+apicall_get_status_extended()
+{
+let total_bots = this.bots.length;
+let cluster_bots = this.bots.filter((bot) => bot.id != "masterbot");
+let cluster_count = cluster_bots.length;
+let bounding_box = null;
+
+if (cluster_count > 0)
+   {
+   let min_x = Number(cluster_bots[0].x);
+   let max_x = Number(cluster_bots[0].x);
+   let min_y = Number(cluster_bots[0].y);
+   let max_y = Number(cluster_bots[0].y);
+   let min_z = Number(cluster_bots[0].z);
+   let max_z = Number(cluster_bots[0].z);
+
+   for (let i=1; i<cluster_count; i++)
+       {
+       let x = Number(cluster_bots[i].x);
+       let y = Number(cluster_bots[i].y);
+       let z = Number(cluster_bots[i].z);
+
+       if (x < min_x) min_x = x;
+       if (x > max_x) max_x = x;
+       if (y < min_y) min_y = y;
+       if (y > max_y) max_y = y;
+       if (z < min_z) min_z = z;
+       if (z > max_z) max_z = z;
+       } // for
+
+   bounding_box = {
+                   min_x: min_x,
+                   max_x: max_x,
+                   min_y: min_y,
+                   max_y: max_y,
+                   min_z: min_z,
+                   max_z: max_z
+                   };
+   } // if
+
+return({
+       ok: true,
+       answer: "api_status_extended",
+       loaded_bots_total: total_bots,
+       loaded_cluster_bots: cluster_count,
+       masterbot_connected: (this.MASTERBOT_CONNECTED == 1),
+       masterbot_name: this.masterbot_name,
+       bounding_box: bounding_box
+       });
+} // apicall_get_status_extended()
+
+
+apicall_get_masterbot()
+{
+return({
+       ok: true,
+       answer: "api_get_masterbot",
+       id: "masterbot",
+       name: this.masterbot_name,
+       connected: (this.MASTERBOT_CONNECTED == 1),
+       connection_slot: String(this.mb['connection'] ?? "").toUpperCase(),
+       position: {
+                  x: Number(this.mb['x']),
+                  y: Number(this.mb['y']),
+                  z: Number(this.mb['z'])
+                  },
+       orientation: {
+                     x: Number(this.mb['vx']),
+                     y: Number(this.mb['vy']),
+                     z: Number(this.mb['vz'])
+                     }
+       });
+} // apicall_get_masterbot()
+
+
+apicall_get_scan_state()
+{
+return({
+       ok: true,
+       answer: "api_get_scan_state",
+       level1: {
+                running: (this.scan_status == 1),
+                waiting_counter: Number(this.scanwaitingcounter),
+                max_waiting_counter: Number(this.max_scanwaitingcounter)
+                },
+       level2: {
+                running: (this.scan_status_lvl2 == 1),
+                waiting_counter: Number(this.scanwaitingcounter_lvl2),
+                max_waiting_counter: Number(this.max_scanwaitingcounter)
+                },
+       loaded_bots: Number(this.bots.length),
+       detected_inactive_bots: Number(this.detected_inactive_bots.length)
+       });
+} // apicall_get_scan_state()
+
+
+apicall_gui_set_marker(x, y, z, size, color)
+{
+const allowed_colors = ['red', 'green', 'blue', 'yellow', 'cyan', 'white'];
+let marker_x = Number(x);
+let marker_y = Number(y);
+let marker_z = Number(z);
+let marker_size = Number(size);
+let marker_color = String(color ?? "").trim().toLowerCase();
+
+if (
+    Number.isNaN(marker_x) ||
+    Number.isNaN(marker_y) ||
+    Number.isNaN(marker_z) ||
+    Number.isNaN(marker_size)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_gui_set_marker",
+          error: "INVALID_MARKER_PARAMETERS"
+          });
+   } // if
+
+if (marker_size <= 0)
+   {
+   return({
+          ok: false,
+          answer: "api_gui_set_marker",
+          error: "INVALID_MARKER_SIZE"
+          });
+   } // if
+
+if (!allowed_colors.includes(marker_color))
+   {
+   return({
+          ok: false,
+          answer: "api_gui_set_marker",
+          error: "INVALID_MARKER_COLOR",
+          allowed_colors: allowed_colors
+          });
+   } // if
+
+const events = [];
+events.push(
+           {
+           event: "setmarker",
+           x: marker_x,
+           y: marker_y,
+           z: marker_z,
+           size: marker_size,
+           color: marker_color,
+           opacity: 0.8
+           }
+           );
+
+const sent = this.notify_frontend(events);
+
+return({
+       ok: true,
+       answer: "api_gui_set_marker",
+       accepted: true,
+       frontend_attached: sent,
+       marker: {
+                x: marker_x,
+                y: marker_y,
+                z: marker_z,
+                size: marker_size,
+                color: marker_color,
+                opacity: 0.8
+                }
+       });
+} // apicall_gui_set_marker()
+
+
+apicall_gui_clear_markers()
+{
+const events = [];
+events.push(
+           {
+           event: "clearmarkers"
+           }
+           );
+
+const sent = this.notify_frontend(events);
+
+return({
+       ok: true,
+       answer: "api_gui_clear_markers",
+       accepted: true,
+       frontend_attached: sent
+       });
+} // apicall_gui_clear_markers()
+
+
+apicall_gui_refresh()
+{
+const events = [];
+events.push(
+           {
+           event: "refreshworld"
+           }
+           );
+
+const sent = this.notify_frontend(events);
+
+return({
+       ok: true,
+       answer: "api_gui_refresh",
+       accepted: true,
+       frontend_attached: sent
+       });
+} // apicall_gui_refresh()
+
+
+apicall_set_debug_move(mode)
+{
+let normalized_mode = String(mode ?? "status").trim().toLowerCase();
+
+if (normalized_mode == "")
+   {
+   normalized_mode = "status";
+   } // if
+
+if (normalized_mode == "on")
+   {
+   this.debug_move_enabled = true;
+   } // if
+else if (normalized_mode == "off")
+   {
+   this.debug_move_enabled = false;
+   } // else if
+else if (normalized_mode != "status")
+   {
+   return({
+          ok: false,
+          answer: "api_debug_move",
+          error: "INVALID_MODE",
+          mode: normalized_mode,
+          allowed_modes: ["on", "off", "status"]
+          });
+   } // else if
+
+return({
+       ok: true,
+       answer: "api_debug_move",
+       mode: normalized_mode,
+       debug_move_enabled: (this.debug_move_enabled === true)
+       });
+} // apicall_set_debug_move()
+
+
+apicall_get_api_messages(filter_cmd, limit)
+{
+let normalized_filter_cmd = null;
+
+if (typeof filter_cmd == "string" && filter_cmd.trim() != "")
+   {
+   normalized_filter_cmd = filter_cmd.trim().toUpperCase();
+   } // if
+
+let normalized_limit = Number(limit);
+if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
+   {
+   normalized_limit = 50;
+   } // if
+
+let filtered_messages = this.api_message_log.filter((entry) =>
+                                                    {
+                                                    if (normalized_filter_cmd == null) return true;
+                                                    return (String(entry.cmd_name ?? "").toUpperCase() == normalized_filter_cmd);
+                                                    });
+
+if (filtered_messages.length > normalized_limit)
+   {
+   filtered_messages = filtered_messages.slice(filtered_messages.length - normalized_limit);
+   } // if
+
+return(
+       {
+       ok: true,
+       answer: "api_get_api_messages",
+       filter_cmd: normalized_filter_cmd,
+       limit: normalized_limit,
+       count: filtered_messages.length,
+       messages: filtered_messages
+       }
+       );
+} // apicall_get_api_messages()
    
    
    
@@ -630,8 +2483,10 @@ setup_masterbot_data_listener() {
    
 this.client.on('data', (data) => 
 {
+this.masterbot_incoming_buffer += data.toString();
 
-const messages = data.toString().split("\n").filter(Boolean);
+const messages = this.masterbot_incoming_buffer.split("\n");
+this.masterbot_incoming_buffer = messages.pop() ?? "";
   
 
   
@@ -666,6 +2521,7 @@ const jsonstring = msg.toString().trim();
        } catch (error) 
          {
          console.error("Error parsing JSON:", error);
+         console.error("Raw JSON chunk:", jsonstring);
          }
          
   
@@ -684,6 +2540,7 @@ this.client.on('close', () => {
     console.log('MasterBot connection closed.');
 
     this.MASTERBOT_CONNECTED = 0;
+    this.masterbot_incoming_buffer = "";
 
     // Versuche nicht, neu zu verbinden, falls der Benutzer absichtlich "quit" gedrückt hat
     if (this._shutdownRequested) {
@@ -837,14 +2694,21 @@ shutdown()
             console.log("→ Closing WebGUI WebSocket...");
             this.ws_gui.close();
         } catch(e) {}
-    }
+    } // if
+
+    if (this.api_server) {
+        try {
+            console.log("→ Closing API Server...");
+            this.api_server.close();
+        } catch(e) {}
+    } // if
 
     // 3) close readline 
     if (this.rl) {
         try {
             this.rl.close();
         } catch(e) {}
-    }
+    } // if
 
     // 4) exit process
     setTimeout(() => {
@@ -852,7 +2716,7 @@ shutdown()
         process.exit(0);
     }, 300);
     
-} // shutdown
+} // shutdown()
  
  
  
@@ -1015,6 +2879,19 @@ return {
 //
 prepare_morph( structure, algo_selected )
 {
+this.apicall_update_morph_status(
+                                 {
+                                 running: true,
+                                 phase: "preparing",
+                                 progress: 0,
+                                 structure: String(structure ?? "").trim() || null,
+                                 algo: String(algo_selected ?? "").trim() || null,
+                                 success: null,
+                                 started_at: new Date().toISOString(),
+                                 finished_at: null,
+                                 message: "Prepare Morph"
+                                 }
+                                 );
         
 // Set to global space
 this.morphAlgorithmSelected = algo_selected;
@@ -1109,12 +2986,31 @@ if (success === false)
    {
    console.log("Morphing stuck! No more moves possible, but not all bots are happy!");
    this.notify_frontend_console("Morphing stuck! No more moves possible, but not all bots are happy!");
+   this.apicall_update_morph_status(
+                                    {
+                                    running: false,
+                                    phase: "stuck",
+                                    success: false,
+                                    finished_at: new Date().toISOString(),
+                                    message: "Morphing stuck! No more moves possible, but not all bots are happy!"
+                                    }
+                                    );
 
    return;
    } else
      {
      console.log("Morphing calculation success!");
      this.notify_frontend_console("Morphing calculation success!");
+     this.apicall_update_morph_status(
+                                      {
+                                      running: false,
+                                      phase: "calculation_success",
+                                      progress: 100,
+                                      success: true,
+                                      finished_at: new Date().toISOString(),
+                                      message: "Morphing calculation success!"
+                                      }
+                                      );
      }
     
 // console.log("morphLog returns:");
@@ -1617,9 +3513,11 @@ for (let i=0; i<size-1; i++)
     
     
 size = rawMoves.length;
-    
-    
-let lastneighbour = {};    
+
+
+let lastneighbour = {};
+let final_lastanchor = "";
+let final_lastanchorneighbour = null;
 //    
 // Iterate all SubMoves, e.g. 'F' or 'FT'...    
 //
@@ -1689,6 +3587,8 @@ for (let i=0; i<size; i++)
          {
          // check if last valid connection slot
          movecmds += MoveSubCmd + "_" + lastanchor ;
+         final_lastanchor = lastanchor;
+         final_lastanchorneighbour = teststruct.lastanchorneighbour;
          
          
          if (i < (size-1) ) 
@@ -1732,10 +3632,15 @@ for (let i=0; i<size; i++)
     
     } // for i..size        
     
+    
  
 
-
-let ret = { movecmds:movecmds, lastneighbour: lastneighbour }; 
+let ret = {
+           movecmds: movecmds,
+           lastneighbour: lastneighbour,
+           final_lastanchor: final_lastanchor,
+           final_lastanchorneighbour: final_lastanchorneighbour
+           };
 
 // console.log("ret: calc_move_cmds");
 // console.log( ret );
@@ -2414,6 +4319,10 @@ get_3d(x, y, z) {
 //
 notify_frontend( events )
 {
+if ( !this.ws_gui || this.ws_gui.readyState !== WebSocket.OPEN )
+   {
+   return(false);
+   } // if
 
 let msg =
 {
@@ -2422,6 +4331,8 @@ msg: events
 };
  
 this.ws_gui.send( JSON.stringify(msg) );
+
+return(true);
  
 } // notify_frontend()
 
@@ -2431,6 +4342,56 @@ this.ws_gui.send( JSON.stringify(msg) );
 //
 notify_frontend_console( msg )
 {
+        let normalized_msg = String(msg ?? "");
+        let progress_match = normalized_msg.match(/^Progress:\s*(\d+)%$/i);
+
+        if (progress_match)
+           {
+           this.apicall_update_morph_status(
+                                            {
+                                            running: true,
+                                            phase: "calculating",
+                                            progress: Number(progress_match[1] ?? 0),
+                                            message: normalized_msg
+                                            }
+                                            );
+           }
+        else if (normalized_msg == "Prepare Morph")
+             {
+             this.apicall_update_morph_status(
+                                              {
+                                              running: true,
+                                              phase: "preparing",
+                                              progress: 0,
+                                              success: null,
+                                              message: normalized_msg
+                                              }
+                                              );
+             }
+        else if (normalized_msg == "Morphing calculation complete!")
+             {
+             this.apicall_update_morph_status(
+                                              {
+                                              running: true,
+                                              phase: "calculation_complete",
+                                              progress: Math.max(Number(this.morph_status?.progress ?? 0), 100),
+                                              message: normalized_msg
+                                              }
+                                              );
+             }
+        else if (normalized_msg == "Finish morph process!")
+             {
+             this.apicall_update_morph_status(
+                                              {
+                                              running: false,
+                                              phase: "finished",
+                                              progress: 100,
+                                              success: true,
+                                              finished_at: new Date().toISOString(),
+                                              message: normalized_msg
+                                              }
+                                              );
+             }
 
         const events = [];
       
@@ -2487,6 +4448,4775 @@ for (let i=0; i<size; i++)
 
 return (ret);
 } // get_bot_by_id();
+
+
+//
+// apicall_get_bot_by_id()
+//
+apicall_get_bot_by_id( bot_id )
+{
+let botindex = this.get_bot_by_id( bot_id, this.bots );
+
+if ( botindex == null )
+   {
+   return({
+          ok: false,
+          answer: "api_get_bot_by_id",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+
+return({
+       ok: true,
+       answer: "api_get_bot_by_id",
+       bot_id: bot.id,
+       position: {
+                  x: Number(bot.x),
+                  y: Number(bot.y),
+                  z: Number(bot.z)
+                  },
+       orientation: {
+                     x: Number(bot.vector_x),
+                     y: Number(bot.vector_y),
+                     z: Number(bot.vector_z)
+                     },
+       adress: this.apicall_get_safe_adress(bot)
+       });
+} // apicall_get_bot_by_id()
+
+
+//
+// apicall_get_safe_adress()
+//
+apicall_get_safe_adress( bot )
+{
+if ( !bot || bot.id == "masterbot" )
+   {
+   return("");
+   } // if
+
+let adress = bot.adress ?? "";
+
+if ( typeof adress != "string" )
+   {
+   return("");
+   } // if
+
+adress = adress.replace(/^undefined/gi, "");
+
+return(adress);
+} // apicall_get_safe_adress()
+
+
+//
+// apicall_get_bots()
+//
+apicall_get_bots( center_x, center_y, center_z, mode, radius )
+{
+let retbots = [];
+
+center_x = Number(center_x);
+center_y = Number(center_y);
+center_z = Number(center_z);
+radius   = Number(radius);
+
+if ( Number.isNaN(center_x) || Number.isNaN(center_y) || Number.isNaN(center_z) || Number.isNaN(radius) )
+   {
+   return({
+          ok: false,
+          answer: "api_get_bots",
+          error: "INVALID_PARAMETERS"
+          });
+   } // if
+
+if ( mode != "cube" )
+   {
+   return({
+          ok: false,
+          answer: "api_get_bots",
+          error: "UNSUPPORTED_MODE",
+          mode: mode
+          });
+   } // if
+
+for (let i=0; i<this.bots.length; i++)
+    {
+    let dx = Math.abs( Number(this.bots[i].x) - center_x );
+    let dy = Math.abs( Number(this.bots[i].y) - center_y );
+    let dz = Math.abs( Number(this.bots[i].z) - center_z );
+
+    if ( dx <= radius && dy <= radius && dz <= radius )
+       {
+       retbots.push({
+                    id: this.bots[i].id,
+                    position: {
+                               x: Number(this.bots[i].x),
+                               y: Number(this.bots[i].y),
+                               z: Number(this.bots[i].z)
+                               },
+                    orientation: {
+                                  x: Number(this.bots[i].vector_x),
+                                  y: Number(this.bots[i].vector_y),
+                                  z: Number(this.bots[i].vector_z)
+                                  },
+                    adress: this.apicall_get_safe_adress(this.bots[i])
+                    });
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_bots",
+       mode: "cube",
+       center: {
+                x: center_x,
+                y: center_y,
+                z: center_z
+                },
+       radius: radius,
+       count: retbots.length,
+       bots: retbots
+       });
+} // apicall_get_bots()
+
+
+//
+// apicall_raw_cmd()
+//
+apicall_raw_cmd( raw_value )
+{
+if ( typeof raw_value != "string" || raw_value.trim() == "" )
+   {
+   return({
+          ok: false,
+          answer: "api_raw_cmd",
+          error: "EMPTY_RAW_COMMAND"
+          });
+   } // if
+
+if ( this.MASTERBOT_CONNECTED != 1 )
+   {
+   return({
+          ok: false,
+          answer: "api_raw_cmd",
+          error: "MASTERBOT_NOT_CONNECTED"
+          });
+   } // if
+
+let param = this.sign( raw_value.trim() );
+let cmd = JSON.stringify({ cmd: "push", param }) + "\n";
+
+this.client.write(cmd);
+
+return({
+       ok: true,
+       answer: "api_raw_cmd",
+       accepted: true,
+       raw_value: raw_value.trim()
+       });
+} // apicall_raw_cmd()
+
+
+//
+// apicall_poll_masterbot_queue()
+//
+apicall_poll_masterbot_queue()
+{
+if ( this.MASTERBOT_CONNECTED != 1 )
+   {
+   return({
+          ok: false,
+          answer: "api_poll_masterbot_queue",
+          error: "MASTERBOT_NOT_CONNECTED"
+          });
+   } // if
+
+let cmd = JSON.stringify({ cmd: "pop", param: "" }) + "\n";
+this.client.write(cmd);
+
+return({
+       ok: true,
+       answer: "api_poll_masterbot_queue",
+       accepted: true
+       });
+} // apicall_poll_masterbot_queue()
+
+
+//
+// apicall_get_inactive_bots()
+//
+apicall_get_inactive_bots()
+{
+let retbots = [];
+let size = this.detected_inactive_bots.length;
+
+for (let i=0; i<size; i++)
+    {
+    retbots.push(
+                {
+                id: this.detected_inactive_bots[i].id,
+                position: {
+                           x: Number(this.detected_inactive_bots[i].x),
+                           y: Number(this.detected_inactive_bots[i].y),
+                           z: Number(this.detected_inactive_bots[i].z)
+                           },
+                orientation: {
+                              x: Number(this.detected_inactive_bots[i].vx),
+                              y: Number(this.detected_inactive_bots[i].vy),
+                              z: Number(this.detected_inactive_bots[i].vz)
+                              },
+                color: this.detected_inactive_bots[i].col,
+                source_bot_id: this.detected_inactive_bots[i].source_bot_id,
+                source_slot: this.detected_inactive_bots[i].source_slot
+                }
+                );
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_inactive_bots",
+       count: retbots.length,
+       bots: retbots
+       });
+} // apicall_get_inactive_bots()
+
+
+apicall_get_inactive_bot_by_xyz(x, y, z)
+{
+let size = this.detected_inactive_bots.length;
+
+for (let i=0; i<size; i++)
+    {
+    if (
+        Number(this.detected_inactive_bots[i].x) == Number(x) &&
+        Number(this.detected_inactive_bots[i].y) == Number(y) &&
+        Number(this.detected_inactive_bots[i].z) == Number(z)
+       )
+       {
+       return this.detected_inactive_bots[i];
+       } // if
+    } // for
+
+return null;
+} // apicall_get_inactive_bot_by_xyz()
+
+
+//
+// apicall_get_neighbors()
+//
+apicall_get_neighbors(bot_id)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+const slotnames = ['F','R','B','L','T','D'];
+let neighbors = {};
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_get_neighbors",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+for (let i=0; i<slotnames.length; i++)
+    {
+    let slotname = slotnames[i];
+    let target_xyz = this.get_next_target_coor(
+                                          this.bots[botindex].x,
+                                          this.bots[botindex].y,
+                                          this.bots[botindex].z,
+                                          this.bots[botindex].vector_x,
+                                          this.bots[botindex].vector_y,
+                                          this.bots[botindex].vector_z,
+                                          slotname
+                                          );
+
+    let target_bot_index = this.get_3d(target_xyz.x, target_xyz.y, target_xyz.z);
+    let inactive_bot = this.apicall_get_inactive_bot_by_xyz(target_xyz.x, target_xyz.y, target_xyz.z);
+
+    neighbors[slotname] = {
+                          position: {
+                                     x: Number(target_xyz.x),
+                                     y: Number(target_xyz.y),
+                                     z: Number(target_xyz.z)
+                                     },
+                          state: "empty"
+                          };
+
+    if (inactive_bot != null)
+       {
+       neighbors[slotname] = {
+                             position: {
+                                        x: Number(target_xyz.x),
+                                        y: Number(target_xyz.y),
+                                        z: Number(target_xyz.z)
+                                        },
+                             state: "inactive",
+                             id: inactive_bot.id,
+                             color: inactive_bot.col,
+                             source_bot_id: inactive_bot.source_bot_id,
+                             source_slot: inactive_bot.source_slot
+                             };
+       } // if
+
+    if (target_bot_index != null)
+       {
+       neighbors[slotname] = {
+                             position: {
+                                        x: Number(target_xyz.x),
+                                        y: Number(target_xyz.y),
+                                        z: Number(target_xyz.z)
+                                        },
+                             state: "active",
+                             id: this.bots[target_bot_index].id,
+                             orientation: {
+                                           x: Number(this.bots[target_bot_index].vector_x),
+                                           y: Number(this.bots[target_bot_index].vector_y),
+                                           z: Number(this.bots[target_bot_index].vector_z)
+                                           },
+                             adress: this.apicall_get_safe_adress(this.bots[target_bot_index])
+                             };
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_neighbors",
+       bot_id: bot_id,
+       center: {
+                position: {
+                           x: Number(this.bots[botindex].x),
+                           y: Number(this.bots[botindex].y),
+                           z: Number(this.bots[botindex].z)
+                           },
+                orientation: {
+                              x: Number(this.bots[botindex].vector_x),
+                              y: Number(this.bots[botindex].vector_y),
+                              z: Number(this.bots[botindex].vector_z)
+                              }
+                },
+       neighbors: neighbors
+       });
+} // apicall_get_neighbors()
+
+
+//
+// apicall_is_occupied()
+//
+apicall_is_occupied(x, y, z)
+{
+let target_bot_index = this.get_3d(x, y, z);
+let inactive_bot = this.apicall_get_inactive_bot_by_xyz(x, y, z);
+
+if (target_bot_index != null)
+   {
+   return({
+          ok: true,
+          answer: "api_is_occupied",
+          position: {
+                     x: Number(x),
+                     y: Number(y),
+                     z: Number(z)
+                     },
+          occupied: true,
+          state: "active",
+          id: this.bots[target_bot_index].id,
+          orientation: {
+                        x: Number(this.bots[target_bot_index].vector_x),
+                        y: Number(this.bots[target_bot_index].vector_y),
+                        z: Number(this.bots[target_bot_index].vector_z)
+                        },
+          adress: this.apicall_get_safe_adress(this.bots[target_bot_index])
+          });
+   } // if
+
+if (inactive_bot != null)
+   {
+   return({
+          ok: true,
+          answer: "api_is_occupied",
+          position: {
+                     x: Number(x),
+                     y: Number(y),
+                     z: Number(z)
+                     },
+          occupied: true,
+          state: "inactive",
+          id: inactive_bot.id,
+          color: inactive_bot.col,
+          source_bot_id: inactive_bot.source_bot_id,
+          source_slot: inactive_bot.source_slot
+          });
+   } // if
+
+return({
+       ok: true,
+       answer: "api_is_occupied",
+       position: {
+                  x: Number(x),
+                  y: Number(y),
+                  z: Number(z)
+                  },
+       occupied: false,
+       state: "empty"
+       });
+} // apicall_is_occupied()
+
+
+apicall_is_occupied_excluding_ids(x, y, z, excluded_bot_ids = [])
+{
+let normalized_excluded_ids = new Set(
+                                      (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
+                                      .map((id) => String(id ?? "").trim())
+                                      .filter((id) => id != "")
+                                      );
+let occupancy = this.apicall_is_occupied(x, y, z);
+
+if (occupancy.occupied !== true)
+   {
+   return(occupancy);
+   } // if
+
+if (normalized_excluded_ids.has(String(occupancy.id ?? "")))
+   {
+   return({
+          ok: true,
+          answer: "api_is_occupied",
+          position: {
+                     x: Number(x),
+                     y: Number(y),
+                     z: Number(z)
+                     },
+          occupied: false,
+          state: "excluded",
+          excluded_id: occupancy.id
+          });
+   } // if
+
+return(occupancy);
+} // apicall_is_occupied_excluding_ids()
+
+
+//
+// apicall_get_slot_status()
+//
+apicall_get_slot_status(bot_id, slot)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+let normalized_slot = String(slot ?? "").trim().toUpperCase();
+const valid_slots = ['F','R','B','L','T','D'];
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_get_slot_status",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if (!valid_slots.includes(normalized_slot))
+   {
+   return({
+          ok: false,
+          answer: "api_get_slot_status",
+          error: "INVALID_SLOT",
+          bot_id: bot_id,
+          slot: normalized_slot
+          });
+   } // if
+
+let target_xyz = this.get_next_target_coor(
+                                      this.bots[botindex].x,
+                                      this.bots[botindex].y,
+                                      this.bots[botindex].z,
+                                      this.bots[botindex].vector_x,
+                                      this.bots[botindex].vector_y,
+                                      this.bots[botindex].vector_z,
+                                      normalized_slot
+                                      );
+
+let occupancy = this.apicall_is_occupied(target_xyz.x, target_xyz.y, target_xyz.z);
+
+return({
+       ok: true,
+       answer: "api_get_slot_status",
+       bot_id: bot_id,
+       slot: normalized_slot,
+       center: {
+                position: {
+                           x: Number(this.bots[botindex].x),
+                           y: Number(this.bots[botindex].y),
+                           z: Number(this.bots[botindex].z)
+                           },
+                orientation: {
+                              x: Number(this.bots[botindex].vector_x),
+                              y: Number(this.bots[botindex].vector_y),
+                              z: Number(this.bots[botindex].vector_z)
+                              }
+                },
+       target: occupancy
+       });
+} // apicall_get_slot_status()
+
+
+//
+// apicall_probe_move_bot()
+//
+apicall_probe_move_bot(bot_id, move)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+let normalized_move = String(move ?? "").trim().toUpperCase();
+const valid_slots = ['F','R','B','L','T','D'];
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if (normalized_move == "")
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "EMPTY_MOVE",
+          bot_id: bot_id
+          });
+   } // if
+
+if (normalized_move.includes(";"))
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "MOVE_SEQUENCES_ARE_NOT_YET_SUPPORTED",
+          bot_id: bot_id,
+          move: normalized_move
+          });
+   } // if
+
+if (/[0-9]+$/g.test(normalized_move))
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "MOVE_REPETITIONS_CANNOT_CURRENTLY_BE_VALIDATED",
+          bot_id: bot_id,
+          move: normalized_move
+          });
+   } // if
+
+let moveparts = normalized_move.split("_");
+
+if (moveparts.length != 3)
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "INVALID_MOVE_FORMAT",
+          bot_id: bot_id,
+          move: normalized_move
+          });
+   } // if
+
+let start_slot = moveparts[0];
+let move_path = moveparts[1];
+let end_slot = moveparts[2];
+
+if (!valid_slots.includes(start_slot) || !valid_slots.includes(end_slot))
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "UNSUPPORTED_MOVE_ANCHOR",
+          bot_id: bot_id,
+          move: normalized_move
+          });
+   } // if
+
+if (!/^[FRBLTD]+$/g.test(move_path))
+   {
+   return({
+          ok: false,
+          answer: "api_probe_move_bot",
+          error: "MOVE_PATH_CANNOT_CURRENTLY_BE_VALIDATED",
+          bot_id: bot_id,
+          move: normalized_move
+          });
+   } // if
+
+let bot = this.bots[botindex];
+let start_status = this.apicall_get_slot_status(bot_id, start_slot);
+let predicted_x = Number(bot.x);
+let predicted_y = Number(bot.y);
+let predicted_z = Number(bot.z);
+
+for (let i=0; i<move_path.length; i++)
+    {
+    let step_slot = move_path.charAt(i);
+    let target_xyz = this.get_next_target_coor(
+                                          predicted_x,
+                                          predicted_y,
+                                          predicted_z,
+                                          Number(bot.vector_x),
+                                          Number(bot.vector_y),
+                                          Number(bot.vector_z),
+                                          step_slot
+                                          );
+
+    predicted_x = Number(target_xyz.x);
+    predicted_y = Number(target_xyz.y);
+    predicted_z = Number(target_xyz.z);
+    } // for
+
+let target_occupancy = this.apicall_is_occupied(predicted_x, predicted_y, predicted_z);
+let end_anchor_xyz = this.get_next_target_coor(
+                                          predicted_x,
+                                          predicted_y,
+                                          predicted_z,
+                                          Number(bot.vector_x),
+                                          Number(bot.vector_y),
+                                          Number(bot.vector_z),
+                                          end_slot
+                                          );
+let end_anchor_occupancy = this.apicall_is_occupied(end_anchor_xyz.x, end_anchor_xyz.y, end_anchor_xyz.z);
+let possible = true;
+let reasons = [];
+
+if (start_status.target.occupied !== true)
+   {
+   possible = false;
+   reasons.push("Start anchor is not occupied.");
+   } // if
+
+if (target_occupancy.occupied === true)
+   {
+   possible = false;
+   reasons.push("Predicted target position is already occupied.");
+   } // if
+
+if (end_anchor_occupancy.occupied !== true)
+   {
+   possible = false;
+   reasons.push("End anchor is not occupied.");
+   } // if
+
+if (reasons.length == 0)
+   {
+   reasons.push("Local occupancy check passed.");
+   } // if
+
+return({
+       ok: true,
+       answer: "api_probe_move_bot",
+       bot_id: bot_id,
+       move: normalized_move,
+       possible: possible,
+       center: {
+                position: {
+                           x: Number(bot.x),
+                           y: Number(bot.y),
+                           z: Number(bot.z)
+                           },
+                orientation: {
+                              x: Number(bot.vector_x),
+                              y: Number(bot.vector_y),
+                              z: Number(bot.vector_z)
+                              }
+                },
+       predicted_target: {
+                          x: predicted_x,
+                          y: predicted_y,
+                          z: predicted_z
+                          },
+       start_anchor: start_status.target,
+       target_status: target_occupancy,
+       end_anchor: end_anchor_occupancy,
+       notes: reasons
+       });
+} // apicall_probe_move_bot()
+
+
+//
+// apicall_can_reach_position()
+//
+apicall_can_reach_position(bot_id, x, y, z)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+const target_neighbor_offsets = [
+                                { x: 1,  y: 0,  z: 0 },
+                                { x: -1, y: 0,  z: 0 },
+                                { x: 0,  y: 1,  z: 0 },
+                                { x: 0,  y: -1, z: 0 },
+                                { x: 0,  y: 0,  z: 1 },
+                                { x: 0,  y: 0,  z: -1 }
+                                ];
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_can_reach_position",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if ( Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z) )
+   {
+   return({
+          ok: false,
+          answer: "api_can_reach_position",
+          error: "INVALID_TARGET_POSITION",
+          bot_id: bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+let dx = target_x - Number(bot.x);
+let dy = target_y - Number(bot.y);
+let dz = target_z - Number(bot.z);
+let manhattan = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+let target_status = this.apicall_is_occupied(target_x, target_y, target_z);
+let target_local_contacts = 0;
+let reachable = false;
+let reason = "COMPLEX_PATH_SEARCH_NOT_YET_IMPLEMENTED";
+let notes = [];
+
+for (let i=0; i<target_neighbor_offsets.length; i++)
+    {
+    let nx = target_x + target_neighbor_offsets[i].x;
+    let ny = target_y + target_neighbor_offsets[i].y;
+    let nz = target_z + target_neighbor_offsets[i].z;
+    let neighbor_status = this.apicall_is_occupied(nx, ny, nz);
+
+    if (neighbor_status.occupied === true)
+       {
+       target_local_contacts++;
+       } // if
+    } // for
+
+if (target_status.occupied === true)
+   {
+   reachable = false;
+   reason = "TARGET_POSITION_IS_OCCUPIED";
+   notes.push("The requested target coordinate is already occupied.");
+   } // if
+else if (dx == 0 && dy == 0 && dz == 0)
+   {
+   reachable = true;
+   reason = "ALREADY_AT_TARGET";
+   notes.push("Bot is already located at the requested target position.");
+   } // if
+else if (manhattan == 1)
+   {
+   reachable = true;
+   reason = "DIRECT_NEIGHBOR_TARGET";
+   notes.push("Target is one orthogonal step away.");
+   } // if
+else if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && Math.abs(dz) <= 1 && manhattan <= 2)
+   {
+   reachable = false;
+   reason = "LOCAL_TARGET_REQUIRES_PATH_SEARCH";
+   notes.push("Target is local, but a path search is still required.");
+   } // if
+else
+   {
+   reachable = false;
+   reason = "COMPLEX_PATH_SEARCH_NOT_YET_IMPLEMENTED";
+   notes.push("Current implementation only performs a conservative surface check.");
+   } // else
+
+if (target_local_contacts == 0)
+   {
+   notes.push("Target coordinate currently has no occupied orthogonal neighbors.");
+   } // if
+else
+   {
+   notes.push("Target coordinate has " + target_local_contacts + " occupied orthogonal neighbor(s).");
+   } // else
+
+return({
+       ok: true,
+       answer: "api_can_reach_position",
+       evaluation_mode: "surface-check",
+       bot_id: bot_id,
+       center: {
+                position: {
+                           x: Number(bot.x),
+                           y: Number(bot.y),
+                           z: Number(bot.z)
+                           },
+                orientation: {
+                              x: Number(bot.vector_x),
+                              y: Number(bot.vector_y),
+                              z: Number(bot.vector_z)
+                              }
+                },
+       target: {
+                x: target_x,
+                y: target_y,
+                z: target_z
+                },
+       distance: {
+                  dx: dx,
+                  dy: dy,
+                  dz: dz,
+                  manhattan: manhattan
+                  },
+       target_status: target_status,
+       target_local_contacts: target_local_contacts,
+       reachable: reachable,
+       reason: reason,
+       notes: notes
+       });
+} // apicall_can_reach_position()
+
+
+apicall_create_sparse_grid()
+{
+const store = new Map();
+
+return({
+       set(x, y, z, value = 1) {
+         store.set(`${x},${y},${z}`, value);
+         return(true);
+       }, // set()
+       get(x, y, z) {
+         const key = `${x},${y},${z}`;
+         return store.has(key) ? store.get(key) : null;
+       }, // get()
+       keys() {
+         return Array.from(store.keys());
+       } // keys()
+       });
+} // apicall_create_sparse_grid()
+
+
+apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids = [])
+{
+let grid = this.apicall_create_sparse_grid();
+let excluded_ids = new Set(
+                          (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
+                          .map((id) => String(id ?? "").trim())
+                          .filter((id) => id != "")
+                          );
+
+for (let i=0; i<this.bots.length; i++)
+    {
+    if (this.bots[i].id == "masterbot") continue;
+    if (this.bots[i].id == bot_id) continue;
+    if (excluded_ids.has(String(this.bots[i].id ?? ""))) continue;
+
+    grid.set(
+             Number(this.bots[i].x),
+             Number(this.bots[i].y),
+             Number(this.bots[i].z),
+             this.bots[i].id
+             );
+    } // for
+
+return(grid);
+} // apicall_build_structure_grid_without_bot()
+
+
+apicall_would_split_cluster(bot_id)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (normalized_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_would_split_cluster",
+          bot_id: normalized_bot_id,
+          error: "BOT_ID_MISSING"
+          });
+   } // if
+
+if (normalized_bot_id == "masterbot")
+   {
+   return({
+          ok: false,
+          answer: "api_would_split_cluster",
+          bot_id: normalized_bot_id,
+          error: "MASTERBOT_REMOVAL_UNSUPPORTED"
+          });
+   } // if
+
+let target_index = this.get_bot_by_id(normalized_bot_id, this.bots);
+
+if (target_index === null)
+   {
+   return({
+          ok: false,
+          answer: "api_would_split_cluster",
+          bot_id: normalized_bot_id,
+          error: "BOT_NOT_FOUND"
+          });
+   } // if
+
+let remaining_bots = [];
+let position_map = {};
+let root_bot = null;
+
+for (let i=0; i<this.bots.length; i++)
+    {
+    let bot = this.bots[i];
+
+    if (!bot)
+       {
+       continue;
+       } // if
+
+    if (bot.id == normalized_bot_id)
+       {
+       continue;
+       } // if
+
+    remaining_bots.push(bot);
+    position_map[`${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`] = bot;
+
+    if (bot.id == "masterbot")
+       {
+       root_bot = bot;
+       } // if
+    } // for
+
+if (remaining_bots.length == 0)
+   {
+   return({
+          ok: true,
+          answer: "api_would_split_cluster",
+          bot_id: normalized_bot_id,
+          removed_bot: this.apicall_get_bot_snapshot(normalized_bot_id),
+          root_bot_id: "masterbot",
+          would_split_cluster: false,
+          remains_connected: true,
+          visited_count: 0,
+          remaining_count: 0,
+          disconnected_count: 0,
+          disconnected_bots: []
+          });
+   } // if
+
+if (root_bot === null)
+   {
+   return({
+          ok: false,
+          answer: "api_would_split_cluster",
+          bot_id: normalized_bot_id,
+          error: "MASTERBOT_NOT_FOUND"
+          });
+   } // if
+
+const key_for_bot = (bot) => `${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`;
+const neighbor_offsets = [
+                          { x: 1, y: 0, z: 0 },
+                          { x: -1, y: 0, z: 0 },
+                          { x: 0, y: 1, z: 0 },
+                          { x: 0, y: -1, z: 0 },
+                          { x: 0, y: 0, z: 1 },
+                          { x: 0, y: 0, z: -1 }
+                          ];
+
+let visited = new Set();
+let queue = [root_bot];
+visited.add(key_for_bot(root_bot));
+
+while (queue.length > 0)
+      {
+      let current = queue.shift();
+
+      for (let i=0; i<neighbor_offsets.length; i++)
+          {
+          let offset = neighbor_offsets[i];
+          let neighbor_key = `${Number(current.x) + offset.x},${Number(current.y) + offset.y},${Number(current.z) + offset.z}`;
+
+          if (visited.has(neighbor_key))
+             {
+             continue;
+             } // if
+
+          if (!position_map[neighbor_key])
+             {
+             continue;
+             } // if
+
+          visited.add(neighbor_key);
+          queue.push(position_map[neighbor_key]);
+          } // for
+      } // while
+
+let disconnected_bots = [];
+
+for (let i=0; i<remaining_bots.length; i++)
+    {
+    let bot = remaining_bots[i];
+    let bot_key = key_for_bot(bot);
+
+    if (!visited.has(bot_key))
+       {
+       disconnected_bots.push({
+                              id: bot.id,
+                              x: bot.x,
+                              y: bot.y,
+                              z: bot.z,
+                              adress: this.apicall_get_safe_adress(bot)
+                              });
+       } // if
+    } // for
+
+let would_split_cluster = (disconnected_bots.length > 0);
+
+return({
+       ok: true,
+       answer: "api_would_split_cluster",
+       bot_id: normalized_bot_id,
+       removed_bot: this.apicall_get_bot_snapshot(normalized_bot_id),
+       root_bot_id: root_bot.id,
+       would_split_cluster: would_split_cluster,
+       remains_connected: !would_split_cluster,
+       visited_count: visited.size,
+       remaining_count: remaining_bots.length,
+       disconnected_count: disconnected_bots.length,
+       disconnected_bots: disconnected_bots
+       });
+} // apicall_would_split_cluster()
+
+
+apicall_build_forbidden_grid()
+{
+let grid = this.apicall_create_sparse_grid();
+
+for (let i=0; i<this.detected_inactive_bots.length; i++)
+    {
+    grid.set(
+             Number(this.detected_inactive_bots[i].x),
+             Number(this.detected_inactive_bots[i].y),
+             Number(this.detected_inactive_bots[i].z),
+             this.detected_inactive_bots[i].id
+             );
+    } // for
+
+return(grid);
+} // apicall_build_forbidden_grid()
+
+
+apicall_get_wrapped_cell_for_double_step(from_pos, to_pos)
+{
+if (!from_pos || !to_pos)
+   {
+   return(null);
+   } // if
+
+let dx = Number(to_pos.x) - Number(from_pos.x);
+let dy = Number(to_pos.y) - Number(from_pos.y);
+let dz = Number(to_pos.z) - Number(from_pos.z);
+let non_zero_axes = 0;
+
+if (dx !== 0) non_zero_axes++;
+if (dy !== 0) non_zero_axes++;
+if (dz !== 0) non_zero_axes++;
+
+if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) !== 2)
+   {
+   return(null);
+   } // if
+
+if (non_zero_axes !== 2)
+   {
+   return(null);
+   } // if
+
+if (dy === 0)
+   {
+   return(null);
+   } // if
+
+return({
+       x: Number(from_pos.x) + Number(dx),
+       y: Number(from_pos.y),
+       z: Number(from_pos.z) + Number(dz)
+       });
+} // apicall_get_wrapped_cell_for_double_step()
+
+
+apicall_is_valid_wrapped_double_step(from_pos, to_pos, bots_s)
+{
+if (!bots_s)
+   {
+   return(false);
+   } // if
+
+let wrapped_cell = this.apicall_get_wrapped_cell_for_double_step(from_pos, to_pos);
+
+if (!wrapped_cell)
+   {
+   return(false);
+   } // if
+
+return(
+       bots_s.get(
+                  Number(wrapped_cell.x),
+                  Number(wrapped_cell.y),
+                  Number(wrapped_cell.z)
+                  ) !== null
+       );
+} // apicall_is_valid_wrapped_double_step()
+
+
+apicall_calc_single_path(src, dest, bots_s, bots_f)
+{
+const key = (x, y, z) => `${x},${y},${z}`;
+const visited = new Set();
+const parent = new Map();
+const queue = [];
+let debug_rejections = [];
+
+const is_structure = (x, y, z) => {
+  return bots_s.get(Number(x), Number(y), Number(z)) !== null;
+}; // is_structure()
+
+const is_forbidden = (x, y, z) => {
+  if (!bots_f) return(false);
+  return bots_f.get(Number(x), Number(y), Number(z)) !== null;
+}; // is_forbidden()
+
+const is_empty = (x, y, z) => {
+  return(!is_structure(x, y, z) && !is_forbidden(x, y, z));
+}; // is_empty()
+
+const has_contact = (x, y, z) => {
+  const neighbors6 = [
+                     { dx:  1, dy:  0, dz:  0 },
+                     { dx: -1, dy:  0, dz:  0 },
+                     { dx:  0, dy:  1, dz:  0 },
+                     { dx:  0, dy: -1, dz:  0 },
+                     { dx:  0, dy:  0, dz:  1 },
+                     { dx:  0, dy:  0, dz: -1 }
+                     ];
+
+  for (let i = 0; i < neighbors6.length; i++)
+      {
+      const n = neighbors6[i];
+      if (is_structure(Number(x) + Number(n.dx), Number(y) + Number(n.dy), Number(z) + Number(n.dz)))
+         {
+         return(true);
+         } // if
+      } // for
+
+  return(false);
+}; // has_contact()
+
+const has_axis_lateral_anchor = (target_x, target_y, target_z, axis) => {
+  if (axis === "x")
+     {
+     return(
+            is_structure(target_x, target_y + 1, target_z) ||
+            is_structure(target_x, target_y - 1, target_z) ||
+            is_structure(target_x, target_y, target_z + 1) ||
+            is_structure(target_x, target_y, target_z - 1)
+            );
+     } // if
+
+  if (axis === "y")
+     {
+     return(
+            is_structure(target_x + 1, target_y, target_z) ||
+            is_structure(target_x - 1, target_y, target_z) ||
+            is_structure(target_x, target_y, target_z + 1) ||
+            is_structure(target_x, target_y, target_z - 1)
+            );
+     } // if
+
+  if (axis === "z")
+     {
+     return(
+            is_structure(target_x + 1, target_y, target_z) ||
+            is_structure(target_x - 1, target_y, target_z) ||
+            is_structure(target_x, target_y + 1, target_z) ||
+            is_structure(target_x, target_y - 1, target_z)
+            );
+     } // if
+
+  return(false);
+}; // has_axis_lateral_anchor()
+
+const movement_rules = [
+  {
+    name: "G_F",
+    final: { dx:  1, dy:  0, dz:  0 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x")
+  },
+  {
+    name: "G_B",
+    final: { dx: -1, dy:  0, dz:  0 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x")
+  },
+  {
+    name: "G_R",
+    final: { dx:  0, dy:  0, dz: -1 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z")
+  },
+  {
+    name: "G_L",
+    final: { dx:  0, dy:  0, dz:  1 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z")
+  },
+  {
+    name: "G_T",
+    final: { dx:  0, dy:  1, dz:  0 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y")
+  },
+  {
+    name: "G_D",
+    final: { dx:  0, dy: -1, dz:  0 },
+    intermediate: null,
+    anchor: null,
+    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y")
+  },
+  {
+    name: "K_TF",
+    final: { dx:  1, dy:  1, dz:  0 },
+    intermediate: { dx:  0, dy:  1, dz:  0 },
+    anchor: { dx:  1, dy:  0, dz:  0 }
+  },
+  {
+    name: "K_TB",
+    final: { dx: -1, dy:  1, dz:  0 },
+    intermediate: { dx:  0, dy:  1, dz:  0 },
+    anchor: { dx: -1, dy:  0, dz:  0 }
+  },
+  {
+    name: "K_DF",
+    final: { dx:  1, dy: -1, dz:  0 },
+    intermediate: { dx:  0, dy: -1, dz:  0 },
+    anchor: { dx:  1, dy:  0, dz:  0 }
+  },
+  {
+    name: "K_DB",
+    final: { dx: -1, dy: -1, dz:  0 },
+    intermediate: { dx:  0, dy: -1, dz:  0 },
+    anchor: { dx: -1, dy:  0, dz:  0 }
+  },
+  {
+    name: "K_TR",
+    final: { dx:  0, dy:  1, dz: -1 },
+    intermediate: { dx:  0, dy:  1, dz:  0 },
+    anchor: { dx:  0, dy:  0, dz: -1 }
+  },
+  {
+    name: "K_TL",
+    final: { dx:  0, dy:  1, dz:  1 },
+    intermediate: { dx:  0, dy:  1, dz:  0 },
+    anchor: { dx:  0, dy:  0, dz:  1 }
+  },
+  {
+    name: "K_DR",
+    final: { dx:  0, dy: -1, dz: -1 },
+    intermediate: { dx:  0, dy: -1, dz:  0 },
+    anchor: { dx:  0, dy:  0, dz: -1 }
+  },
+  {
+    name: "K_DL",
+    final: { dx:  0, dy: -1, dz:  1 },
+    intermediate: { dx:  0, dy: -1, dz:  0 },
+    anchor: { dx:  0, dy:  0, dz:  1 }
+  },
+  {
+    name: "K_FT",
+    final: { dx:  1, dy:  1, dz:  0 },
+    intermediate: { dx:  1, dy:  0, dz:  0 },
+    anchor: { dx:  0, dy:  1, dz:  0 }
+  },
+  {
+    name: "K_FD",
+    final: { dx:  1, dy: -1, dz:  0 },
+    intermediate: { dx:  1, dy:  0, dz:  0 },
+    anchor: { dx:  0, dy: -1, dz:  0 }
+  },
+  {
+    name: "K_BT",
+    final: { dx: -1, dy:  1, dz:  0 },
+    intermediate: { dx: -1, dy:  0, dz:  0 },
+    anchor: { dx:  0, dy:  1, dz:  0 }
+  },
+  {
+    name: "K_BD",
+    final: { dx: -1, dy: -1, dz:  0 },
+    intermediate: { dx: -1, dy:  0, dz:  0 },
+    anchor: { dx:  0, dy: -1, dz:  0 }
+  },
+  {
+    name: "K_LT",
+    final: { dx:  0, dy:  1, dz:  1 },
+    intermediate: { dx:  0, dy:  0, dz:  1 },
+    anchor: { dx:  0, dy:  1, dz:  0 }
+  },
+  {
+    name: "K_LD",
+    final: { dx:  0, dy: -1, dz:  1 },
+    intermediate: { dx:  0, dy:  0, dz:  1 },
+    anchor: { dx:  0, dy: -1, dz:  0 }
+  },
+  {
+    name: "K_RT",
+    final: { dx:  0, dy:  1, dz: -1 },
+    intermediate: { dx:  0, dy:  0, dz: -1 },
+    anchor: { dx:  0, dy:  1, dz:  0 }
+  },
+  {
+    name: "K_RD",
+    final: { dx:  0, dy: -1, dz: -1 },
+    intermediate: { dx:  0, dy:  0, dz: -1 },
+    anchor: { dx:  0, dy: -1, dz:  0 }
+  }
+]; // movement_rules
+
+const getAllowedMoves3D = (startX, startY, startZ) => {
+  const allowed = [];
+
+  for (let i = 0; i < movement_rules.length; i++)
+      {
+      const rule = movement_rules[i];
+      const final_x = Number(startX) + Number(rule.final.dx);
+      const final_y = Number(startY) + Number(rule.final.dy);
+      const final_z = Number(startZ) + Number(rule.final.dz);
+      let rejection_reason = null;
+
+      if (!is_empty(final_x, final_y, final_z))
+         {
+         rejection_reason = "TARGET_NOT_EMPTY";
+         } // if
+      else if (!has_contact(final_x, final_y, final_z))
+         {
+         rejection_reason = "NO_SURFACE_CONTACT";
+         } // else if
+
+      if (!rejection_reason && rule.anchor)
+         {
+         const anchor_x = Number(startX) + Number(rule.anchor.dx);
+         const anchor_y = Number(startY) + Number(rule.anchor.dy);
+         const anchor_z = Number(startZ) + Number(rule.anchor.dz);
+
+         if (!is_structure(anchor_x, anchor_y, anchor_z))
+            {
+            rejection_reason = "RULE_ANCHOR_MISSING";
+            } // if
+         } // if
+
+      if (!rejection_reason && rule.intermediate)
+         {
+         const intermediate_x = Number(startX) + Number(rule.intermediate.dx);
+         const intermediate_y = Number(startY) + Number(rule.intermediate.dy);
+         const intermediate_z = Number(startZ) + Number(rule.intermediate.dz);
+
+         if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
+            {
+            rejection_reason = "INTERMEDIATE_NOT_EMPTY";
+            } // if
+         } // if
+
+      if (!rejection_reason && typeof rule.validator == "function")
+         {
+         if (rule.validator(final_x, final_y, final_z) !== true)
+            {
+            rejection_reason = "AXIS_LATERAL_ANCHOR_MISSING";
+            } // if
+         } // if
+
+      if (!rejection_reason && rule.intermediate && Number(rule.final.dy) !== 0 && Number(rule.final.dx) + Number(rule.final.dz) !== 0)
+         {
+         if (this.apicall_is_valid_wrapped_double_step(
+                                                     { x: Number(startX), y: Number(startY), z: Number(startZ) },
+                                                     { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
+                                                     bots_s
+                                                     ) !== true)
+            {
+            rejection_reason = "WRAPPED_CELL_MISSING";
+            } // if
+         } // if
+
+      if (rejection_reason)
+         {
+         debug_rejections.push({
+                                stage: "path_rule",
+                                rule: rule.name,
+                                from: {
+                                       x: Number(startX),
+                                       y: Number(startY),
+                                       z: Number(startZ)
+                                       },
+                                to: {
+                                     x: Number(final_x),
+                                     y: Number(final_y),
+                                     z: Number(final_z)
+                                     },
+                                reason: rejection_reason
+                                });
+         continue;
+         } // if
+
+      let path = [];
+
+      if (rule.intermediate)
+         {
+         path.push([
+                    Number(startX) + Number(rule.intermediate.dx),
+                    Number(startY) + Number(rule.intermediate.dy),
+                    Number(startZ) + Number(rule.intermediate.dz)
+                    ]);
+         } // if
+
+      path.push([final_x, final_y, final_z]);
+
+      allowed.push({
+                    typ: rule.name,
+                    path: path
+                    });
+      } // for
+
+  return(allowed);
+}; // getAllowedMoves3D()
+
+if (!has_contact(src.x, src.y, src.z) || !is_empty(src.x, src.y, src.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+if (!has_contact(dest.x, dest.y, dest.z) || !is_empty(dest.x, dest.y, dest.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+queue.push({
+           x: Number(src.x),
+           y: Number(src.y),
+           z: Number(src.z),
+           path: [[Number(src.x), Number(src.y), Number(src.z)]]
+           });
+visited.add(key(src.x, src.y, src.z));
+
+while (queue.length > 0)
+      {
+      const current = queue.shift();
+
+      if (
+          Number(current.x) === Number(dest.x) &&
+          Number(current.y) === Number(dest.y) &&
+         Number(current.z) === Number(dest.z)
+         )
+         {
+         return({
+                path: current.path.map(([x, y, z]) => (
+                                                     {
+                                                     x: Number(x),
+                                                     y: Number(y),
+                                                     z: Number(z)
+                                                     }
+                                                     )),
+                debug_rejections: debug_rejections
+                });
+         } // if
+
+      const allowed = getAllowedMoves3D(current.x, current.y, current.z);
+
+      for (let i = 0; i < allowed.length; i++)
+          {
+          const move = allowed[i];
+          if (!move.path || move.path.length === 0) continue;
+
+          const coords = move.path;
+          let partial_coords = [];
+
+          for (let c = 0; c < coords.length; c++)
+              {
+              const [coordX, coordY, coordZ] = coords[c];
+              partial_coords.push([Number(coordX), Number(coordY), Number(coordZ)]);
+
+              if (
+                  Number(coordX) === Number(dest.x) &&
+                  Number(coordY) === Number(dest.y) &&
+                 Number(coordZ) === Number(dest.z)
+                 )
+                 {
+                 return({
+                        path: [
+                              ...current.path,
+                              ...partial_coords
+                              ].map(([x, y, z]) => (
+                                                     {
+                                                     x: Number(x),
+                                                     y: Number(y),
+                                                     z: Number(z)
+                                                     }
+                                                     )),
+                        debug_rejections: debug_rejections
+                        });
+                 } // if
+              } // for
+
+          const [lastX, lastY, lastZ] = coords[coords.length - 1];
+          const k = key(lastX, lastY, lastZ);
+
+          if (visited.has(k)) continue;
+
+          visited.add(k);
+          parent.set(k, key(current.x, current.y, current.z));
+
+          queue.push({
+                     x: Number(lastX),
+                     y: Number(lastY),
+                     z: Number(lastZ),
+                     path: [
+                           ...current.path,
+                           ...coords.map(([x, y, z]) => [Number(x), Number(y), Number(z)])
+                           ]
+                     });
+          } // for
+      } // while
+
+return({
+       path: null,
+       debug_rejections: debug_rejections
+       });
+} // apicall_calc_single_path()
+
+
+apicall_calc_single_path_payload(src, dest, bots_s, bots_f, payload_options = {})
+{
+const key = (x, y, z) => `${x},${y},${z}`;
+const visited = new Set();
+const queue = [];
+let debug_rejections = [];
+const carrier_orientation = {
+                            x: Number(payload_options?.orientation?.x ?? 0),
+                            y: Number(payload_options?.orientation?.y ?? 0),
+                            z: Number(payload_options?.orientation?.z ?? 0)
+                            };
+
+const is_structure = (x, y, z) => {
+  return bots_s.get(Number(x), Number(y), Number(z)) !== null;
+}; // is_structure()
+
+const is_forbidden = (x, y, z) => {
+  if (!bots_f) return(false);
+  return bots_f.get(Number(x), Number(y), Number(z)) !== null;
+}; // is_forbidden()
+
+const is_empty = (x, y, z) => {
+  return(!is_structure(x, y, z) && !is_forbidden(x, y, z));
+}; // is_empty()
+
+const has_contact = (x, y, z) => {
+  const neighbors6 = [
+                     { dx:  1, dy:  0, dz:  0 },
+                     { dx: -1, dy:  0, dz:  0 },
+                     { dx:  0, dy:  1, dz:  0 },
+                     { dx:  0, dy: -1, dz:  0 },
+                     { dx:  0, dy:  0, dz:  1 },
+                     { dx:  0, dy:  0, dz: -1 }
+                     ];
+
+  for (let i = 0; i < neighbors6.length; i++)
+      {
+      const n = neighbors6[i];
+      if (is_structure(Number(x) + Number(n.dx), Number(y) + Number(n.dy), Number(z) + Number(n.dz)))
+         {
+         return(true);
+         } // if
+      } // for
+
+  return(false);
+}; // has_contact()
+
+const has_axis_lateral_anchor = (target_x, target_y, target_z, axis) => {
+  if (axis === "x")
+     {
+     return(
+            is_structure(target_x, target_y + 1, target_z) ||
+            is_structure(target_x, target_y - 1, target_z) ||
+            is_structure(target_x, target_y, target_z + 1) ||
+            is_structure(target_x, target_y, target_z - 1)
+            );
+     } // if
+
+  if (axis === "y")
+     {
+     return(
+            is_structure(target_x + 1, target_y, target_z) ||
+            is_structure(target_x - 1, target_y, target_z) ||
+            is_structure(target_x, target_y, target_z + 1) ||
+            is_structure(target_x, target_y, target_z - 1)
+            );
+     } // if
+
+  if (axis === "z")
+     {
+     return(
+            is_structure(target_x + 1, target_y, target_z) ||
+            is_structure(target_x - 1, target_y, target_z) ||
+            is_structure(target_x, target_y + 1, target_z) ||
+            is_structure(target_x, target_y - 1, target_z)
+            );
+     } // if
+
+  return(false);
+}; // has_axis_lateral_anchor()
+
+const movement_rules = [
+  { name: "G_F", final: { dx:  1, dy:  0, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x") },
+  { name: "G_B", final: { dx: -1, dy:  0, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x") },
+  { name: "G_R", final: { dx:  0, dy:  0, dz: -1 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z") },
+  { name: "G_L", final: { dx:  0, dy:  0, dz:  1 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z") },
+  { name: "G_T", final: { dx:  0, dy:  1, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y") },
+  { name: "G_D", final: { dx:  0, dy: -1, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y") },
+  { name: "K_TF", final: { dx:  1, dy:  1, dz:  0 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  1, dy:  0, dz:  0 } },
+  { name: "K_TB", final: { dx: -1, dy:  1, dz:  0 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx: -1, dy:  0, dz:  0 } },
+  { name: "K_DF", final: { dx:  1, dy: -1, dz:  0 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  1, dy:  0, dz:  0 } },
+  { name: "K_DB", final: { dx: -1, dy: -1, dz:  0 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx: -1, dy:  0, dz:  0 } },
+  { name: "K_TR", final: { dx:  0, dy:  1, dz: -1 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  0, dy:  0, dz: -1 } },
+  { name: "K_TL", final: { dx:  0, dy:  1, dz:  1 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  0, dy:  0, dz:  1 } },
+  { name: "K_DR", final: { dx:  0, dy: -1, dz: -1 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  0, dy:  0, dz: -1 } },
+  { name: "K_DL", final: { dx:  0, dy: -1, dz:  1 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  0, dy:  0, dz:  1 } },
+  { name: "K_FT", final: { dx:  1, dy:  1, dz:  0 }, intermediate: { dx:  1, dy:  0, dz:  0 }, anchor: { dx:  0, dy:  1, dz:  0 } },
+  { name: "K_FD", final: { dx:  1, dy: -1, dz:  0 }, intermediate: { dx:  1, dy:  0, dz:  0 }, anchor: { dx:  0, dy: -1, dz:  0 } },
+  { name: "K_BT", final: { dx: -1, dy:  1, dz:  0 }, intermediate: { dx: -1, dy:  0, dz:  0 }, anchor: { dx:  0, dy:  1, dz:  0 } },
+  { name: "K_BD", final: { dx: -1, dy: -1, dz:  0 }, intermediate: { dx: -1, dy:  0, dz:  0 }, anchor: { dx:  0, dy: -1, dz:  0 } },
+  { name: "K_LT", final: { dx:  0, dy:  1, dz:  1 }, intermediate: { dx:  0, dy:  0, dz:  1 }, anchor: { dx:  0, dy:  1, dz:  0 } },
+  { name: "K_LD", final: { dx:  0, dy: -1, dz:  1 }, intermediate: { dx:  0, dy:  0, dz:  1 }, anchor: { dx:  0, dy: -1, dz:  0 } },
+  { name: "K_RT", final: { dx:  0, dy:  1, dz: -1 }, intermediate: { dx:  0, dy:  0, dz: -1 }, anchor: { dx:  0, dy:  1, dz:  0 } },
+  { name: "K_RD", final: { dx:  0, dy: -1, dz: -1 }, intermediate: { dx:  0, dy:  0, dz: -1 }, anchor: { dx:  0, dy: -1, dz:  0 } }
+]; // movement_rules
+
+const get_payload_position_for_carrier = (carrier_position) => {
+  return this.apicall_get_payload_target_from_carrier_state(
+                                                            {
+                                                            x: Number(carrier_position.x),
+                                                            y: Number(carrier_position.y),
+                                                            z: Number(carrier_position.z)
+                                                            },
+                                                            carrier_orientation
+                                                            );
+}; // get_payload_position_for_carrier()
+
+const has_payload_wrapped_support = (startX, startY, startZ, rule, final_x, final_y, final_z) => {
+  if (!rule || !rule.intermediate)
+     {
+     return(false);
+     } // if
+
+  if (!(rule.name === "K_RD" || rule.name === "K_LD"))
+     {
+     return(
+            this.apicall_is_valid_wrapped_double_step(
+                                                    { x: Number(startX), y: Number(startY), z: Number(startZ) },
+                                                    { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
+                                                    bots_s
+                                                    ) === true
+            );
+     } // if
+
+  let anchor_x = Number(startX) + Number(rule.anchor?.dx ?? 0);
+  let anchor_y = Number(startY) + Number(rule.anchor?.dy ?? 0);
+  let anchor_z = Number(startZ) + Number(rule.anchor?.dz ?? 0);
+
+  if (is_structure(anchor_x, anchor_y, anchor_z))
+     {
+     return(true);
+     } // if
+
+  return(
+         this.apicall_is_valid_wrapped_double_step(
+                                                 { x: Number(startX), y: Number(startY), z: Number(startZ) },
+                                                 { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
+                                                 bots_s
+                                                 ) === true
+         );
+}; // has_payload_wrapped_support()
+
+const has_payload_collision_for_path = (carrier_path_positions) => {
+  for (let i = 0; i < carrier_path_positions.length; i++)
+      {
+      let carrier_position = carrier_path_positions[i];
+      let payload_position = get_payload_position_for_carrier(carrier_position);
+
+      if (!payload_position)
+         {
+         return(true);
+         } // if
+
+      if (!is_empty(payload_position.x, payload_position.y, payload_position.z))
+         {
+         return(true);
+         } // if
+      } // for
+
+  return(false);
+}; // has_payload_collision_for_path()
+
+const getAllowedMoves3D = (startX, startY, startZ) => {
+  const allowed = [];
+
+  for (let i = 0; i < movement_rules.length; i++)
+      {
+      const rule = movement_rules[i];
+      const final_x = Number(startX) + Number(rule.final.dx);
+      const final_y = Number(startY) + Number(rule.final.dy);
+      const final_z = Number(startZ) + Number(rule.final.dz);
+      let rejection_reason = null;
+
+      if (!is_empty(final_x, final_y, final_z))
+         {
+         rejection_reason = "TARGET_NOT_EMPTY";
+         } // if
+      else if (!has_contact(final_x, final_y, final_z))
+         {
+         rejection_reason = "NO_SURFACE_CONTACT";
+         } // else if
+
+      if (!rejection_reason && rule.anchor)
+         {
+         const anchor_x = Number(startX) + Number(rule.anchor.dx);
+         const anchor_y = Number(startY) + Number(rule.anchor.dy);
+         const anchor_z = Number(startZ) + Number(rule.anchor.dz);
+
+         if (!is_structure(anchor_x, anchor_y, anchor_z))
+            {
+            rejection_reason = "RULE_ANCHOR_MISSING";
+            } // if
+         } // if
+
+      if (!rejection_reason && rule.intermediate)
+         {
+         const intermediate_x = Number(startX) + Number(rule.intermediate.dx);
+         const intermediate_y = Number(startY) + Number(rule.intermediate.dy);
+         const intermediate_z = Number(startZ) + Number(rule.intermediate.dz);
+
+         if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
+            {
+            rejection_reason = "INTERMEDIATE_NOT_EMPTY";
+            } // if
+         } // if
+
+      if (!rejection_reason && typeof rule.validator == "function")
+         {
+         if (rule.validator(final_x, final_y, final_z) !== true)
+            {
+            rejection_reason = "AXIS_LATERAL_ANCHOR_MISSING";
+            } // if
+         } // if
+
+      if (!rejection_reason && rule.intermediate && Number(rule.final.dy) !== 0 && Number(rule.final.dx) + Number(rule.final.dz) !== 0)
+         {
+         if (has_payload_wrapped_support(startX, startY, startZ, rule, final_x, final_y, final_z) !== true)
+            {
+            rejection_reason = "WRAPPED_CELL_MISSING";
+            } // if
+         } // if
+
+      let path = [];
+      let carrier_positions = [];
+
+      if (!rejection_reason && rule.intermediate)
+         {
+         let intermediate_position = {
+                                     x: Number(startX) + Number(rule.intermediate.dx),
+                                     y: Number(startY) + Number(rule.intermediate.dy),
+                                     z: Number(startZ) + Number(rule.intermediate.dz)
+                                     };
+         path.push([intermediate_position.x, intermediate_position.y, intermediate_position.z]);
+         carrier_positions.push(intermediate_position);
+         } // if
+
+      path.push([final_x, final_y, final_z]);
+      carrier_positions.push({ x: final_x, y: final_y, z: final_z });
+
+      if (!rejection_reason && has_payload_collision_for_path(carrier_positions))
+         {
+         rejection_reason = "PAYLOAD_COLLISION";
+         } // if
+
+      if (rejection_reason)
+         {
+         debug_rejections.push({
+                                stage: "path_rule_payload",
+                                rule: rule.name,
+                                from: {
+                                       x: Number(startX),
+                                       y: Number(startY),
+                                       z: Number(startZ)
+                                       },
+                                to: {
+                                     x: Number(final_x),
+                                     y: Number(final_y),
+                                     z: Number(final_z)
+                                     },
+                                reason: rejection_reason
+                                });
+         continue;
+         } // if
+
+      allowed.push({
+                    typ: rule.name,
+                    path: path
+                    });
+      } // for
+
+  return(allowed);
+}; // getAllowedMoves3D()
+
+if (!has_contact(src.x, src.y, src.z) || !is_empty(src.x, src.y, src.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+if (!has_contact(dest.x, dest.y, dest.z) || !is_empty(dest.x, dest.y, dest.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+let payload_src = get_payload_position_for_carrier(src);
+let payload_dest = get_payload_position_for_carrier(dest);
+
+if (!payload_src || !payload_dest)
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+if (!is_empty(payload_src.x, payload_src.y, payload_src.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+if (!is_empty(payload_dest.x, payload_dest.y, payload_dest.z))
+   {
+   return({
+          path: null,
+          debug_rejections: debug_rejections
+          });
+   } // if
+
+queue.push({
+           x: Number(src.x),
+           y: Number(src.y),
+           z: Number(src.z),
+           path: [[Number(src.x), Number(src.y), Number(src.z)]]
+           });
+visited.add(key(src.x, src.y, src.z));
+
+while (queue.length > 0)
+      {
+      const current = queue.shift();
+
+      if (
+          Number(current.x) === Number(dest.x) &&
+          Number(current.y) === Number(dest.y) &&
+         Number(current.z) === Number(dest.z)
+         )
+         {
+         return({
+                path: current.path.map(([x, y, z]) => (
+                                                     {
+                                                     x: Number(x),
+                                                     y: Number(y),
+                                                     z: Number(z)
+                                                     }
+                                                     )),
+                debug_rejections: debug_rejections
+                });
+         } // if
+
+      const allowed = getAllowedMoves3D(current.x, current.y, current.z);
+
+      for (let i = 0; i < allowed.length; i++)
+          {
+          const move = allowed[i];
+          if (!move.path || move.path.length === 0) continue;
+
+          const coords = move.path;
+          let partial_coords = [];
+
+          for (let c = 0; c < coords.length; c++)
+              {
+              const [coordX, coordY, coordZ] = coords[c];
+              partial_coords.push([Number(coordX), Number(coordY), Number(coordZ)]);
+
+              if (
+                  Number(coordX) === Number(dest.x) &&
+                  Number(coordY) === Number(dest.y) &&
+                  Number(coordZ) === Number(dest.z)
+                 )
+                 {
+                 return({
+                        path: [
+                              ...current.path,
+                              ...partial_coords
+                              ].map(([x, y, z]) => (
+                                                     {
+                                                     x: Number(x),
+                                                     y: Number(y),
+                                                     z: Number(z)
+                                                     }
+                                                     )),
+                        debug_rejections: debug_rejections
+                        });
+                 } // if
+              } // for
+
+          const [lastX, lastY, lastZ] = coords[coords.length - 1];
+          const k = key(lastX, lastY, lastZ);
+
+          if (visited.has(k)) continue;
+
+          visited.add(k);
+
+          queue.push({
+                     x: Number(lastX),
+                     y: Number(lastY),
+                     z: Number(lastZ),
+                     path: [
+                           ...current.path,
+                           ...coords.map(([x, y, z]) => [Number(x), Number(y), Number(z)])
+                           ]
+                     });
+          } // for
+      } // while
+
+return({
+       path: null,
+       debug_rejections: debug_rejections
+       });
+} // apicall_calc_single_path_payload()
+
+
+apicall_find_path_for_bot(bot_id, x, y, z, show = false, planning_options = {})
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let show_path = (show === true || show === "true" || show === "show" || show === 1 || show === "1");
+let excluded_bot_ids = Array.isArray(planning_options?.excluded_bot_ids) ? planning_options.excluded_bot_ids : [];
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_find_path_for_bot",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if ( Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z) )
+   {
+   return({
+          ok: false,
+          answer: "api_find_path_for_bot",
+          error: "INVALID_TARGET_POSITION",
+          bot_id: bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+let bots_s = this.apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids);
+let bots_f = this.apicall_build_forbidden_grid();
+let carried_payload_bot_id = String(planning_options?.carried_payload_bot_id ?? "").trim();
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+let src = {
+          x: Number(bot.x),
+          y: Number(bot.y),
+          z: Number(bot.z)
+          };
+let dest = {
+           x: target_x,
+           y: target_y,
+           z: target_z
+           };
+let path_result = null;
+let path = null;
+let path_debug_rejections = [];
+
+if (carried_payload_bot_id != "")
+   {
+   path_result = this.apicall_calc_single_path_payload(
+                                                      src,
+                                                      dest,
+                                                      bots_s,
+                                                      bots_f,
+                                                      {
+                                                      carrier_bot_id: bot_id,
+                                                      payload_bot_id: carried_payload_bot_id,
+                                                      orientation: bot_snapshot?.orientation ?? null
+                                                      }
+                                                      );
+   } // if
+else
+   {
+   path_result = this.apicall_calc_single_path(src, dest, bots_s, bots_f);
+   } // else
+
+if (Array.isArray(path_result))
+   {
+   path = path_result;
+   } // if
+else if (path_result && typeof path_result == "object")
+   {
+   path = Array.isArray(path_result.path) ? path_result.path : null;
+   path_debug_rejections = Array.isArray(path_result.debug_rejections) ? path_result.debug_rejections : [];
+   } // else if
+
+if (!path)
+   {
+   return({
+          ok: true,
+          answer: "api_find_path_for_bot",
+          bot_id: bot_id,
+          target: dest,
+          path_found: false,
+          reason: "NO_SURFACE_PATH_FOUND",
+          show_requested: show_path,
+          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+          path_debug_rejections: path_debug_rejections,
+          path: []
+          });
+   } // if
+
+let path_visualized = false;
+let marker_count = 0;
+
+if (show_path)
+   {
+   for (let i = 0; i < path.length; i++)
+       {
+       let marker_ret = this.apicall_gui_set_marker(path[i].x, path[i].y, path[i].z, 0.3, "green");
+
+       if (marker_ret.accepted === true)
+          {
+          marker_count++;
+          } // if
+
+       if (marker_ret.frontend_attached === true)
+          {
+          path_visualized = true;
+          } // if
+       } // for
+   } // if
+
+return({
+       ok: true,
+       answer: "api_find_path_for_bot",
+       bot_id: bot_id,
+       target: dest,
+       path_found: true,
+       reason: "PATH_FOUND",
+       show_requested: show_path,
+       carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+       excluded_bot_ids: excluded_bot_ids,
+       path_debug_rejections: path_debug_rejections,
+       path_visualized: path_visualized,
+       marker_count: marker_count,
+       path_length: path.length,
+       path: path
+       });
+} // apicall_find_path_for_bot()
+
+
+apicall_find_path_for_bot_payload(bot_id, payload_bot_id, x, y, z, show = false)
+{
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+
+if (normalized_payload_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_find_path_for_bot_payload",
+          error: "PAYLOAD_BOT_ID_MISSING",
+          bot_id: bot_id
+          });
+   } // if
+
+let payload_snapshot = this.apicall_get_bot_snapshot(normalized_payload_bot_id);
+
+if (!payload_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_find_path_for_bot_payload",
+          error: "PAYLOAD_BOT_NOT_FOUND",
+          bot_id: bot_id,
+          payload_bot_id: normalized_payload_bot_id
+          });
+   } // if
+
+let ret = this.apicall_find_path_for_bot(
+                                        bot_id,
+                                        x,
+                                        y,
+                                        z,
+                                        show,
+                                        {
+                                        excluded_bot_ids: [normalized_payload_bot_id],
+                                        carried_payload_bot_id: normalized_payload_bot_id
+                                        }
+                                        );
+
+return({
+       ...ret,
+       answer: "api_find_path_for_bot_payload",
+       payload_bot_id: normalized_payload_bot_id
+       });
+} // apicall_find_path_for_bot_payload()
+
+
+apicall_build_active_bots_tmp(include_masterbot = false, excluded_bot_ids = [])
+{
+let bots_tmp = [];
+let excluded_ids = new Set(
+                          (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
+                          .map((id) => String(id ?? "").trim())
+                          .filter((id) => id != "")
+                          );
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    let bot = this.bots[i];
+
+    if (!bot)
+       {
+       continue;
+       } // if
+
+    if (bot.id == "masterbot" && include_masterbot !== true)
+       {
+       continue;
+       } // if
+
+    if (excluded_ids.has(String(bot.id ?? "")))
+       {
+       continue;
+       } // if
+
+    bots_tmp.push({
+                   id: bot.id,
+                   x: Number(bot.x),
+                   y: Number(bot.y),
+                   z: Number(bot.z),
+                   vector_x: Number(bot.vector_x),
+                   vector_y: Number(bot.vector_y),
+                   vector_z: Number(bot.vector_z),
+                   adress: bot.adress,
+                   color: bot.color
+                   });
+    } // for
+
+return(bots_tmp);
+} // apicall_build_active_bots_tmp()
+
+
+apicall_build_botindex_map_for_bots(bots_tmp)
+{
+let botindex_map = {};
+
+if (!Array.isArray(bots_tmp))
+   {
+   return(botindex_map);
+   } // if
+
+for (let i = 0; i < bots_tmp.length; i++)
+    {
+    let bot = bots_tmp[i];
+
+    if (!bot)
+       {
+       continue;
+       } // if
+
+    let key = this.getKey_3d(Number(bot.x), Number(bot.y), Number(bot.z));
+    botindex_map[key] = i;
+    } // for
+
+return(botindex_map);
+} // apicall_build_botindex_map_for_bots()
+
+
+apicall_get_inverse_address_for_bots(firstindex_xyz, addr, bots_tmp, botindex_map = null)
+{
+let ret = "";
+let normalized_addr = String(addr ?? "").trim();
+let index_map = botindex_map ?? this.apicall_build_botindex_map_for_bots(bots_tmp);
+
+if (normalized_addr == "")
+   {
+   return(ret);
+   } // if
+
+if (!Array.isArray(bots_tmp) || bots_tmp.length == 0)
+   {
+   return(ret);
+   } // if
+
+if (index_map[firstindex_xyz] === undefined)
+   {
+   return(ret);
+   } // if
+
+let pathindexarray = [];
+pathindexarray[0] = firstindex_xyz;
+
+let size = normalized_addr.length;
+for (let i = 0; i < size; i++)
+    {
+    let slot = normalized_addr[i];
+    let keyindex = index_map[pathindexarray[i]];
+
+    if (keyindex === undefined)
+       {
+       return("");
+       } // if
+
+    let vx = Number(bots_tmp[keyindex].vector_x);
+    let vy = Number(bots_tmp[keyindex].vector_y);
+    let vz = Number(bots_tmp[keyindex].vector_z);
+    let rel_vector = this.get_cell_relation_vector_byslot(slot, vx, vy, vz);
+
+    let cb_x = Number(bots_tmp[keyindex].x) + Number(rel_vector.x);
+    let cb_y = Number(bots_tmp[keyindex].y) + Number(rel_vector.y);
+    let cb_z = Number(bots_tmp[keyindex].z) + Number(rel_vector.z);
+
+    let nextindex_xyz = this.getKey_3d(cb_x, cb_y, cb_z);
+    pathindexarray[i + 1] = nextindex_xyz;
+    } // for
+
+size = pathindexarray.length;
+
+for (let i = (size - 1); i > 0; i--)
+    {
+    let index1 = index_map[pathindexarray[i]];
+    let index2 = index_map[pathindexarray[i - 1]];
+
+    if (index1 === undefined || index2 === undefined)
+       {
+       return("");
+       } // if
+
+    let tx = Number(bots_tmp[index2].x) - Number(bots_tmp[index1].x);
+    let ty = Number(bots_tmp[index2].y) - Number(bots_tmp[index1].y);
+    let tz = Number(bots_tmp[index2].z) - Number(bots_tmp[index1].z);
+
+    let slot2 = this.get_cell_slot_byvector(
+                                           tx,
+                                           ty,
+                                           tz,
+                                           Number(bots_tmp[index1].vector_x),
+                                           Number(bots_tmp[index1].vector_y),
+                                           Number(bots_tmp[index1].vector_z)
+                                           );
+
+    if (!slot2)
+       {
+       return("");
+       } // if
+
+    ret += slot2;
+    } // for
+
+return(ret);
+} // apicall_get_inverse_address_for_bots()
+
+
+apicall_derive_target_address_from_neighbours(target_pos, bots_tmp)
+{
+let ret = "";
+
+if (!target_pos || !Array.isArray(bots_tmp) || bots_tmp.length == 0)
+   {
+   return(ret);
+   } // if
+
+let neighbours = this.get_valid_neighbours(
+                                          {
+                                           x: Number(target_pos.x),
+                                           y: Number(target_pos.y),
+                                           z: Number(target_pos.z)
+                                           },
+                                          null,
+                                          bots_tmp
+                                          );
+
+for (let i = 0; i < neighbours.length; i++)
+    {
+    let nbot = neighbours[i];
+    let neighbour_addr = String(nbot.adress ?? "").trim();
+
+    if (neighbour_addr == "")
+       {
+       continue;
+       } // if
+
+    let dx = Number(target_pos.x) - Number(nbot.x);
+    let dy = Number(target_pos.y) - Number(nbot.y);
+    let dz = Number(target_pos.z) - Number(nbot.z);
+
+    let slot = this.get_cell_slot_byvector(
+                                          dx,
+                                          dy,
+                                          dz,
+                                          Number(nbot.vector_x),
+                                          Number(nbot.vector_y),
+                                          Number(nbot.vector_z)
+                                          );
+
+    if (!slot)
+       {
+       continue;
+       } // if
+
+    ret = neighbour_addr + slot;
+    return(ret);
+    } // for
+
+return(ret);
+} // apicall_derive_target_address_from_neighbours()
+
+
+apicall_derive_ack_returnaddr_from_neighbours(target_bot, bots_tmp)
+{
+let ret = "";
+
+if (!target_bot || !Array.isArray(bots_tmp) || bots_tmp.length == 0)
+   {
+   return(ret);
+   } // if
+
+let neighbours = this.get_valid_neighbours(
+                                          {
+                                           x: Number(target_bot.x),
+                                           y: Number(target_bot.y),
+                                           z: Number(target_bot.z)
+                                           },
+                                          null,
+                                          bots_tmp
+                                          );
+let botindex_map = this.apicall_build_botindex_map_for_bots(bots_tmp);
+let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
+
+for (let i = 0; i < neighbours.length; i++)
+    {
+    let nbot = neighbours[i];
+    let neighbour_addr = String(nbot.adress ?? "").trim();
+
+    if (neighbour_addr == "")
+       {
+       continue;
+       } // if
+
+    let entry_slot = this.get_cell_slot_byvector(
+                                               Number(nbot.x) - Number(target_bot.x),
+                                               Number(nbot.y) - Number(target_bot.y),
+                                               Number(nbot.z) - Number(target_bot.z),
+                                               Number(target_bot.vector_x),
+                                               Number(target_bot.vector_y),
+                                               Number(target_bot.vector_z)
+                                               );
+
+    if (!entry_slot)
+       {
+       continue;
+       } // if
+
+    let neighbour_retaddr = this.apicall_get_inverse_address_for_bots(
+                                                                  masterbot_key,
+                                                                  neighbour_addr,
+                                                                  bots_tmp,
+                                                                  botindex_map
+                                                                  );
+
+    if (neighbour_retaddr == "")
+       {
+       let live_inverse = this.get_inverse_address(masterbot_key, neighbour_addr);
+
+       if (typeof live_inverse == "string" && live_inverse.trim() != "")
+          {
+          neighbour_retaddr = live_inverse.replace(/^S/i, "");
+          } // if
+       } // if
+
+    if (neighbour_retaddr == "")
+       {
+       continue;
+       } // if
+
+    ret = entry_slot + neighbour_retaddr;
+    return(ret);
+    } // for
+
+return(ret);
+} // apicall_derive_ack_returnaddr_from_neighbours()
+
+
+apicall_get_simple_move_library()
+{
+return([
+       "D_F_D",
+       "D_R_D",
+       "D_B_D",
+       "D_L_D",
+       "F_TF_D",
+       "B_TB_D",
+       "L_TL_D",
+       "R_TR_D"
+       ]);
+} // apicall_get_simple_move_library()
+
+
+apicall_rotate_orientation(vx, vy, vz, direction)
+{
+let ret = null;
+let normalized_direction = String(direction ?? "").trim().toUpperCase();
+let x = Number(vx);
+let y = Number(vy);
+let z = Number(vz);
+
+if (normalized_direction == "R")
+   {
+   if (x ==  1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z: -1 };
+   if (x ==  0 && y == 0 && z == -1) ret = { x: -1, y: 0, z:  0 };
+   if (x == -1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z:  1 };
+   if (x ==  0 && y == 0 && z ==  1) ret = { x:  1, y: 0, z:  0 };
+   } // if
+
+if (normalized_direction == "L")
+   {
+   if (x ==  1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z:  1 };
+   if (x ==  0 && y == 0 && z == -1) ret = { x:  1, y: 0, z:  0 };
+   if (x == -1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z: -1 };
+   if (x ==  0 && y == 0 && z ==  1) ret = { x: -1, y: 0, z:  0 };
+   } // if
+
+return(ret);
+} // apicall_rotate_orientation()
+
+
+apicall_rotate_bot(bot_id, direction)
+{
+let normalized_direction = String(direction ?? "").trim().toUpperCase();
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if (normalized_direction != "L" && normalized_direction != "R")
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot",
+          error: "INVALID_DIRECTION",
+          bot_id: bot_id,
+          direction: normalized_direction
+          });
+   } // if
+
+let target_orientation = this.apicall_rotate_orientation(
+                                                       Number(bot_snapshot.orientation.x),
+                                                       Number(bot_snapshot.orientation.y),
+                                                       Number(bot_snapshot.orientation.z),
+                                                       normalized_direction
+                                                       );
+
+if (!target_orientation)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot",
+          error: "ROTATION_NOT_SUPPORTED_FOR_ORIENTATION",
+          bot_id: bot_id,
+          direction: normalized_direction,
+          current_state: bot_snapshot
+          });
+   } // if
+
+let planned_spin_cmd = "D_S" + normalized_direction + "_D";
+let ack_target_addr = String(bot_snapshot.adress ?? "").trim();
+let ack_retaddr = "";
+let payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
+let ack_excluded_bot_ids = [];
+let ack_id = null;
+let planned_raw_cmd = null;
+let raw_ret = null;
+
+if (String(payload_bot_id ?? "").trim() != "")
+   {
+   ack_excluded_bot_ids.push(String(payload_bot_id));
+   } // if
+
+ack_retaddr = this.apicall_build_stationary_ack_returnaddr(
+                                                           bot_snapshot,
+                                                           target_orientation,
+                                                           ack_excluded_bot_ids
+                                                           );
+
+if (ack_retaddr != "")
+   {
+   ack_id = this.apicall_generate_ack_id(bot_id);
+   planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd + ";ALIFE;" + ack_id + "#" + ack_retaddr;
+   } else
+     {
+     planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd;
+     } // else
+
+if (planned_raw_cmd)
+   {
+   if (ack_id !== null)
+      {
+      this.apicall_register_ack(
+                               ack_id,
+                               {
+                               bot_id: bot_id,
+                               mode: "spin",
+                               to: {
+                                   x: Number(bot_snapshot.position.x),
+                                   y: Number(bot_snapshot.position.y),
+                                   z: Number(bot_snapshot.position.z)
+                                   },
+                               orientation: target_orientation,
+                               planned_raw_cmd: planned_raw_cmd,
+                               retaddr: ack_retaddr,
+                               status: "pending"
+                               }
+                               );
+      } // if
+
+   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
+   this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
+   this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
+
+   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
+      {
+      this.apicall_mark_ack_received(ack_id, "send_failed");
+      } // if
+   } // if
+
+return({
+       ok: true,
+       answer: "api_rotate_bot",
+       bot_id: bot_id,
+       direction: normalized_direction,
+       executable: (planned_raw_cmd !== null),
+       executed: (raw_ret?.accepted ?? false) === true,
+       current_state: bot_snapshot,
+       target_orientation: target_orientation,
+       ack_target_addr: ack_target_addr,
+       ack_id: ack_id,
+       ack_retaddr: ack_retaddr,
+       planned_spin_cmd: planned_spin_cmd,
+       planned_raw_cmd: planned_raw_cmd,
+       raw_cmd_result: raw_ret
+       });
+} // apicall_rotate_bot()
+
+
+apicall_execute_rotation_plan(bot_id, rotation_plan, target_orientation = null)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+let bot_snapshot = this.apicall_get_bot_snapshot(normalized_bot_id);
+let normalized_plan = Array.isArray(rotation_plan) ? rotation_plan.map((entry) => String(entry ?? "").trim().toUpperCase()).filter((entry) => entry != "") : [];
+let payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_bot_id);
+let ack_excluded_bot_ids = [];
+let planned_spin_cmds = [];
+let planned_spin_cmd = "";
+let ack_retaddr = "";
+let ack_id = null;
+let planned_raw_cmd = null;
+let raw_ret = null;
+
+if (String(payload_bot_id ?? "").trim() != "")
+   {
+   ack_excluded_bot_ids.push(String(payload_bot_id));
+   } // if
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_execute_rotation_plan",
+          error: "BOT_NOT_FOUND",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+if (!Array.isArray(rotation_plan) || normalized_plan.length == 0)
+   {
+   return({
+          ok: false,
+          answer: "api_execute_rotation_plan",
+          error: "ROTATION_PLAN_EMPTY",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+for (let i = 0; i < normalized_plan.length; i++)
+    {
+    if (normalized_plan[i] != "L" && normalized_plan[i] != "R")
+       {
+       return({
+              ok: false,
+              answer: "api_execute_rotation_plan",
+              error: "INVALID_ROTATION_STEP",
+              bot_id: normalized_bot_id,
+              invalid_step: normalized_plan[i],
+              rotation_plan: normalized_plan
+              });
+       } // if
+
+    planned_spin_cmds.push("D_S" + normalized_plan[i] + "_D");
+    } // for
+
+planned_spin_cmd = planned_spin_cmds.join(";");
+ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, target_orientation, ack_excluded_bot_ids);
+
+if (ack_retaddr != "")
+   {
+   ack_id = this.apicall_generate_ack_id(normalized_bot_id);
+   planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd + ";ALIFE;" + ack_id + "#" + ack_retaddr;
+   } else
+     {
+     planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd;
+     } // else
+
+if (planned_raw_cmd)
+   {
+   if (ack_id !== null)
+      {
+      this.apicall_register_ack(
+                               ack_id,
+                               {
+                               bot_id: normalized_bot_id,
+                               mode: "spin",
+                               to: {
+                                   x: Number(bot_snapshot.position.x),
+                                   y: Number(bot_snapshot.position.y),
+                                   z: Number(bot_snapshot.position.z)
+                                   },
+                               orientation: target_orientation,
+                               planned_raw_cmd: planned_raw_cmd,
+                               retaddr: ack_retaddr,
+                               status: "pending"
+                               }
+                               );
+      } // if
+
+   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
+   this.append_api_raw_cmd_log(planned_raw_cmd, normalized_bot_id, raw_ret.accepted ?? false);
+   this.append_api_bot_history(normalized_bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
+
+   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
+      {
+      this.apicall_mark_ack_received(ack_id, "send_failed");
+      } // if
+   } // if
+
+return({
+       ok: true,
+       answer: "api_execute_rotation_plan",
+       bot_id: normalized_bot_id,
+       executable: (planned_raw_cmd !== null),
+       executed: (raw_ret?.accepted ?? false) === true,
+       current_state: bot_snapshot,
+       target_orientation: target_orientation,
+       rotation_plan: normalized_plan,
+       planned_spin_cmds: planned_spin_cmds,
+       planned_spin_cmd: planned_spin_cmd,
+       ack_id: ack_id,
+       ack_retaddr: ack_retaddr,
+       planned_raw_cmd: planned_raw_cmd,
+       raw_cmd_result: raw_ret
+       });
+} // apicall_execute_rotation_plan()
+
+
+apicall_rotate_bot_to(bot_id, x, y, z)
+{
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+let allowed_vectors = [
+                      { x:  1, y: 0, z:  0 },
+                      { x: -1, y: 0, z:  0 },
+                      { x:  0, y: 0, z:  1 },
+                      { x:  0, y: 0, z: -1 }
+                      ];
+let matched_target = null;
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot_to",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_x) ||
+   Number.isNaN(target_y) ||
+   Number.isNaN(target_z)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot_to",
+          error: "INVALID_TARGET_ORIENTATION",
+          bot_id: bot_id
+          });
+   } // if
+
+for (let i = 0; i < allowed_vectors.length; i++)
+    {
+    if (
+       Number(allowed_vectors[i].x) === target_x &&
+       Number(allowed_vectors[i].y) === target_y &&
+       Number(allowed_vectors[i].z) === target_z
+       )
+       {
+       matched_target = {
+                        x: Number(allowed_vectors[i].x),
+                        y: Number(allowed_vectors[i].y),
+                        z: Number(allowed_vectors[i].z)
+                        };
+       break;
+       } // if
+    } // for
+
+if (!matched_target)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot_to",
+          error: "TARGET_ORIENTATION_NOT_SUPPORTED",
+          bot_id: bot_id,
+          target_orientation: { x: target_x, y: target_y, z: target_z }
+          });
+   } // if
+
+let current_orientation = {
+                          x: Number(bot_snapshot.orientation.x),
+                          y: Number(bot_snapshot.orientation.y),
+                          z: Number(bot_snapshot.orientation.z)
+                          };
+let rotate_right_once = this.apicall_rotate_orientation(
+                                                       current_orientation.x,
+                                                       current_orientation.y,
+                                                       current_orientation.z,
+                                                       "R"
+                                                       );
+let rotate_left_once = this.apicall_rotate_orientation(
+                                                      current_orientation.x,
+                                                      current_orientation.y,
+                                                      current_orientation.z,
+                                                      "L"
+                                                      );
+if (
+   Number(current_orientation.x) === matched_target.x &&
+   Number(current_orientation.y) === matched_target.y &&
+   Number(current_orientation.z) === matched_target.z
+   )
+   {
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: true,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: [],
+          reason: "ALREADY_ALIGNED",
+          ack_received: true
+          });
+   } // if
+
+let rotate_right_twice = this.apicall_rotate_orientation(
+                                                    Number(rotate_right_once?.x ?? NaN),
+                                                    Number(rotate_right_once?.y ?? NaN),
+                                                    Number(rotate_right_once?.z ?? NaN),
+                                                    "R"
+                                                    );
+
+if (
+   rotate_right_once &&
+   Number(rotate_right_once.x) === matched_target.x &&
+   Number(rotate_right_once.y) === matched_target.y &&
+   Number(rotate_right_once.z) === matched_target.z
+   )
+   {
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["R"],
+          reason: "ROTATION_PLAN_READY"
+          });
+   } // if
+
+if (
+   rotate_left_once &&
+   Number(rotate_left_once.x) === matched_target.x &&
+   Number(rotate_left_once.y) === matched_target.y &&
+   Number(rotate_left_once.z) === matched_target.z
+   )
+   {
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["L"],
+          reason: "ROTATION_PLAN_READY"
+          });
+   } // if
+
+if (
+   rotate_right_twice &&
+   Number(rotate_right_twice.x) === matched_target.x &&
+   Number(rotate_right_twice.y) === matched_target.y &&
+   Number(rotate_right_twice.z) === matched_target.z
+   )
+   {
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["R", "R"],
+          reason: "ROTATION_PLAN_READY"
+          });
+   } // if
+
+return({
+       ok: false,
+       answer: "api_rotate_bot_to",
+       error: "NO_VALID_ROTATION_PLAN",
+       bot_id: bot_id,
+       current_state: bot_snapshot,
+       target_orientation: matched_target
+       });
+} // apicall_rotate_bot_to()
+
+
+apicall_build_stationary_ack_returnaddr(bot_snapshot, target_orientation = null, excluded_bot_ids = [])
+{
+let ack_retaddr = "";
+let bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
+let ack_botindex = this.get_bot_by_id(bot_snapshot.id, bots_tmp_ack);
+
+if (ack_botindex == null)
+   {
+   return(ack_retaddr);
+   } // if
+
+if (target_orientation)
+   {
+   bots_tmp_ack[ack_botindex].vector_x = Number(target_orientation.x);
+   bots_tmp_ack[ack_botindex].vector_y = Number(target_orientation.y);
+   bots_tmp_ack[ack_botindex].vector_z = Number(target_orientation.z);
+   } // if
+
+ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
+                                                             {
+                                                             x: Number(bot_snapshot.position.x),
+                                                             y: Number(bot_snapshot.position.y),
+                                                             z: Number(bot_snapshot.position.z),
+                                                             vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
+                                                             vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
+                                                             vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
+                                                             },
+                                                             bots_tmp_ack
+                                                             );
+
+if (ack_retaddr == "")
+   {
+   ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
+                                                                    {
+                                                                    x: Number(bot_snapshot.position.x),
+                                                                    y: Number(bot_snapshot.position.y),
+                                                                    z: Number(bot_snapshot.position.z),
+                                                                    vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
+                                                                    vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
+                                                                    vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
+                                                                    },
+                                                                    bots_tmp_ack
+                                                                    );
+   } // if
+
+return(ack_retaddr);
+} // apicall_build_stationary_ack_returnaddr()
+
+
+apicall_grab_bot(bot_id)
+{
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+let planned_raw_cmd = null;
+let raw_ret = null;
+let ack_id = null;
+let ack_retaddr = "";
+let payload_bot_id = null;
+let front_rel_vector = null;
+let front_target = null;
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_grab_bot",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, null);
+front_rel_vector = this.get_cell_relation_vector_byslot(
+                                                    "F",
+                                                    Number(bot_snapshot.orientation.x),
+                                                    Number(bot_snapshot.orientation.y),
+                                                    Number(bot_snapshot.orientation.z)
+                                                    );
+if (front_rel_vector)
+   {
+   front_target = {
+                  x: Number(bot_snapshot.position.x) + Number(front_rel_vector.x),
+                  y: Number(bot_snapshot.position.y) + Number(front_rel_vector.y),
+                  z: Number(bot_snapshot.position.z) + Number(front_rel_vector.z)
+                  };
+   } // if
+payload_bot_id = this.apicall_get_front_neighbor_bot_id(bot_snapshot);
+
+if (ack_retaddr != "")
+   {
+   ack_id = this.apicall_generate_ack_id(bot_id);
+   planned_raw_cmd = bot_snapshot.adress + "#MOVE#GF;ALIFE;" + ack_id + "#" + ack_retaddr;
+   } else
+     {
+     planned_raw_cmd = bot_snapshot.adress + "#MOVE#GF";
+     } // else
+
+if (ack_id !== null)
+   {
+   this.apicall_register_ack(
+                            ack_id,
+                            {
+                            bot_id: bot_id,
+                            mode: "grab",
+                            payload_bot_id: payload_bot_id,
+                            to: {
+                                x: Number(bot_snapshot.position.x),
+                                y: Number(bot_snapshot.position.y),
+                                z: Number(bot_snapshot.position.z)
+                                },
+                            orientation: {
+                                          x: Number(bot_snapshot.orientation.x),
+                                          y: Number(bot_snapshot.orientation.y),
+                                          z: Number(bot_snapshot.orientation.z)
+                                          },
+                            planned_raw_cmd: planned_raw_cmd,
+                            retaddr: ack_retaddr,
+                            status: "pending"
+                            }
+                            );
+   } // if
+
+raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
+this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
+this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
+
+if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
+   {
+   this.apicall_mark_ack_received(ack_id, "send_failed");
+   } // if
+
+return({
+       ok: true,
+       answer: "api_grab_bot",
+       bot_id: bot_id,
+       executable: true,
+       executed: (raw_ret?.accepted ?? false) === true,
+       current_state: bot_snapshot,
+       payload_bot_id: payload_bot_id,
+       front_debug: {
+                     rel_vector: front_rel_vector,
+                     target: front_target
+                     },
+       ack_id: ack_id,
+       ack_retaddr: ack_retaddr,
+       planned_raw_cmd: planned_raw_cmd,
+       raw_cmd_result: raw_ret
+       });
+} // apicall_grab_bot()
+
+
+apicall_release_bot(bot_id)
+{
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+let planned_raw_cmd = null;
+let raw_ret = null;
+let ack_id = null;
+let ack_retaddr = "";
+let payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_release_bot",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, null);
+
+if (ack_retaddr != "")
+   {
+   ack_id = this.apicall_generate_ack_id(bot_id);
+   planned_raw_cmd = bot_snapshot.adress + "#MOVE#G;ALIFE;" + ack_id + "#" + ack_retaddr;
+   } else
+     {
+     planned_raw_cmd = bot_snapshot.adress + "#MOVE#G";
+     } // else
+
+if (ack_id !== null)
+   {
+   this.apicall_register_ack(
+                            ack_id,
+                            {
+                            bot_id: bot_id,
+                            mode: "release",
+                            payload_bot_id: payload_bot_id,
+                            to: {
+                                x: Number(bot_snapshot.position.x),
+                                y: Number(bot_snapshot.position.y),
+                                z: Number(bot_snapshot.position.z)
+                                },
+                            orientation: {
+                                          x: Number(bot_snapshot.orientation.x),
+                                          y: Number(bot_snapshot.orientation.y),
+                                          z: Number(bot_snapshot.orientation.z)
+                                          },
+                            planned_raw_cmd: planned_raw_cmd,
+                            retaddr: ack_retaddr,
+                            status: "pending"
+                            }
+                            );
+   } // if
+
+raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
+this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
+this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
+
+if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
+   {
+   this.apicall_mark_ack_received(ack_id, "send_failed");
+   } // if
+
+return({
+       ok: true,
+       answer: "api_release_bot",
+       bot_id: bot_id,
+       executable: true,
+       executed: (raw_ret?.accepted ?? false) === true,
+       current_state: bot_snapshot,
+       payload_bot_id: payload_bot_id,
+       ack_id: ack_id,
+       ack_retaddr: ack_retaddr,
+       planned_raw_cmd: planned_raw_cmd,
+       raw_cmd_result: raw_ret
+       });
+} // apicall_release_bot()
+
+
+async apicall_move_payload_to(carrier_bot_id, payload_bot_id, x, y, z, release_after = false)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let should_release_after = (
+                           release_after === true ||
+                           release_after === "true" ||
+                           release_after === "1" ||
+                           release_after === 1 ||
+                           release_after === "release"
+                           );
+let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
+let payload_snapshot = this.apicall_get_bot_snapshot(normalized_payload_bot_id);
+let current_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
+let current_front_payload_bot_id = null;
+let grab_ret = null;
+let move_ret = null;
+let release_ret = null;
+let steps = [];
+
+if (normalized_carrier_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "CARRIER_BOT_ID_MISSING"
+          });
+   } // if
+
+if (normalized_payload_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "PAYLOAD_BOT_ID_MISSING",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+if (!carrier_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "CARRIER_BOT_NOT_FOUND",
+          carrier_bot_id: normalized_carrier_bot_id,
+          payload_bot_id: normalized_payload_bot_id
+          });
+   } // if
+
+if (!payload_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "PAYLOAD_BOT_NOT_FOUND",
+          carrier_bot_id: normalized_carrier_bot_id,
+          payload_bot_id: normalized_payload_bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_x) ||
+   Number.isNaN(target_y) ||
+   Number.isNaN(target_z)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "INVALID_TARGET_POSITION",
+          carrier_bot_id: normalized_carrier_bot_id,
+          payload_bot_id: normalized_payload_bot_id
+          });
+   } // if
+
+if (current_payload_bot_id && String(current_payload_bot_id) != normalized_payload_bot_id)
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "CARRIER_ALREADY_CARRYING_OTHER_PAYLOAD",
+          carrier_bot_id: normalized_carrier_bot_id,
+          payload_bot_id: normalized_payload_bot_id,
+          current_payload_bot_id: String(current_payload_bot_id)
+          });
+   } // if
+
+if (!current_payload_bot_id)
+   {
+   current_front_payload_bot_id = this.apicall_get_front_neighbor_bot_id(carrier_snapshot);
+
+   if (String(current_front_payload_bot_id ?? "") != normalized_payload_bot_id)
+      {
+      return({
+             ok: false,
+             answer: "api_move_payload_to",
+             error: "PAYLOAD_NOT_DIRECTLY_IN_FRONT",
+             carrier_bot_id: normalized_carrier_bot_id,
+             payload_bot_id: normalized_payload_bot_id,
+             current_front_payload_bot_id: current_front_payload_bot_id
+             });
+      } // if
+
+   grab_ret = this.apicall_grab_bot(normalized_carrier_bot_id);
+   grab_ret = await this.apicall_attach_ack_wait_and_recovery(grab_ret);
+   steps.push({
+              step: "grab_bot",
+              ok: grab_ret?.ok === true,
+              ack_received: grab_ret?.ack_received ?? false,
+              payload_bot_id: grab_ret?.payload_bot_id ?? null,
+              planned_raw_cmd: grab_ret?.planned_raw_cmd ?? null
+              });
+
+   if (grab_ret?.ok !== true)
+      {
+      return({
+             ok: false,
+             answer: "api_move_payload_to",
+             error: "GRAB_FAILED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             payload_bot_id: normalized_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             steps: steps,
+             grab_result: grab_ret
+             });
+      } // if
+
+   if (
+      (grab_ret?.ack_received ?? false) !== true ||
+      String(this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id) ?? "") != normalized_payload_bot_id
+      )
+      {
+      return({
+             ok: false,
+             answer: "api_move_payload_to",
+             error: "GRAB_NOT_CONFIRMED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             payload_bot_id: normalized_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             steps: steps,
+             grab_result: grab_ret,
+             current_payload_bot_id: this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id) ?? null
+             });
+      } // if
+   } // if
+
+move_ret = this.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
+steps.push({
+           step: "move_bot_to",
+           ok: move_ret?.ok === true,
+           ack_received: move_ret?.ack_received ?? false,
+           executable: move_ret?.executable ?? false,
+           executed: move_ret?.executed ?? false,
+           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
+           });
+
+if (
+   move_ret?.ok !== true ||
+   move_ret?.path_found !== true ||
+   move_ret?.executable !== true ||
+   move_ret?.executed !== true ||
+   (move_ret?.ack_received ?? false) !== true
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_move_payload_to",
+          error: "PAYLOAD_MOVE_FAILED",
+          carrier_bot_id: normalized_carrier_bot_id,
+          payload_bot_id: normalized_payload_bot_id,
+          target: { x: target_x, y: target_y, z: target_z },
+          release_after: should_release_after,
+          steps: steps,
+          grab_result: grab_ret,
+          move_result: move_ret
+          });
+   } // if
+
+if (should_release_after)
+   {
+   release_ret = this.apicall_release_bot(normalized_carrier_bot_id);
+   release_ret = await this.apicall_attach_ack_wait_and_recovery(release_ret);
+   steps.push({
+              step: "release_bot",
+              ok: release_ret?.ok === true,
+              ack_received: release_ret?.ack_received ?? false,
+              payload_bot_id: release_ret?.payload_bot_id ?? null,
+              planned_raw_cmd: release_ret?.planned_raw_cmd ?? null
+              });
+
+   if (
+      release_ret?.ok !== true ||
+      (release_ret?.ack_received ?? false) !== true
+      )
+      {
+      return({
+             ok: false,
+             answer: "api_move_payload_to",
+             error: "RELEASE_FAILED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             payload_bot_id: normalized_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             release_after: should_release_after,
+             steps: steps,
+             grab_result: grab_ret,
+             move_result: move_ret,
+             release_result: release_ret
+             });
+      } // if
+   } // if
+
+return({
+       ok: true,
+       answer: "api_move_payload_to",
+       carrier_bot_id: normalized_carrier_bot_id,
+       payload_bot_id: normalized_payload_bot_id,
+       target: { x: target_x, y: target_y, z: target_z },
+       release_after: should_release_after,
+       already_carrying_payload: (current_payload_bot_id !== null),
+       steps: steps,
+       grab_result: grab_ret,
+       move_result: move_ret,
+       release_result: release_ret
+       });
+} // apicall_move_payload_to()
+
+
+async apicall_move_carrier_to(carrier_bot_id, x, y, z, vx, vy, vz, release_after = false)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let target_vx = Number(vx);
+let target_vy = Number(vy);
+let target_vz = Number(vz);
+let should_release_after = (
+                           release_after === true ||
+                           release_after === "true" ||
+                           release_after === "1" ||
+                           release_after === 1 ||
+                           release_after === "release"
+                           );
+let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
+let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
+let orientation_any = false;
+let move_ret = null;
+let rotate_ret = null;
+let release_ret = null;
+let steps = [];
+let allowed_orientations = [
+                           { x:  1, y: 0, z:  0 },
+                           { x: -1, y: 0, z:  0 },
+                           { x:  0, y: 0, z:  1 },
+                           { x:  0, y: 0, z: -1 }
+                           ];
+let orientation_supported = false;
+
+if (normalized_carrier_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_move_carrier_to",
+          error: "CARRIER_BOT_ID_MISSING"
+          });
+   } // if
+
+if (!carrier_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_move_carrier_to",
+          error: "CARRIER_BOT_NOT_FOUND",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_x) ||
+   Number.isNaN(target_y) ||
+   Number.isNaN(target_z)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_move_carrier_to",
+          error: "INVALID_TARGET_POSITION",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_vx) ||
+   Number.isNaN(target_vy) ||
+   Number.isNaN(target_vz)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_move_carrier_to",
+          error: "INVALID_TARGET_ORIENTATION",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+orientation_any = (
+                  Number(target_vx) === 0 &&
+                  Number(target_vy) === 0 &&
+                  Number(target_vz) === 0
+                  );
+
+if (!orientation_any)
+   {
+   for (let i = 0; i < allowed_orientations.length; i++)
+       {
+       if (
+          Number(allowed_orientations[i].x) === Number(target_vx) &&
+          Number(allowed_orientations[i].y) === Number(target_vy) &&
+          Number(allowed_orientations[i].z) === Number(target_vz)
+          )
+          {
+          orientation_supported = true;
+          break;
+          } // if
+       } // for
+
+   if (!orientation_supported)
+      {
+      return({
+             ok: false,
+             answer: "api_move_carrier_to",
+             error: "TARGET_ORIENTATION_NOT_SUPPORTED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             target_orientation: { x: target_vx, y: target_vy, z: target_vz }
+             });
+      } // if
+   } // if
+
+move_ret = this.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
+steps.push({
+           step: "move_bot_to",
+           ok: move_ret?.ok === true,
+           ack_received: move_ret?.ack_received ?? false,
+           executable: move_ret?.executable ?? false,
+           executed: move_ret?.executed ?? false,
+           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
+           });
+
+if (
+   move_ret?.ok !== true ||
+   move_ret?.path_found !== true ||
+   move_ret?.executable !== true ||
+   move_ret?.executed !== true ||
+   (move_ret?.ack_received ?? false) !== true
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_move_carrier_to",
+          error: "CARRIER_MOVE_FAILED",
+          carrier_bot_id: normalized_carrier_bot_id,
+          carried_payload_bot_id: carried_payload_bot_id,
+          target: { x: target_x, y: target_y, z: target_z },
+          target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+          orientation_any: orientation_any,
+          release_after: should_release_after,
+          steps: steps,
+          move_result: move_ret
+          });
+   } // if
+
+if (!orientation_any)
+   {
+   rotate_ret = this.apicall_rotate_bot_to(normalized_carrier_bot_id, target_vx, target_vy, target_vz);
+
+   if (rotate_ret?.ok === true && Array.isArray(rotate_ret.rotation_plan) && rotate_ret.rotation_plan.length > 0)
+      {
+      let execute_ret = this.apicall_execute_rotation_plan(
+                                                         normalized_carrier_bot_id,
+                                                         rotate_ret.rotation_plan,
+                                                         rotate_ret.target_orientation ?? null
+                                                         );
+      execute_ret = await this.apicall_attach_ack_wait_and_recovery(execute_ret);
+
+      rotate_ret = {
+                   ...rotate_ret,
+                   ack_id: execute_ret?.ack_id ?? null,
+                   ack_retaddr: execute_ret?.ack_retaddr ?? "",
+                   planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null,
+                   raw_cmd_result: execute_ret?.raw_cmd_result ?? null,
+                   ack_wait: execute_ret?.ack_wait ?? null,
+                   ack_received: execute_ret?.ack_received ?? false,
+                   execution_steps: [
+                                     {
+                                     rotation_plan: rotate_ret.rotation_plan,
+                                     ack_id: execute_ret?.ack_id ?? null,
+                                     ack_received: execute_ret?.ack_received ?? false,
+                                     planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null
+                                     }
+                                     ],
+                   executed: (execute_ret?.ack_received ?? false) === true
+                   };
+
+      if ((execute_ret?.ack_received ?? false) !== true)
+         {
+         rotate_ret.ok = false;
+         rotate_ret.error = "ROTATION_PLAN_FAILED";
+         rotate_ret.failed_step = 1;
+         rotate_ret.failed_direction = (rotate_ret.rotation_plan[0] ?? null);
+         rotate_ret.last_step_result = execute_ret;
+         } // if
+      } // if
+
+   steps.push({
+              step: "rotate_bot_to",
+              ok: rotate_ret?.ok === true,
+              executed: rotate_ret?.executed ?? false,
+              rotation_plan: rotate_ret?.rotation_plan ?? [],
+              failed_step: rotate_ret?.failed_step ?? null,
+              failed_direction: rotate_ret?.failed_direction ?? null
+              });
+
+   if (rotate_ret?.ok !== true || rotate_ret?.executed !== true)
+      {
+      return({
+             ok: false,
+             answer: "api_move_carrier_to",
+             error: "CARRIER_ROTATION_FAILED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             carried_payload_bot_id: carried_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+             orientation_any: orientation_any,
+             release_after: should_release_after,
+             steps: steps,
+             move_result: move_ret,
+             rotate_result: rotate_ret
+             });
+      } // if
+   } // if
+
+if (should_release_after && carried_payload_bot_id)
+   {
+   release_ret = this.apicall_release_bot(normalized_carrier_bot_id);
+   release_ret = await this.apicall_attach_ack_wait_and_recovery(release_ret);
+   steps.push({
+              step: "release_bot",
+              ok: release_ret?.ok === true,
+              ack_received: release_ret?.ack_received ?? false,
+              payload_bot_id: release_ret?.payload_bot_id ?? null,
+              planned_raw_cmd: release_ret?.planned_raw_cmd ?? null
+              });
+
+   if (
+      release_ret?.ok !== true ||
+      (release_ret?.ack_received ?? false) !== true
+      )
+      {
+      return({
+             ok: false,
+             answer: "api_move_carrier_to",
+             error: "RELEASE_FAILED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             carried_payload_bot_id: carried_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+             orientation_any: orientation_any,
+             release_after: should_release_after,
+             steps: steps,
+             move_result: move_ret,
+             rotate_result: rotate_ret,
+             release_result: release_ret
+             });
+      } // if
+   } // if
+
+return({
+       ok: true,
+       answer: "api_move_carrier_to",
+       carrier_bot_id: normalized_carrier_bot_id,
+       carried_payload_bot_id: carried_payload_bot_id,
+       target: { x: target_x, y: target_y, z: target_z },
+       target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+       orientation_any: orientation_any,
+       release_after: should_release_after,
+       steps: steps,
+       move_result: move_ret,
+       rotate_result: rotate_ret,
+       release_result: release_ret
+       });
+} // apicall_move_carrier_to()
+
+
+apicall_diagnose_move_carrier_to(carrier_bot_id, x, y, z, vx, vy, vz, release_after = false)
+{
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let target_vx = Number(vx);
+let target_vy = Number(vy);
+let target_vz = Number(vz);
+let should_release_after = (
+                           release_after === true ||
+                           release_after === "true" ||
+                           release_after === "1" ||
+                           release_after === 1 ||
+                           release_after === "release"
+                           );
+let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
+let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
+let orientation_any = false;
+let move_ret = null;
+let rotate_ret = null;
+let release_ret = null;
+let steps = [];
+let allowed_orientations = [
+                           { x:  1, y: 0, z:  0 },
+                           { x: -1, y: 0, z:  0 },
+                           { x:  0, y: 0, z:  1 },
+                           { x:  0, y: 0, z: -1 }
+                           ];
+let orientation_supported = false;
+
+if (normalized_carrier_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_move_carrier_to",
+          error: "CARRIER_BOT_ID_MISSING"
+          });
+   } // if
+
+if (!carrier_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_move_carrier_to",
+          error: "CARRIER_BOT_NOT_FOUND",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_x) ||
+   Number.isNaN(target_y) ||
+   Number.isNaN(target_z)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_move_carrier_to",
+          error: "INVALID_TARGET_POSITION",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+if (
+   Number.isNaN(target_vx) ||
+   Number.isNaN(target_vy) ||
+   Number.isNaN(target_vz)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_move_carrier_to",
+          error: "INVALID_TARGET_ORIENTATION",
+          carrier_bot_id: normalized_carrier_bot_id
+          });
+   } // if
+
+orientation_any = (
+                  Number(target_vx) === 0 &&
+                  Number(target_vy) === 0 &&
+                  Number(target_vz) === 0
+                  );
+
+if (!orientation_any)
+   {
+   for (let i = 0; i < allowed_orientations.length; i++)
+       {
+       if (
+          Number(allowed_orientations[i].x) === Number(target_vx) &&
+          Number(allowed_orientations[i].y) === Number(target_vy) &&
+          Number(allowed_orientations[i].z) === Number(target_vz)
+          )
+          {
+          orientation_supported = true;
+          break;
+          } // if
+       } // for
+
+   if (!orientation_supported)
+      {
+      return({
+             ok: false,
+             answer: "api_diagnose_move_carrier_to",
+             error: "TARGET_ORIENTATION_NOT_SUPPORTED",
+             carrier_bot_id: normalized_carrier_bot_id,
+             target_orientation: { x: target_vx, y: target_vy, z: target_vz }
+             });
+      } // if
+   } // if
+
+move_ret = this.apicall_diagnose_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+steps.push({
+           step: "move_bot_to",
+           ok: move_ret?.ok === true,
+           path_found: move_ret?.path_found ?? false,
+           executable: move_ret?.executable ?? false,
+           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
+           });
+
+if (
+   move_ret?.ok !== true ||
+   move_ret?.path_found !== true ||
+   move_ret?.executable !== true
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_move_carrier_to",
+          error: "CARRIER_MOVE_NOT_PLANNABLE",
+          carrier_bot_id: normalized_carrier_bot_id,
+          carried_payload_bot_id: carried_payload_bot_id,
+          target: { x: target_x, y: target_y, z: target_z },
+          target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+          orientation_any: orientation_any,
+          release_after: should_release_after,
+          executable: false,
+          executed: false,
+          steps: steps,
+          move_result: move_ret,
+          rotate_result: null,
+          release_result: null
+          });
+   } // if
+
+if (!orientation_any)
+   {
+   rotate_ret = this.apicall_rotate_bot_to(normalized_carrier_bot_id, target_vx, target_vy, target_vz);
+
+   steps.push({
+              step: "rotate_bot_to",
+              ok: rotate_ret?.ok === true,
+              executable: rotate_ret?.ok === true,
+              executed: false,
+              rotation_plan: rotate_ret?.rotation_plan ?? [],
+              target_orientation: rotate_ret?.target_orientation ?? null
+              });
+
+   if (rotate_ret?.ok !== true)
+      {
+      return({
+             ok: false,
+             answer: "api_diagnose_move_carrier_to",
+             error: "CARRIER_ROTATION_NOT_PLANNABLE",
+             carrier_bot_id: normalized_carrier_bot_id,
+             carried_payload_bot_id: carried_payload_bot_id,
+             target: { x: target_x, y: target_y, z: target_z },
+             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+             orientation_any: orientation_any,
+             release_after: should_release_after,
+             executable: false,
+             executed: false,
+             steps: steps,
+             move_result: move_ret,
+             rotate_result: rotate_ret,
+             release_result: null
+             });
+      } // if
+   } // if
+
+if (should_release_after && carried_payload_bot_id)
+   {
+   release_ret = {
+                 ok: true,
+                 answer: "api_release_bot",
+                 executable: true,
+                 executed: false,
+                 bot_id: normalized_carrier_bot_id,
+                 payload_bot_id: carried_payload_bot_id,
+                 note: "release_planned_only"
+                 };
+
+   steps.push({
+              step: "release_bot",
+              ok: true,
+              executable: true,
+              executed: false,
+              payload_bot_id: carried_payload_bot_id
+              });
+   } // if
+
+return({
+       ok: true,
+       answer: "api_diagnose_move_carrier_to",
+       carrier_bot_id: normalized_carrier_bot_id,
+       carried_payload_bot_id: carried_payload_bot_id,
+       target: { x: target_x, y: target_y, z: target_z },
+       target_orientation: { x: target_vx, y: target_vy, z: target_vz },
+       orientation_any: orientation_any,
+       release_after: should_release_after,
+       executable: true,
+       executed: false,
+       steps: steps,
+       move_result: move_ret,
+       rotate_result: rotate_ret,
+       release_result: release_ret
+       });
+} // apicall_diagnose_move_carrier_to()
+
+
+apicall_suggest_simple_move(bot_id, x, y, z)
+{
+let path_ret = this.apicall_find_path_for_bot(bot_id, x, y, z, false);
+let move_library = this.apicall_get_simple_move_library();
+let tested_candidates = [];
+let matching_candidates = [];
+
+if (path_ret.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_suggest_simple_move",
+          error: path_ret.error ?? "PATH_PRECHECK_FAILED",
+          bot_id: bot_id
+          });
+   } // if
+
+if (path_ret.path_found !== true)
+   {
+   return({
+          ok: true,
+          answer: "api_suggest_simple_move",
+          bot_id: bot_id,
+          target: path_ret.target,
+          suggested: false,
+          reason: path_ret.reason ?? "NO_SURFACE_PATH_FOUND",
+          path_found: false,
+          path: path_ret.path ?? []
+          });
+   } // if
+
+if (!Array.isArray(path_ret.path) || path_ret.path.length < 2)
+   {
+   return({
+          ok: true,
+          answer: "api_suggest_simple_move",
+          bot_id: bot_id,
+          target: path_ret.target,
+          suggested: false,
+          reason: "ALREADY_AT_TARGET",
+          path_found: true,
+          path: path_ret.path ?? []
+          });
+   } // if
+
+for (let i = 0; i < move_library.length; i++)
+    {
+    let move_candidate = move_library[i];
+    let probe_ret = this.apicall_probe_move_bot(bot_id, move_candidate);
+    let candidate_info = {
+                         move: move_candidate,
+                         ok: probe_ret.ok === true,
+                         possible: probe_ret.possible === true
+                         };
+
+    if (probe_ret.predicted_target)
+       {
+       candidate_info.predicted_target = probe_ret.predicted_target;
+       } // if
+
+    tested_candidates.push(candidate_info);
+
+    if (probe_ret.ok === true && probe_ret.possible === true && probe_ret.predicted_target)
+       {
+       for (let p = 1; p < path_ret.path.length; p++)
+           {
+           let pathnode = path_ret.path[p];
+
+           if ( Number(probe_ret.predicted_target.x) === Number(pathnode.x) &&
+                Number(probe_ret.predicted_target.y) === Number(pathnode.y) &&
+                Number(probe_ret.predicted_target.z) === Number(pathnode.z) )
+              {
+              matching_candidates.push({
+                                       move: move_candidate,
+                                       path_index: p,
+                                       predicted_target: probe_ret.predicted_target,
+                                       notes: probe_ret.notes ?? []
+                                       });
+              break;
+              } // if
+           } // for
+       } // if
+    } // for
+
+if (matching_candidates.length == 0)
+   {
+   return({
+          ok: true,
+          answer: "api_suggest_simple_move",
+          bot_id: bot_id,
+          target: path_ret.target,
+          suggested: false,
+          reason: "NO_SIMPLE_MOVE_CANDIDATE_FOR_PATH_HEAD",
+          path_found: true,
+          path: path_ret.path,
+          tested_candidates: tested_candidates
+          });
+   } // if
+
+matching_candidates.sort((a, b) => b.path_index - a.path_index);
+
+return({
+       ok: true,
+       answer: "api_suggest_simple_move",
+       bot_id: bot_id,
+       target: path_ret.target,
+       suggested: true,
+       reason: "SIMPLE_MOVE_FOUND",
+       path_found: true,
+       path: path_ret.path,
+       move_candidate: matching_candidates[0].move,
+       predicted_target: matching_candidates[0].predicted_target,
+       matched_path_index: matching_candidates[0].path_index,
+       matching_candidates: matching_candidates,
+       tested_candidates: tested_candidates
+       });
+} // apicall_suggest_simple_move()
+
+
+apicall_move_bot_to(bot_id, x, y, z, execute_move = true)
+{
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
+let excluded_bot_ids = [];
+let should_execute_move = (execute_move === true);
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_move_bot_to",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+if (Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z))
+   {
+   return({
+          ok: false,
+          answer: "api_move_bot_to",
+          error: "INVALID_TARGET_POSITION",
+          bot_id: bot_id
+          });
+   } // if
+
+if (carried_payload_bot_id)
+   {
+   excluded_bot_ids.push(String(carried_payload_bot_id));
+   } // if
+
+let path_ret = this.apicall_find_path_for_bot(
+                                             bot_id,
+                                             target_x,
+                                             target_y,
+                                             target_z,
+                                             false,
+                                             {
+                                             excluded_bot_ids: excluded_bot_ids,
+                                             carried_payload_bot_id: carried_payload_bot_id
+                                             }
+                                             );
+
+if (path_ret.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
+          error: path_ret.error ?? "PATH_PRECHECK_FAILED",
+          bot_id: bot_id
+          });
+   } // if
+
+if (path_ret.path_found !== true)
+   {
+   return({
+          ok: true,
+          answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
+          bot_id: bot_id,
+          execution_mode: "plan-only",
+          target: {
+                   x: target_x,
+                   y: target_y,
+                   z: target_z
+                   },
+          executable: false,
+          executed: false,
+          reason: path_ret.reason ?? "NO_SURFACE_PATH_FOUND",
+          current_state: bot_snapshot,
+          carried_payload_bot_id: carried_payload_bot_id,
+          planning_excluded_bot_ids: excluded_bot_ids,
+          path_found: false,
+          path_length: 0,
+          planned_moves: [],
+          planned_primitives: [],
+          planned_movecmds_legacy: "",
+          planned_raw_cmd: null,
+          path: []
+          });
+   } // if
+
+let planned_moves = this.apicall_translate_path_to_primitive_paths(
+                                                             path_ret.path ?? [],
+                                                             Number(bot_snapshot.orientation.x),
+                                                             Number(bot_snapshot.orientation.y),
+                                                             Number(bot_snapshot.orientation.z)
+                                                             );
+let planned_primitives = this.apicall_add_anchors_to_primitive_paths(
+                                                                   planned_moves,
+                                                                   Number(bot_snapshot.orientation.x),
+                                                                   Number(bot_snapshot.orientation.y),
+                                                                   Number(bot_snapshot.orientation.z),
+                                                                   excluded_bot_ids
+                                                                   );
+let bots_tmp = this.apicall_build_active_bots_tmp(false, excluded_bot_ids);
+let legacy_move_ret = this.calc_move_cmds(
+                                         path_ret.path ?? [],
+                                         Number(bot_snapshot.orientation.x),
+                                         Number(bot_snapshot.orientation.y),
+                                         Number(bot_snapshot.orientation.z),
+                                         bots_tmp
+                                         );
+let planned_movecmds_legacy = legacy_move_ret?.movecmds ?? "";
+let planned_raw_cmd = null;
+let raw_ret = null;
+let ack_id = null;
+let ack_retaddr = "";
+let ack_target_addr = "";
+let ack_target_neighbors_debug = [];
+let ack_target_neighbors_live_debug = [];
+let ack_stl_debug = null;
+let move_diagnostic_summary = null;
+
+if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
+   {
+   let bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
+   let ack_botindex = this.get_bot_by_id(bot_id, bots_tmp_ack);
+
+   if (ack_botindex != null)
+      {
+      bots_tmp_ack[ack_botindex].x = target_x;
+      bots_tmp_ack[ack_botindex].y = target_y;
+      bots_tmp_ack[ack_botindex].z = target_z;
+
+      for (let b = 0; b < bots_tmp_ack.length; b++)
+          {
+          let cleanedBlockedBots = [];
+
+          if (bots_tmp_ack[b].id == "masterbot")
+             {
+             continue;
+             } // if
+
+          bots_tmp_ack[b].adress = this.get_mb_returnaddr(
+                                                      {x: this.mb.x, y: this.mb.y, z: this.mb.z},
+                                                      {x: bots_tmp_ack[b].x, y: bots_tmp_ack[b].y, z: bots_tmp_ack[b].z},
+                                                      bots_tmp_ack,
+                                                      cleanedBlockedBots
+                                                      );
+          } // for
+
+      let ack_target_neighbors = this.get_valid_neighbours(
+                                                          {x: target_x, y: target_y, z: target_z},
+                                                          null,
+                                                          bots_tmp_ack
+                                                          );
+      ack_target_neighbors_debug = ack_target_neighbors.map((bot) => ({
+                                                                     id: bot.id,
+                                                                     x: Number(bot.x),
+                                                                     y: Number(bot.y),
+                                                                     z: Number(bot.z),
+                                                                     adress: bot.adress ?? ""
+                                                                     }));
+
+      ack_target_addr = String(bots_tmp_ack[ack_botindex].adress ?? "").trim();
+      if (ack_target_addr == "")
+         {
+         ack_target_addr = this.apicall_derive_target_address_from_neighbours(
+                                                                           {x: target_x, y: target_y, z: target_z},
+                                                                           bots_tmp_ack
+                                                                           );
+         } // if
+
+      if (ack_target_addr == "")
+         {
+         let ack_target_neighbors_live = this.get_valid_neighbours(
+                                                                  {x: target_x, y: target_y, z: target_z},
+                                                                  null,
+                                                                  this.bots
+                                                                  );
+         ack_target_neighbors_live_debug = ack_target_neighbors_live.map((bot) => ({
+                                                                               id: bot.id,
+                                                                               x: Number(bot.x),
+                                                                               y: Number(bot.y),
+                                                                               z: Number(bot.z),
+                                                                               adress: bot.adress ?? ""
+                                                                               }));
+
+         ack_target_addr = this.apicall_derive_target_address_from_neighbours(
+                                                                           {x: target_x, y: target_y, z: target_z},
+                                                                           this.bots
+                                                                           );
+         } // if
+
+      if (
+          legacy_move_ret &&
+          typeof legacy_move_ret.final_lastanchor == "string" &&
+          legacy_move_ret.final_lastanchor != "" &&
+          legacy_move_ret.final_lastanchorneighbour &&
+          legacy_move_ret.final_lastanchorneighbour.x !== undefined
+         )
+         {
+         let stl_key = this.getKey_3d(
+                                    Number(legacy_move_ret.final_lastanchorneighbour.x),
+                                    Number(legacy_move_ret.final_lastanchorneighbour.y),
+                                    Number(legacy_move_ret.final_lastanchorneighbour.z)
+                                    );
+         let botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
+         let stl_index = botindex_map_ack[stl_key];
+
+         ack_stl_debug = {
+                          entry_slot: legacy_move_ret.final_lastanchor,
+                          neighbour: legacy_move_ret.final_lastanchorneighbour
+                          };
+
+         if (stl_index !== undefined)
+            {
+            let stl_addr = String(bots_tmp_ack[stl_index].adress ?? "").trim();
+            let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
+
+            ack_stl_debug.stl_id = bots_tmp_ack[stl_index].id ?? "";
+            ack_stl_debug.stl_addr = stl_addr;
+
+            if (stl_addr == "")
+               {
+               let live_stl_index = this.get_bot_by_id(String(bots_tmp_ack[stl_index].id ?? ""), this.bots);
+
+               if (live_stl_index !== null)
+                  {
+                  stl_addr = String(this.bots[live_stl_index].adress ?? "").trim();
+                  ack_stl_debug.stl_addr_live = stl_addr;
+                  } // if
+               } // if
+
+            if (stl_addr != "")
+               {
+               let stl_retaddr = this.apicall_get_inverse_address_for_bots(
+                                                                          masterbot_key,
+                                                                          stl_addr,
+                                                                          bots_tmp_ack,
+                                                                          botindex_map_ack
+                                                                          );
+
+               ack_stl_debug.stl_retaddr = stl_retaddr;
+
+               if (stl_retaddr != "")
+                  {
+                  ack_retaddr = String(legacy_move_ret.final_lastanchor) + String(stl_retaddr);
+                  } // if
+               } // if
+            } // if
+         } // if
+
+      if (ack_retaddr == "")
+         {
+         ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
+                                                                      bots_tmp_ack[ack_botindex],
+                                                                      bots_tmp_ack
+                                                                      );
+         } // if
+
+      if (ack_retaddr == "")
+         {
+         ack_retaddr = this.get_mb_returnaddr(
+                                             {x: target_x, y: target_y, z: target_z},
+                                             {x: this.mb.x, y: this.mb.y, z: this.mb.z},
+                                             bots_tmp_ack,
+                                             []
+                                             );
+         } // if
+
+      if (ack_retaddr == "" && ack_target_addr != "")
+         {
+         let botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
+         let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
+
+         ack_retaddr = this.apicall_get_inverse_address_for_bots(
+                                                              masterbot_key,
+                                                              ack_target_addr,
+                                                              bots_tmp_ack,
+                                                              botindex_map_ack
+                                                              );
+         } // if
+      } // if
+   } // if
+
+if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
+   {
+   if (ack_retaddr != "")
+      {
+      ack_id = this.apicall_generate_ack_id(bot_id);
+      planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_movecmds_legacy.trim() + ";ALIFE;" + ack_id + "#" + ack_retaddr;
+      } else
+        {
+        planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_movecmds_legacy.trim();
+        } // else
+   } else
+     {
+     planned_raw_cmd = this.apicall_build_raw_move_cmd(bot_snapshot.adress, planned_primitives);
+     } // else
+
+if (should_execute_move === true && planned_raw_cmd)
+   {
+   if (ack_id !== null)
+      {
+      this.apicall_register_ack(
+                               ack_id,
+                               {
+                               bot_id: bot_id,
+                               to: { x: target_x, y: target_y, z: target_z },
+                               planned_raw_cmd: planned_raw_cmd,
+                               retaddr: ack_retaddr,
+                               status: "pending"
+                               }
+                               );
+      } // if
+
+   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
+   this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
+   this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
+
+   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
+      {
+      this.apicall_mark_ack_received(ack_id, "send_failed");
+      } // if
+   } // if
+
+move_diagnostic_summary = this.apicall_build_move_diagnostic_summary(
+                                                                   planned_primitives,
+                                                                   planned_movecmds_legacy,
+                                                                   planned_raw_cmd,
+                                                                   path_ret.path_debug_rejections ?? []
+                                                                   );
+
+return({
+       ok: true,
+       answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
+       bot_id: bot_id,
+       execution_mode: (should_execute_move ? "batched-raw-cmd" : "diagnostic-plan"),
+       target: {
+                x: target_x,
+                y: target_y,
+                z: target_z
+                },
+       executable: (planned_raw_cmd !== null),
+       executed: (should_execute_move ? ((raw_ret?.accepted ?? false) === true) : false),
+       reason: "PATH_READY_FOR_MOVE_TRANSLATION",
+       current_state: bot_snapshot,
+       carried_payload_bot_id: carried_payload_bot_id,
+       planning_excluded_bot_ids: excluded_bot_ids,
+       path_found: path_ret.path_found === true,
+       path_length: path_ret.path_length ?? ((path_ret.path ?? []).length),
+       path: path_ret.path ?? [],
+       planned_moves: planned_moves,
+       planned_primitives: planned_primitives,
+       path_debug_rejections: path_ret.path_debug_rejections ?? [],
+       invalid_primitive_count: move_diagnostic_summary?.invalid_primitive_count ?? 0,
+       invalid_primitive_indices: move_diagnostic_summary?.invalid_primitive_indices ?? [],
+       path_debug_rejection_count: move_diagnostic_summary?.path_debug_rejection_count ?? 0,
+       path_debug_rejection_reasons: move_diagnostic_summary?.path_debug_rejection_reasons ?? [],
+       legacy_translation_status: move_diagnostic_summary?.legacy_translation_status ?? "not_attempted",
+       legacy_translation_warning: move_diagnostic_summary?.legacy_translation_warning ?? "",
+       final_diagnostic_reason: move_diagnostic_summary?.final_diagnostic_reason ?? "MOVE_TRANSLATION_FAILED",
+       planned_movecmds_legacy: planned_movecmds_legacy,
+       ack_target_addr: ack_target_addr,
+       ack_target_neighbors_debug: ack_target_neighbors_debug,
+       ack_target_neighbors_live_debug: ack_target_neighbors_live_debug,
+       ack_stl_debug: ack_stl_debug,
+       ack_id: ack_id,
+       ack_retaddr: ack_retaddr,
+       planned_raw_cmd: planned_raw_cmd,
+       raw_cmd_result: raw_ret,
+       notes: [
+               "Primitive middle paths are already derived from the coordinate path.",
+               "Anchors are now selected for each primitive where possible.",
+               "A complete MOVE raw command is preferably built via the legacy calc_move_cmds() translator.",
+               "API move commands now append ALIFE with an API-specific acknowledgement id when a return address is available.",
+               (should_execute_move ? "The command is executed immediately in this version if all primitives are valid." : "Diagnostic mode stops before raw command execution and only returns the planned translation.")
+               ]
+       });
+} // apicall_move_bot_to()
+
+
+apicall_diagnose_move_bot_to(bot_id, x, y, z)
+{
+return(this.apicall_move_bot_to(bot_id, x, y, z, false));
+} // apicall_diagnose_move_bot_to()
+
+
+apicall_build_move_diagnostic_summary(planned_primitives, planned_movecmds_legacy, planned_raw_cmd, path_debug_rejections = [])
+{
+let invalid_primitive_indices = [];
+let invalid_primitive_count = 0;
+let path_debug_rejection_count = 0;
+let path_debug_rejection_reasons = [];
+let legacy_translation_status = "not_attempted";
+let legacy_translation_warning = "";
+let final_diagnostic_reason = "MOVE_READY";
+
+if (Array.isArray(planned_primitives))
+   {
+   for (let i = 0; i < planned_primitives.length; i++)
+       {
+       if (planned_primitives[i].valid !== true)
+          {
+          invalid_primitive_indices.push(i);
+          invalid_primitive_count++;
+          } // if
+       } // for
+   } // if
+
+if (Array.isArray(path_debug_rejections))
+   {
+   path_debug_rejection_count = path_debug_rejections.length;
+   path_debug_rejection_reasons = [...new Set(
+                                          path_debug_rejections
+                                          .map((entry) => String(entry?.reason ?? "").trim())
+                                          .filter((reason) => reason != "")
+                                          )];
+   } // if
+
+if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
+   {
+   if (invalid_primitive_count > 0)
+      {
+      legacy_translation_status = "warning_invalid_primitives_but_legacy_present";
+      legacy_translation_warning = "Legacy translation produced a MOVE string although one or more anchored primitives are invalid.";
+      final_diagnostic_reason = "LEGACY_TRANSLATION_CONFLICT";
+      } // if
+   else
+      {
+      legacy_translation_status = "legacy_ready";
+      final_diagnostic_reason = "MOVE_READY";
+      } // else
+   } // if
+else if (invalid_primitive_count > 0)
+   {
+   legacy_translation_status = "legacy_not_available_due_to_invalid_primitives";
+   final_diagnostic_reason = "ANCHOR_FAILURE";
+   } // else if
+else if (typeof planned_raw_cmd == "string" && planned_raw_cmd.trim() != "")
+   {
+   legacy_translation_status = "raw_fallback_ready";
+   final_diagnostic_reason = "MOVE_READY";
+   } // else if
+else
+   {
+   legacy_translation_status = "no_move_translation";
+   final_diagnostic_reason = "MOVE_TRANSLATION_FAILED";
+   } // else
+
+return({
+       invalid_primitive_count: invalid_primitive_count,
+       invalid_primitive_indices: invalid_primitive_indices,
+       path_debug_rejection_count: path_debug_rejection_count,
+       path_debug_rejection_reasons: path_debug_rejection_reasons,
+       legacy_translation_status: legacy_translation_status,
+       legacy_translation_warning: legacy_translation_warning,
+       final_diagnostic_reason: final_diagnostic_reason
+       });
+} // apicall_build_move_diagnostic_summary()
+
+
+apicall_get_valid_double_primitives()
+{
+return([
+        "TF", "FT", "FD", "DF",
+        "DB", "BD", "BT", "TB",
+        "TL", "LT", "LD", "DL",
+        "DR", "RD", "RT", "TR"
+        ]);
+} // apicall_get_valid_double_primitives()
+
+
+apicall_is_valid_double_primitive(slot1, slot2)
+{
+if (typeof slot1 != "string" || typeof slot2 != "string")
+   {
+   return(false);
+   } // if
+
+let pair = slot1 + slot2;
+let valid_pairs = this.apicall_get_valid_double_primitives();
+
+return(valid_pairs.includes(pair));
+} // apicall_is_valid_double_primitive()
+
+
+apicall_translate_path_to_primitive_paths(path, vx, vy, vz)
+{
+let planned_moves = [];
+
+if (!Array.isArray(path) || path.length < 2)
+   {
+   return(planned_moves);
+   } // if
+
+for (let i = 0; i < path.length - 1; i++)
+    {
+    let current_node = path[i];
+    let next_node = path[i + 1];
+    let dx1 = Number(next_node.x) - Number(current_node.x);
+    let dy1 = Number(next_node.y) - Number(current_node.y);
+    let dz1 = Number(next_node.z) - Number(current_node.z);
+    let slot1 = this.get_cell_slot_byvector(dx1, dy1, dz1, vx, vy, vz);
+    let combined = false;
+
+    if ((slot1 == "T" || slot1 == "D") && i + 2 < path.length)
+       {
+       let third_node = path[i + 2];
+       let dx2 = Number(third_node.x) - Number(next_node.x);
+       let dy2 = Number(third_node.y) - Number(next_node.y);
+       let dz2 = Number(third_node.z) - Number(next_node.z);
+       let slot2 = this.get_cell_slot_byvector(dx2, dy2, dz2, vx, vy, vz);
+
+       if (this.apicall_is_valid_double_primitive(slot1, slot2) === true)
+          {
+          planned_moves.push({
+                             from: {
+                                    x: Number(current_node.x),
+                                    y: Number(current_node.y),
+                                    z: Number(current_node.z)
+                                    },
+                             to: {
+                                  x: Number(third_node.x),
+                                  y: Number(third_node.y),
+                                  z: Number(third_node.z)
+                                  },
+                             primitive_path: slot1 + slot2
+                             });
+          i++;
+          combined = true;
+          } // if
+       } // if
+
+    if ((combined === false) &&
+        (slot1 == "F" || slot1 == "R" || slot1 == "B" || slot1 == "L") &&
+        i + 2 < path.length)
+       {
+       let third_node = path[i + 2];
+       let dx2 = Number(third_node.x) - Number(next_node.x);
+       let dy2 = Number(third_node.y) - Number(next_node.y);
+       let dz2 = Number(third_node.z) - Number(next_node.z);
+       let slot2 = this.get_cell_slot_byvector(dx2, dy2, dz2, vx, vy, vz);
+
+       if (this.apicall_is_valid_double_primitive(slot1, slot2) === true)
+          {
+          planned_moves.push({
+                             from: {
+                                    x: Number(current_node.x),
+                                    y: Number(current_node.y),
+                                    z: Number(current_node.z)
+                                    },
+                             to: {
+                                  x: Number(third_node.x),
+                                  y: Number(third_node.y),
+                                  z: Number(third_node.z)
+                                  },
+                             primitive_path: slot1 + slot2
+                             });
+          i++;
+          combined = true;
+          } // if
+       } // if
+
+    if (combined === false && slot1 != "")
+       {
+       planned_moves.push({
+                          from: {
+                                 x: Number(current_node.x),
+                                 y: Number(current_node.y),
+                                 z: Number(current_node.z)
+                                 },
+                          to: {
+                               x: Number(next_node.x),
+                               y: Number(next_node.y),
+                               z: Number(next_node.z)
+                               },
+                          primitive_path: slot1
+                          });
+       } // if
+    } // for
+
+return(planned_moves);
+} // apicall_translate_path_to_primitive_paths()
+
+
+apicall_select_anchor_slot(x, y, z, vx, vy, vz, excluded_slots = [], excluded_bot_ids = [])
+{
+const slotnames = ['D', 'R', 'L', 'B', 'F', 'T'];
+
+for (let i = 0; i < slotnames.length; i++)
+    {
+    let slot = slotnames[i];
+
+    if (excluded_slots.includes(slot))
+       {
+       continue;
+       } // if
+
+    let target_xyz = this.get_next_target_coor(x, y, z, vx, vy, vz, slot);
+    let occupancy = this.apicall_is_occupied_excluding_ids(
+                                                          target_xyz.x,
+                                                          target_xyz.y,
+                                                          target_xyz.z,
+                                                          excluded_bot_ids
+                                                          );
+
+    if (occupancy.occupied === true)
+       {
+       return({
+              slot: slot,
+              occupancy: occupancy
+              });
+       } // if
+    } // for
+
+return(null);
+} // apicall_select_anchor_slot()
+
+
+apicall_collect_anchor_candidates(x, y, z, vx, vy, vz, excluded_slots = [], excluded_bot_ids = [])
+{
+const slotnames = ['D', 'R', 'L', 'B', 'F', 'T'];
+let candidates = [];
+
+for (let i = 0; i < slotnames.length; i++)
+    {
+    let slot = slotnames[i];
+
+    if (excluded_slots.includes(slot))
+       {
+       continue;
+       } // if
+
+    let target_xyz = this.get_next_target_coor(x, y, z, vx, vy, vz, slot);
+    let occupancy = this.apicall_is_occupied_excluding_ids(
+                                                          target_xyz.x,
+                                                          target_xyz.y,
+                                                          target_xyz.z,
+                                                          excluded_bot_ids
+                                                          );
+
+    candidates.push({
+                     slot: slot,
+                     position: {
+                                x: Number(target_xyz.x),
+                                y: Number(target_xyz.y),
+                                z: Number(target_xyz.z)
+                                },
+                     occupied: (occupancy.occupied === true),
+                     state: occupancy.state ?? (occupancy.occupied === true ? "active" : "empty"),
+                     id: occupancy.id ?? null
+                     });
+    } // for
+
+return(candidates);
+} // apicall_collect_anchor_candidates()
+
+
+apicall_add_anchors_to_primitive_paths(planned_moves, vx, vy, vz, excluded_bot_ids = [])
+{
+let planned_primitives = [];
+
+if (!Array.isArray(planned_moves))
+   {
+   return(planned_primitives);
+   } // if
+
+for (let i = 0; i < planned_moves.length; i++)
+    {
+    let primitive = planned_moves[i];
+    let excluded_start_slots = [];
+    let excluded_end_slots = [];
+
+    if (typeof primitive.primitive_path === "string" && primitive.primitive_path.length > 0)
+       {
+       excluded_start_slots.push(primitive.primitive_path.charAt(0));
+       excluded_end_slots.push(primitive.primitive_path.charAt(primitive.primitive_path.length - 1));
+       } // if
+
+    let start_anchor = this.apicall_select_anchor_slot(
+                                                       primitive.from.x,
+                                                       primitive.from.y,
+                                                       primitive.from.z,
+                                                       vx,
+                                                       vy,
+                                                       vz,
+                                                       excluded_start_slots,
+                                                       excluded_bot_ids
+                                                       );
+    let start_anchor_candidates = this.apicall_collect_anchor_candidates(
+                                                                       primitive.from.x,
+                                                                       primitive.from.y,
+                                                                       primitive.from.z,
+                                                                       vx,
+                                                                       vy,
+                                                                       vz,
+                                                                       excluded_start_slots,
+                                                                       excluded_bot_ids
+                                                                       );
+    let end_anchor = this.apicall_select_anchor_slot(
+                                                     primitive.to.x,
+                                                     primitive.to.y,
+                                                     primitive.to.z,
+                                                     vx,
+                                                     vy,
+                                                     vz,
+                                                     excluded_end_slots,
+                                                     excluded_bot_ids
+                                                     );
+    let end_anchor_candidates = this.apicall_collect_anchor_candidates(
+                                                                     primitive.to.x,
+                                                                     primitive.to.y,
+                                                                     primitive.to.z,
+                                                                     vx,
+                                                                     vy,
+                                                                     vz,
+                                                                     excluded_end_slots,
+                                                                     excluded_bot_ids
+                                                                     );
+    let primitive_with_anchor = null;
+    let rejection_reasons = [];
+
+    if (start_anchor && end_anchor)
+       {
+       primitive_with_anchor = start_anchor.slot + "_" + primitive.primitive_path + "_" + end_anchor.slot;
+       } // if
+
+    if (!start_anchor)
+       {
+       rejection_reasons.push("NO_VALID_START_ANCHOR");
+       } // if
+
+    if (!end_anchor)
+       {
+       rejection_reasons.push("NO_VALID_END_ANCHOR");
+       } // if
+
+    planned_primitives.push({
+                            from: primitive.from,
+                            to: primitive.to,
+                            primitive_path: primitive.primitive_path,
+                            excluded_start_slots: excluded_start_slots,
+                            excluded_end_slots: excluded_end_slots,
+                            start_anchor_candidates: start_anchor_candidates,
+                            end_anchor_candidates: end_anchor_candidates,
+                            start_anchor: start_anchor ? start_anchor.slot : null,
+                            end_anchor: end_anchor ? end_anchor.slot : null,
+                            primitive_with_anchor: primitive_with_anchor,
+                            valid: (primitive_with_anchor !== null),
+                            rejection_reasons: rejection_reasons
+                            });
+    } // for
+
+return(planned_primitives);
+} // apicall_add_anchors_to_primitive_paths()
+
+
+apicall_build_raw_move_cmd(address, planned_primitives)
+{
+let normalized_address = String(address ?? "").trim();
+let primitive_strings = [];
+
+if (normalized_address == "")
+   {
+   return(null);
+   } // if
+
+if (!Array.isArray(planned_primitives) || planned_primitives.length == 0)
+   {
+   return(null);
+   } // if
+
+for (let i = 0; i < planned_primitives.length; i++)
+    {
+    let entry = planned_primitives[i];
+
+    if (entry.valid !== true || typeof entry.primitive_with_anchor !== "string" || entry.primitive_with_anchor.trim() == "")
+       {
+       return(null);
+       } // if
+
+    primitive_strings.push(entry.primitive_with_anchor.trim());
+    } // for
+
+return(normalized_address + "#MOVE#" + primitive_strings.join(";"));
+} // apicall_build_raw_move_cmd()
 
 
 
@@ -2584,6 +9314,7 @@ cmd_to_decode = decodedobject.jsondata['msgqueue_bc'][i];
 
 
 let msgarray = cmd_parser_class_obj.parse( cmd_to_decode );
+this.append_api_message_log(cmd_to_decode, msgarray);
 
    
 
@@ -2751,7 +9482,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
  
 
 
-   if ( this.signal_botids[ msgarray.bottmpid ] !== undefined )
+   if ( this.signal_botids && this.signal_botids[ msgarray.bottmpid ] !== undefined )
       {
       // console.log("Signal found !");
       
@@ -2801,7 +9532,228 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
       }
       else
          {
-         console.log("Signal is undefined!");
+         let api_ack_entry = this.apicall_get_ack(msgarray.bottmpid);
+
+         if (api_ack_entry)
+            {
+            const events = [];
+
+            let tmpbotid = this.get_bot_by_id( api_ack_entry.bot_id, this.bots );
+
+            if (tmpbotid != null)
+               {
+               let oldx = this.bots[tmpbotid].x;
+               let oldy = this.bots[tmpbotid].y;
+               let oldz = this.bots[tmpbotid].z;
+               let old_vx = this.bots[tmpbotid].vector_x;
+               let old_vy = this.bots[tmpbotid].vector_y;
+               let old_vz = this.bots[tmpbotid].vector_z;
+
+               if (api_ack_entry.mode == "spin" && api_ack_entry.orientation)
+                  {
+                  let notify_msg =
+                      {
+                      event: "spin",
+                      botid: api_ack_entry.bot_id,
+                      from: {
+                            x: Number(oldx),
+                            y: Number(oldy),
+                            z: Number(oldz),
+                            vx: Number(old_vx),
+                            vy: Number(old_vy),
+                            vz: Number(old_vz)
+                            },
+                      to: {
+                          x: Number(oldx),
+                          y: Number(oldy),
+                          z: Number(oldz),
+                          vx: Number(api_ack_entry.orientation.x),
+                          vy: Number(api_ack_entry.orientation.y),
+                          vz: Number(api_ack_entry.orientation.z)
+                          },
+                      parent: "",
+                      duration: 0,
+                      ts: Number(new Date().getTime())
+                      };
+
+                  events.push( notify_msg );
+                  this.notify_frontend( events );
+
+                  this.bots[tmpbotid].vector_x = Number(api_ack_entry.orientation.x);
+                  this.bots[tmpbotid].vector_y = Number(api_ack_entry.orientation.y);
+                  this.bots[tmpbotid].vector_z = Number(api_ack_entry.orientation.z);
+
+                  let payload_sync_applied = this.apicall_sync_payload_from_carrier(
+                                                                            api_ack_entry.bot_id,
+                                                                            {
+                                                                            x: Number(oldx),
+                                                                            y: Number(oldy),
+                                                                            z: Number(oldz)
+                                                                            },
+                                                                            {
+                                                                            x: Number(api_ack_entry.orientation.x),
+                                                                            y: Number(api_ack_entry.orientation.y),
+                                                                            z: Number(api_ack_entry.orientation.z)
+                                                                            },
+                                                                            this.apicall_get_rotation_plan_between_orientations(
+                                                                                                                                  {
+                                                                                                                                  x: Number(old_vx),
+                                                                                                                                  y: Number(old_vy),
+                                                                                                                                  z: Number(old_vz)
+                                                                                                                                  },
+                                                                                                                                  {
+                                                                                                                                  x: Number(api_ack_entry.orientation.x),
+                                                                                                                                  y: Number(api_ack_entry.orientation.y),
+                                                                                                                                  z: Number(api_ack_entry.orientation.z)
+                                                                                                                                  }
+                                                                                                                                  )
+                                                                            );
+
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "payload_sync_debug",
+                                             {
+                                             ack_id: msgarray.bottmpid,
+                                             stage: "spin_ack_hook"
+                                             },
+                                             {
+                                             ok: Boolean(payload_sync_applied),
+                                             answer: "api_payload_sync_spin_hook",
+                                             payload_sync_applied: Boolean(payload_sync_applied)
+                                             }
+                                             );
+
+                  this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "api_ack",
+                                             { ack_id: msgarray.bottmpid },
+                                             {
+                                             ok: true,
+                                             answer: "api_ack_applied",
+                                             orientation: api_ack_entry.orientation
+                                             }
+                                             );
+                  } // if
+               else if (api_ack_entry.mode == "move" && api_ack_entry.to)
+                  {
+                  let notify_msg =
+                      {
+                      event: "move",
+                      botid: api_ack_entry.bot_id,
+                      to: api_ack_entry.to
+                      };
+
+                  events.push( notify_msg );
+                  this.notify_frontend( events );
+
+               let oldx = this.bots[tmpbotid].x;
+               let oldy = this.bots[tmpbotid].y;
+               let oldz = this.bots[tmpbotid].z;
+
+               let new_x = Number(api_ack_entry.to.x);
+               let new_y = Number(api_ack_entry.to.y);
+               let new_z = Number(api_ack_entry.to.z);
+
+               this.update_keyindex( oldx, oldy, oldz, new_x, new_y, new_z );
+               this.bots[tmpbotid].x = new_x;
+               this.bots[tmpbotid].y = new_y;
+               this.bots[tmpbotid].z = new_z;
+
+               this.bots[tmpbotid].adress = this.get_mb_returnaddr(
+                                                                  {x:this.mb.x, y:this.mb.y, z:this.mb.z },
+                                                                  {x:new_x, y:new_y, z:new_z },
+                                                                  this.bots
+                                                                  );
+
+               if (api_ack_entry.mode == "move")
+                  {
+                  let payload_sync_applied = this.apicall_sync_payload_from_carrier(
+                                                                                api_ack_entry.bot_id,
+                                                                                {
+                                                                                x: Number(new_x),
+                                                                                y: Number(new_y),
+                                                                                z: Number(new_z)
+                                                                                },
+                                                                                {
+                                                                                x: Number(this.bots[tmpbotid].vector_x),
+                                                                                y: Number(this.bots[tmpbotid].vector_y),
+                                                                                z: Number(this.bots[tmpbotid].vector_z)
+                                                                                }
+                                                                                );
+
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "payload_sync_debug",
+                                             {
+                                             ack_id: msgarray.bottmpid,
+                                             stage: "move_ack_hook"
+                                             },
+                                             {
+                                             ok: Boolean(payload_sync_applied),
+                                             answer: "api_payload_sync_move_hook",
+                                             payload_sync_applied: Boolean(payload_sync_applied)
+                                             }
+                                             );
+                  } // if
+
+               this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+               this.append_api_bot_history(
+                                          api_ack_entry.bot_id,
+                                          "api_ack",
+                                          { ack_id: msgarray.bottmpid },
+                                          { ok: true, answer: "api_ack_applied", to: api_ack_entry.to }
+                                          );
+                  } // else if
+
+               if (api_ack_entry.mode == "grab")
+                  {
+                  if (api_ack_entry.payload_bot_id)
+                     {
+                     this.apicall_register_payload_link(
+                                                       api_ack_entry.bot_id,
+                                                       api_ack_entry.payload_bot_id,
+                                                       "F",
+                                                       true
+                                                       );
+                     } // if
+
+                  this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "api_ack",
+                                             { ack_id: msgarray.bottmpid },
+                                             {
+                                             ok: true,
+                                             answer: "api_ack_applied",
+                                             payload_bot_id: api_ack_entry.payload_bot_id ?? null,
+                                             mode: "grab"
+                                             }
+                                             );
+                  } // if
+
+               if (api_ack_entry.mode == "release")
+                  {
+                  this.apicall_clear_payload_link(api_ack_entry.bot_id);
+
+                  this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "api_ack",
+                                             { ack_id: msgarray.bottmpid },
+                                             {
+                                             ok: true,
+                                             answer: "api_ack_applied",
+                                             payload_bot_id: api_ack_entry.payload_bot_id ?? null,
+                                             mode: "release"
+                                             }
+                                             );
+                  } // if
+               } // if
+            } else
+              {
+              console.log("Signal is undefined!");
+              } // else
          }
  
  
@@ -3360,6 +10312,50 @@ attachGUIWebSocket(ws_gui) {
 } // attachGUIWebSocket
 
 
+start_api_service() {
+    if (this.ENABLE_API != "true") {
+        console.log("[BotController API] API disabled by config.");
+        return;
+    } // if
+
+    if (!this.API_PORT || Number.isNaN(this.API_PORT)) {
+        console.log("[BotController API] No valid api_port configured.");
+        return;
+    } // if
+
+    this.api_server = net.createServer((socket) => {
+        let buffer = "";
+
+        socket.on('data', async (data) => {
+            buffer += data.toString();
+            const messages = buffer.split("\n");
+            buffer = messages.pop();
+
+            for (let i = 0; i < messages.length; i++) {
+                const message = messages[i].trim();
+                if (!message) {
+                    continue;
+                } // if
+
+                await this.handleAPIMessage(message, socket);
+            } // for
+        });
+
+        socket.on('error', (err) => {
+            console.error("[BotController API] Socket error:", err.message);
+        });
+    });
+
+    this.api_server.listen(this.API_PORT, () => {
+        console.log(`[BotController API] listening on port ${this.API_PORT}`);
+    });
+
+    this.api_server.on('error', (err) => {
+        console.error("[BotController API] Server error:", err.message);
+    });
+} // start_api_service()
+
+
 handleGUIMessage(message) {
 
     if (!this.counter) this.counter = 0;
@@ -3551,6 +10547,1249 @@ handleGUIMessage(message) {
         console.error("Error parsing GUI message:", err);
     }
 } // handleGUIMessage()
+
+
+async handleAPIMessage(message, socket) {
+    let answer = null;
+
+    try {
+        const decodedobject = JSON.parse(message);
+
+        if (decodedobject.cmd === 'describe') {
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_description",
+                api_name: "SP-CellBots BotController API",
+                version: this.version,
+                transport: "json-over-tcp",
+                mode: "atomic-request",
+                commands: [
+                    {
+                        cmd: "describe",
+                        params: {},
+                        returns: {
+                            answer: "api_description",
+                            commands: "list"
+                        },
+                        description: "Returns a machine-readable description of the API interface."
+                    },
+                    {
+                        cmd: "version",
+                        params: {},
+                        returns: {
+                            answer: "api_version",
+                            version: "string"
+                        },
+                        description: "Returns the current BotController version."
+                    },
+                    {
+                        cmd: "get_status",
+                        params: {},
+                        returns: {
+                            answer: "api_status",
+                            loaded_bots: "number"
+                        },
+                        description: "Returns the number of currently loaded bots in the BotController."
+                    },
+                    {
+                        cmd: "get_status_extended",
+                        params: {},
+                        returns: {
+                            answer: "api_status_extended",
+                            loaded_bots_total: "number",
+                            loaded_cluster_bots: "number",
+                            bounding_box: "object"
+                        },
+                        description: "Returns an extended BotController status including cluster bounding box."
+                    },
+                    {
+                        cmd: "get_masterbot",
+                        params: {},
+                        returns: {
+                            answer: "api_get_masterbot",
+                            position: "{x,y,z}",
+                            orientation: "{x,y,z}",
+                            connection_slot: "string"
+                        },
+                        description: "Returns the current Masterbot reference data used by the BotController."
+                    },
+                    {
+                        cmd: "get_scan_state",
+                        params: {},
+                        returns: {
+                            answer: "api_get_scan_state",
+                            level1: "object",
+                            level2: "object"
+                        },
+                        description: "Returns the current running state of Scan Level 1 and Scan Level 2."
+                    },
+                    {
+                        cmd: "gui_set_marker",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            size: "number",
+                            color: "red|green|blue|yellow|cyan|white"
+                        },
+                        returns: {
+                            answer: "api_gui_set_marker",
+                            accepted: "boolean",
+                            frontend_attached: "boolean"
+                        },
+                        description: "Draws one semi-transparent marker cube in the WebGUI."
+                    },
+                    {
+                        cmd: "gui_clear_markers",
+                        params: {},
+                        returns: {
+                            answer: "api_gui_clear_markers",
+                            accepted: "boolean",
+                            frontend_attached: "boolean"
+                        },
+                        description: "Clears all API marker cubes from the WebGUI."
+                    },
+                    {
+                        cmd: "gui_refresh",
+                        params: {},
+                        returns: {
+                            answer: "api_gui_refresh",
+                            accepted: "boolean",
+                            frontend_attached: "boolean"
+                        },
+                        description: "Requests the BotController WebGUI to reload the current cluster world from the controller."
+                    },
+                    {
+                        cmd: "debug_move",
+                        params: {
+                            mode: "on|off|status"
+                        },
+                        returns: {
+                            answer: "api_debug_move",
+                            debug_move_enabled: "boolean"
+                        },
+                        description: "Enables, disables or queries the global MOVE diagnostics flag in the BotController."
+                    },
+                    {
+                        cmd: "structurescan",
+                        params: {},
+                        returns: {
+                            answer: "api_structurescan_started",
+                            accepted: "boolean"
+                        },
+                        description: "Starts Scan Level 1 for active structure discovery."
+                    },
+                    {
+                        cmd: "structurescan_lvl2",
+                        params: {},
+                        returns: {
+                            answer: "api_structurescan_lvl2_started",
+                            accepted: "boolean"
+                        },
+                        description: "Starts Scan Level 2 for inactive-bot diagnostics."
+                    },
+                    {
+                        cmd: "morph_get_structures",
+                        params: {},
+                        returns: {
+                            answer: "api_morph_get_structures",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Returns the available morph structure JSON names from botcontroller/structures."
+                    },
+                    {
+                        cmd: "morph_get_algos",
+                        params: {},
+                        returns: {
+                            answer: "api_morph_get_algos",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Returns the currently available morph algorithms with ids, names and descriptions."
+                    },
+                    {
+                        cmd: "morph_start",
+                        params: {
+                            algo: "string",
+                            structure: "string"
+                        },
+                        returns: {
+                            answer: "api_morph_start",
+                            accepted: "boolean"
+                        },
+                        description: "Starts a morph calculation and subsequent sequence execution for one known structure with one known morph algorithm."
+                    },
+                    {
+                        cmd: "morph_check_progress",
+                        params: {},
+                        returns: {
+                            answer: "api_morph_check_progress",
+                            running: "boolean",
+                            phase: "string",
+                            progress: "number",
+                            success: "boolean|null",
+                            message: "string"
+                        },
+                        description: "Returns the current structured morph progress state, including planning phases like calculation_success and the final finished state after sequence execution."
+                    },
+                    {
+                        cmd: "get_bot_by_id",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_get_bot_by_id",
+                            position: "{x,y,z}",
+                            orientation: "{x,y,z}"
+                        },
+                        description: "Returns position and orientation of a known bot by ID."
+                    },
+                    {
+                        cmd: "get_bots",
+                        params: {
+                            mode: "cube",
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            radius: "number"
+                        },
+                        returns: {
+                            answer: "api_get_bots",
+                            count: "number",
+                            bots: "list"
+                        },
+                        description: "Returns all bots inside a local cube around a given center coordinate."
+                    },
+                    {
+                        cmd: "get_inactive_bots",
+                        params: {},
+                        returns: {
+                            answer: "api_get_inactive_bots",
+                            count: "number",
+                            bots: "list"
+                        },
+                        description: "Returns the inactive bots detected by Scan Level 2."
+                    },
+                    {
+                        cmd: "get_neighbors",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_get_neighbors",
+                            neighbors: "object with F/R/B/L/T/D"
+                        },
+                        description: "Returns the direct local neighbors of a known bot, including active, inactive or empty slots."
+                    },
+                    {
+                        cmd: "is_occupied",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_is_occupied",
+                            occupied: "boolean",
+                            state: "active|inactive|empty"
+                        },
+                        description: "Checks whether a specific coordinate is occupied by an active or inactive bot."
+                    },
+                    {
+                        cmd: "get_slot_status",
+                        params: {
+                            bot_id: "string",
+                            slot: "F|R|B|L|T|D"
+                        },
+                        returns: {
+                            answer: "api_get_slot_status",
+                            target: "occupancy object"
+                        },
+                        description: "Returns the status of one relative slot of a bot, respecting the bot orientation."
+                    },
+                    {
+                        cmd: "probe_move_bot",
+                        params: {
+                            bot_id: "string",
+                            move: "single primitive move, e.g. F_TF_D"
+                        },
+                        returns: {
+                            answer: "api_probe_move_bot",
+                            possible: "boolean",
+                            predicted_target: "{x,y,z}"
+                        },
+                        description: "Performs a conservative local plausibility check for one single translational move primitive."
+                    },
+                    {
+                        cmd: "can_reach_position",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_can_reach_position",
+                            reachable: "boolean",
+                            reason: "string"
+                        },
+                        description: "Performs a conservative surface check whether a target coordinate looks locally reachable."
+                    },
+                    {
+                        cmd: "find_path_for_bot",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_find_path_for_bot",
+                            path_found: "boolean",
+                            path: "list of coordinates"
+                        },
+                        description: "Calculates a first surface path candidate for a bot to reach a target coordinate."
+                    },
+                    {
+                        cmd: "find_path_for_bot_payload",
+                        params: {
+                            bot_id: "string",
+                            payload_bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_find_path_for_bot_payload",
+                            path_found: "boolean",
+                            path: "list of coordinates"
+                        },
+                        description: "Calculates a payload-aware path candidate for a carrier bot with a virtual or real payload bot attached in F-direction."
+                    },
+                    {
+                        cmd: "suggest_simple_move",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_suggest_simple_move",
+                            suggested: "boolean",
+                            move_candidate: "single primitive move or null"
+                        },
+                        description: "Suggests one simple primitive move candidate that matches the beginning of a calculated path."
+                    },
+                    {
+                        cmd: "move_bot_to",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_move_bot_to",
+                            executable: "boolean",
+                            executed: "boolean",
+                            path_found: "boolean"
+                        },
+                        description: "Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available."
+                    },
+                    {
+                        cmd: "would_split_cluster",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_would_split_cluster",
+                            would_split_cluster: "boolean",
+                            disconnected_bots: "list"
+                        },
+                        description: "Checks whether removing one bot from the currently known cluster would split the remaining structure into disconnected parts."
+                    },
+                    {
+                        cmd: "diagnose_move_bot_to",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_diagnose_move_bot_to",
+                            path_found: "boolean",
+                            planned_moves: "list",
+                            planned_primitives: "list"
+                        },
+                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics."
+                    },
+                    {
+                        cmd: "rotate_bot",
+                        params: {
+                            bot_id: "string",
+                            direction: "L|R"
+                        },
+                        returns: {
+                            answer: "api_rotate_bot",
+                            executed: "boolean",
+                            target_orientation: "{x,y,z}"
+                        },
+                        description: "Rotates one bot left or right and appends ALIFE so the local world model can update without a full scan."
+                    },
+                    {
+                        cmd: "rotate_bot_to",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_rotate_bot_to",
+                            executed: "boolean",
+                            target_orientation: "{x,y,z}",
+                            rotation_plan: "list"
+                        },
+                        description: "Rotates one bot to an absolute horizontal target orientation vector and executes the required one-step or two-step spin plan as one bundled MOVE block with ALIFE/RALIFE."
+                    },
+                    {
+                        cmd: "grab_bot",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_grab_bot",
+                            executed: "boolean"
+                        },
+                        description: "Sends a direct GF command for one bot and appends ALIFE when a return route is available."
+                    },
+                    {
+                        cmd: "release_bot",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_release_bot",
+                            executed: "boolean"
+                        },
+                        description: "Sends a direct G command for one bot and appends ALIFE when a return route is available."
+                    },
+                    {
+                        cmd: "move_payload_to",
+                        params: {
+                            carrier_bot_id: "string",
+                            payload_bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            release_after: "optional boolean"
+                        },
+                        returns: {
+                            answer: "api_move_payload_to",
+                            ok: "boolean",
+                            steps: "list"
+                        },
+                        description: "Small convenience transport command that grabs a payload directly in front of a carrier, moves the carrier to a target coordinate and can optionally release afterwards. The target coordinate currently refers to the carrier, not the payload."
+                    },
+                    {
+                        cmd: "move_carrier_to",
+                        params: {
+                            carrier_bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            vx: "number",
+                            vy: "number",
+                            vz: "number",
+                            release_after: "optional boolean"
+                        },
+                        returns: {
+                            answer: "api_move_carrier_to",
+                            ok: "boolean",
+                            steps: "list"
+                        },
+                        description: "Moves one carrier bot to a target coordinate, automatically using payload-aware path planning when the carrier currently holds a payload. It can then optionally rotate to a target orientation and optionally release afterwards. Use 0,0,0 as orientation when the final orientation is irrelevant."
+                    },
+                    {
+                        cmd: "diagnose_move_carrier_to",
+                        params: {
+                            carrier_bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            vx: "number",
+                            vy: "number",
+                            vz: "number",
+                            release_after: "optional boolean"
+                        },
+                        returns: {
+                            answer: "api_diagnose_move_carrier_to",
+                            ok: "boolean",
+                            executable: "boolean",
+                            steps: "list"
+                        },
+                        description: "Plans one carrier move like move_carrier_to but stops before execution and returns transport, rotation and optional release planning data."
+                    },
+                    {
+                        cmd: "get_last_moves",
+                        params: {
+                            limit: "optional integer, default 10"
+                        },
+                        returns: {
+                            answer: "api_get_last_moves",
+                            moves: "list"
+                        },
+                        description: "Returns the most recent API actions stored in the BotController action ring buffer."
+                    },
+                    {
+                        cmd: "get_bot_history",
+                        params: {
+                            bot_id: "string",
+                            limit: "optional integer, default 10"
+                        },
+                        returns: {
+                            answer: "api_get_bot_history",
+                            history: "list"
+                        },
+                        description: "Returns recent bot-specific API history entries with state snapshots."
+                    },
+                    {
+                        cmd: "get_last_raw_cmds",
+                        params: {
+                            limit: "optional integer, default 10"
+                        },
+                        returns: {
+                            answer: "api_get_last_raw_cmds",
+                            raw_cmds: "list"
+                        },
+                        description: "Returns the most recent raw_cmd strings sent through the API."
+                    },
+                    {
+                        cmd: "raw_cmd",
+                        params: {
+                            value: "string"
+                        },
+                        returns: {
+                            answer: "api_raw_cmd",
+                            accepted: "boolean"
+                        },
+                        description: "Sends a raw OP-Code command directly to the Masterbot."
+                    },
+                    {
+                        cmd: "poll_masterbot_queue",
+                        params: {},
+                        returns: {
+                            answer: "api_poll_masterbot_queue",
+                            accepted: "boolean"
+                        },
+                        description: "Triggers one explicit pop cycle from the Masterbot response queue."
+                    },
+                    {
+                        cmd: "reset_api_message_log",
+                        params: {},
+                        returns: {
+                            answer: "api_reset_api_message_log",
+                            accepted: "boolean",
+                            cleared: "boolean"
+                        },
+                        description: "Clears the internal API message ring buffer."
+                    },
+                    {
+                        cmd: "get_api_messages",
+                        params: {
+                            cmd_filter: "optional string, e.g. RCHECK",
+                            limit: "optional integer, default 50"
+                        },
+                        returns: {
+                            answer: "api_get_api_messages",
+                            count: "number",
+                            messages: "list"
+                        },
+                        description: "Returns recent parsed Masterbot responses from the internal API message ring buffer."
+                    }
+                ]
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'version') {
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_version",
+                version: this.version
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_status') {
+            let l = this.bots.length;
+
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_status",
+                loaded_bots: l
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_status_extended') {
+            let ret = this.apicall_get_status_extended();
+            this.append_api_action_log("get_status_extended", {}, { ok: ret.ok, answer: ret.answer, loaded_cluster_bots: ret.loaded_cluster_bots ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_masterbot') {
+            let ret = this.apicall_get_masterbot();
+            this.append_api_action_log("get_masterbot", {}, { ok: ret.ok, answer: ret.answer, connected: ret.connected });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_scan_state') {
+            let ret = this.apicall_get_scan_state();
+            this.append_api_action_log("get_scan_state", {}, { ok: ret.ok, answer: ret.answer, level1_running: ret.level1.running, level2_running: ret.level2.running });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'gui_set_marker') {
+            let ret = this.apicall_gui_set_marker(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.size, decodedobject.color);
+            this.append_api_action_log("gui_set_marker", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, size: decodedobject.size, color: decodedobject.color }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'gui_clear_markers') {
+            let ret = this.apicall_gui_clear_markers();
+            this.append_api_action_log("gui_clear_markers", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'gui_refresh') {
+            let ret = this.apicall_gui_refresh();
+            this.append_api_action_log("gui_refresh", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'debug_move') {
+            let ret = this.apicall_set_debug_move(decodedobject.mode);
+            this.append_api_action_log("debug_move", { mode: decodedobject.mode }, { ok: ret.ok, answer: ret.answer, debug_move_enabled: ret.debug_move_enabled ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'structurescan') {
+            this.start_scan(1);
+            this.append_api_action_log("structurescan", {}, { ok: true, answer: "api_structurescan_started", accepted: true });
+
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_structurescan_started",
+                accepted: true
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'structurescan_lvl2') {
+            this.start_scan_lvl2(1);
+            this.append_api_action_log("structurescan_lvl2", {}, { ok: true, answer: "api_structurescan_lvl2_started", accepted: true });
+
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_structurescan_lvl2_started",
+                accepted: true
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'morph_get_structures') {
+            let ret = this.apicall_morph_get_structures();
+            this.append_api_action_log("morph_get_structures", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'morph_get_algos') {
+            let ret = this.apicall_morph_get_algos();
+            this.append_api_action_log("morph_get_algos", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'morph_start') {
+            let ret = this.apicall_morph_start(decodedobject.algo, decodedobject.structure);
+            this.append_api_action_log("morph_start", { algo: decodedobject.algo, structure: decodedobject.structure }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'morph_check_progress') {
+            let ret = this.apicall_get_morph_status();
+            this.append_api_action_log("morph_check_progress", {}, { ok: ret.ok, answer: ret.answer, running: ret.running ?? false, phase: ret.phase ?? "", progress: ret.progress ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_bot_by_id') {
+            let ret = this.apicall_get_bot_by_id(decodedobject.bot_id);
+            this.append_api_action_log("get_bot_by_id", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, bot_id: decodedobject.bot_id });
+            this.append_api_bot_history(decodedobject.bot_id, "get_bot_by_id", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_bots') {
+            let ret = this.apicall_get_bots(
+                                          decodedobject.x,
+                                          decodedobject.y,
+                                          decodedobject.z,
+                                          decodedobject.mode,
+                                          decodedobject.radius
+                                          );
+            this.append_api_action_log("get_bots", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, mode: decodedobject.mode, radius: decodedobject.radius }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_inactive_bots') {
+            let ret = this.apicall_get_inactive_bots();
+            this.append_api_action_log("get_inactive_bots", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_neighbors') {
+            let ret = this.apicall_get_neighbors(decodedobject.bot_id);
+            this.append_api_action_log("get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
+            this.append_api_bot_history(decodedobject.bot_id, "get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'is_occupied') {
+            let ret = this.apicall_is_occupied(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("is_occupied", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, occupied: ret.occupied });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_slot_status') {
+            let ret = this.apicall_get_slot_status(decodedobject.bot_id, decodedobject.slot);
+            this.append_api_action_log("get_slot_status", { bot_id: decodedobject.bot_id, slot: decodedobject.slot }, { ok: ret.ok, answer: ret.answer });
+            this.append_api_bot_history(decodedobject.bot_id, "get_slot_status", { bot_id: decodedobject.bot_id, slot: decodedobject.slot }, { ok: ret.ok, answer: ret.answer });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'probe_move_bot') {
+            let ret = this.apicall_probe_move_bot(decodedobject.bot_id, decodedobject.move);
+            this.append_api_action_log("probe_move_bot", { bot_id: decodedobject.bot_id, move: decodedobject.move }, { ok: ret.ok, answer: ret.answer, possible: ret.possible ?? false });
+            this.append_api_bot_history(decodedobject.bot_id, "probe_move_bot", { bot_id: decodedobject.bot_id, move: decodedobject.move }, { ok: ret.ok, answer: ret.answer, possible: ret.possible ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'can_reach_position') {
+            let ret = this.apicall_can_reach_position(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("can_reach_position", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, reachable: ret.reachable ?? false, reason: ret.reason ?? "" });
+            this.append_api_bot_history(decodedobject.bot_id, "can_reach_position", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, reachable: ret.reachable ?? false, reason: ret.reason ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'find_path_for_bot') {
+            let ret = this.apicall_find_path_for_bot(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show);
+            this.append_api_action_log("find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0, path_visualized: ret.path_visualized ?? false });
+            this.append_api_bot_history(decodedobject.bot_id, "find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'find_path_for_bot_payload') {
+            let ret = this.apicall_find_path_for_bot_payload(decodedobject.bot_id, decodedobject.payload_bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show);
+            this.append_api_action_log("find_path_for_bot_payload", { bot_id: decodedobject.bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0, path_visualized: ret.path_visualized ?? false });
+            this.append_api_bot_history(decodedobject.bot_id, "find_path_for_bot_payload", { bot_id: decodedobject.bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'suggest_simple_move') {
+            let ret = this.apicall_suggest_simple_move(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("suggest_simple_move", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, suggested: ret.suggested ?? false, move_candidate: ret.move_candidate ?? "" });
+            this.append_api_bot_history(decodedobject.bot_id, "suggest_simple_move", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, suggested: ret.suggested ?? false, move_candidate: ret.move_candidate ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'move_bot_to') {
+            let ret = this.apicall_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+
+            if (ret?.ack_id)
+               {
+               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
+               ret.ack_wait = ack_wait_ret;
+               ret.ack_received = ack_wait_ret.ack_received;
+
+               if (ack_wait_ret.ack_received !== true)
+                  {
+                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
+                  } // if
+               } // if
+
+            this.append_api_action_log("move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            this.append_api_bot_history(decodedobject.bot_id, "move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'diagnose_move_bot_to') {
+            let ret = this.apicall_diagnose_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            this.append_api_bot_history(decodedobject.bot_id, "diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'would_split_cluster') {
+            let ret = this.apicall_would_split_cluster(decodedobject.bot_id);
+            this.append_api_action_log("would_split_cluster", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, would_split_cluster: ret.would_split_cluster ?? null, disconnected_count: ret.disconnected_count ?? 0 });
+            this.append_api_bot_history(decodedobject.bot_id, "would_split_cluster", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, would_split_cluster: ret.would_split_cluster ?? null, disconnected_count: ret.disconnected_count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'rotate_bot') {
+            let ret = this.apicall_rotate_bot(decodedobject.bot_id, decodedobject.direction);
+
+            if (ret?.ack_id)
+               {
+               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
+               ret.ack_wait = ack_wait_ret;
+               ret.ack_received = ack_wait_ret.ack_received;
+
+               if (ack_wait_ret.ack_received !== true)
+                  {
+                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
+                  } // if
+               } // if
+
+            this.append_api_action_log("rotate_bot", { bot_id: decodedobject.bot_id, direction: decodedobject.direction }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            this.append_api_bot_history(decodedobject.bot_id, "rotate_bot", { bot_id: decodedobject.bot_id, direction: decodedobject.direction }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'rotate_bot_to') {
+            let ret = this.apicall_rotate_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+
+            if (ret?.ok === true && Array.isArray(ret.rotation_plan) && ret.rotation_plan.length > 0)
+               {
+               let execute_ret = this.apicall_execute_rotation_plan(
+                                                                  decodedobject.bot_id,
+                                                                  ret.rotation_plan,
+                                                                  ret.target_orientation ?? null
+                                                                  );
+               execute_ret = await this.apicall_attach_ack_wait_and_recovery(execute_ret);
+
+               ret.executed = (execute_ret?.ack_received ?? false) === true;
+               ret.execution_steps = [
+                                     {
+                                     rotation_plan: ret.rotation_plan,
+                                     ack_id: execute_ret?.ack_id ?? null,
+                                     ack_received: execute_ret?.ack_received ?? false,
+                                     planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null
+                                     }
+                                     ];
+               ret.ack_id = execute_ret?.ack_id ?? null;
+               ret.ack_retaddr = execute_ret?.ack_retaddr ?? "";
+               ret.planned_raw_cmd = execute_ret?.planned_raw_cmd ?? null;
+               ret.raw_cmd_result = execute_ret?.raw_cmd_result ?? null;
+               ret.ack_wait = execute_ret?.ack_wait ?? null;
+               ret.ack_received = execute_ret?.ack_received ?? false;
+               ret.ack_recovery = execute_ret?.ack_recovery ?? null;
+
+               if ((execute_ret?.ack_received ?? false) !== true)
+                  {
+                  ret.ok = false;
+                  ret.error = "ROTATION_PLAN_FAILED";
+                  ret.failed_step = 1;
+                  ret.failed_direction = (ret.rotation_plan[0] ?? null);
+                  answer = JSON.stringify(ret) + "\n";
+
+                  socket.write(answer, () => {
+                      socket.end();
+                  });
+                  return;
+                  } // if
+               } // if
+
+            this.append_api_action_log("rotate_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, rotation_plan: ret.rotation_plan ?? [] });
+            this.append_api_bot_history(decodedobject.bot_id, "rotate_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, rotation_plan: ret.rotation_plan ?? [] });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'grab_bot') {
+            let ret = this.apicall_grab_bot(decodedobject.bot_id);
+
+            if (ret?.ack_id)
+               {
+               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
+               ret.ack_wait = ack_wait_ret;
+               ret.ack_received = ack_wait_ret.ack_received;
+
+               if (ack_wait_ret.ack_received !== true)
+                  {
+                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
+                  } // if
+               } // if
+
+            this.append_api_action_log("grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            this.append_api_bot_history(decodedobject.bot_id, "grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'release_bot') {
+            let ret = this.apicall_release_bot(decodedobject.bot_id);
+
+            if (ret?.ack_id)
+               {
+               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
+               ret.ack_wait = ack_wait_ret;
+               ret.ack_received = ack_wait_ret.ack_received;
+
+               if (ack_wait_ret.ack_received !== true)
+                  {
+                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
+                  } // if
+               } // if
+
+            this.append_api_action_log("release_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            this.append_api_bot_history(decodedobject.bot_id, "release_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'move_payload_to') {
+            let ret = await this.apicall_move_payload_to(
+                                                        decodedobject.carrier_bot_id,
+                                                        decodedobject.payload_bot_id,
+                                                        decodedobject.x,
+                                                        decodedobject.y,
+                                                        decodedobject.z,
+                                                        decodedobject.release_after
+                                                        );
+
+            this.append_api_action_log("move_payload_to", { carrier_bot_id: decodedobject.carrier_bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
+            this.append_api_bot_history(decodedobject.carrier_bot_id, "move_payload_to", { carrier_bot_id: decodedobject.carrier_bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'move_carrier_to') {
+            let ret = await this.apicall_move_carrier_to(
+                                                        decodedobject.carrier_bot_id,
+                                                        decodedobject.x,
+                                                        decodedobject.y,
+                                                        decodedobject.z,
+                                                        decodedobject.vx,
+                                                        decodedobject.vy,
+                                                        decodedobject.vz,
+                                                        decodedobject.release_after
+                                                        );
+
+            this.append_api_action_log("move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
+            this.append_api_bot_history(decodedobject.carrier_bot_id, "move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'diagnose_move_carrier_to') {
+            let ret = this.apicall_diagnose_move_carrier_to(
+                                                            decodedobject.carrier_bot_id,
+                                                            decodedobject.x,
+                                                            decodedobject.y,
+                                                            decodedobject.z,
+                                                            decodedobject.vx,
+                                                            decodedobject.vy,
+                                                            decodedobject.vz,
+                                                            decodedobject.release_after
+                                                            );
+
+            this.append_api_action_log("diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
+            this.append_api_bot_history(decodedobject.carrier_bot_id, "diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_last_moves') {
+            answer = JSON.stringify(
+                this.apicall_get_last_moves(decodedobject.limit)
+            ) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_bot_history') {
+            let ret = this.apicall_get_bot_history(decodedobject.bot_id, decodedobject.limit);
+            this.append_api_action_log("get_bot_history", { bot_id: decodedobject.bot_id, limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_last_raw_cmds') {
+            let ret = this.apicall_get_last_raw_cmds(decodedobject.limit);
+            this.append_api_action_log("get_last_raw_cmds", { limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'raw_cmd') {
+            let ret = this.apicall_raw_cmd(decodedobject.value);
+            let raw_parts = String(decodedobject.value ?? "").split("#");
+            let raw_target_bot_id = this.apicall_resolve_bot_id_by_address(raw_parts[0] ?? "");
+            this.append_api_action_log("raw_cmd", { value: decodedobject.value }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
+            this.append_api_raw_cmd_log(decodedobject.value, raw_target_bot_id, ret.accepted ?? false);
+
+            if (raw_target_bot_id)
+               {
+               this.append_api_bot_history(raw_target_bot_id, "raw_cmd", { value: decodedobject.value }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
+               } // if
+
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'poll_masterbot_queue') {
+            let ret = this.apicall_poll_masterbot_queue();
+            this.append_api_action_log("poll_masterbot_queue", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'reset_api_message_log') {
+            this.reset_api_message_log();
+            this.append_api_action_log("reset_api_message_log", {}, { ok: true, answer: "api_reset_api_message_log", accepted: true });
+
+            answer = JSON.stringify({
+                ok: true,
+                answer: "api_reset_api_message_log",
+                accepted: true,
+                cleared: true
+            }) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_api_messages') {
+            let ret = this.apicall_get_api_messages(decodedobject.cmd_filter, decodedobject.limit);
+            this.append_api_action_log("get_api_messages", { cmd_filter: decodedobject.cmd_filter, limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        answer = JSON.stringify({
+            ok: false,
+            error: "UNKNOWN_API_COMMAND",
+            cmd: decodedobject.cmd ?? null
+        }) + "\n";
+
+        socket.write(answer, () => {
+            socket.end();
+        });
+    } catch (err) {
+        answer = JSON.stringify({
+            ok: false,
+            error: "INVALID_JSON",
+            message: err.message
+        }) + "\n";
+
+        socket.write(answer, () => {
+            socket.end();
+        });
+    } // try
+} // handleAPIMessage()
 
   
   

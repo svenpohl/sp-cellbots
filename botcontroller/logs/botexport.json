@@ -127,20 +127,6 @@
     "adress": "FLLF"
   },
   {
-    "id": "B04",
-    "bottmpid": "",
-    "type": 0,
-    "x": 1,
-    "y": 0,
-    "z": 3,
-    "vector_x": 1,
-    "vector_y": 0,
-    "vector_z": 0,
-    "checked": 1,
-    "checked_neighbors": [],
-    "adress": "FLLL"
-  },
-  {
     "id": "B16",
     "bottmpid": "",
     "type": 0,
@@ -153,6 +139,20 @@
     "checked": 1,
     "checked_neighbors": [],
     "adress": "FFFF"
+  },
+  {
+    "id": "B04",
+    "bottmpid": "",
+    "type": 0,
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "vector_x": 1,
+    "vector_y": 0,
+    "vector_z": 0,
+    "checked": 1,
+    "checked_neighbors": [],
+    "adress": "FLLL"
   },
   {
     "id": "B21",
@@ -169,20 +169,6 @@
     "adress": "FFFFF"
   },
   {
-    "id": "B13",
-    "bottmpid": "",
-    "type": 0,
-    "x": 3,
-    "y": 0,
-    "z": 2,
-    "vector_x": 1,
-    "vector_y": 0,
-    "vector_z": 0,
-    "checked": 1,
-    "checked_neighbors": [],
-    "adress": "FLLFR"
-  },
-  {
     "id": "B09",
     "bottmpid": "",
     "type": 0,
@@ -194,21 +180,7 @@
     "vector_z": 1,
     "checked": 1,
     "checked_neighbors": [],
-    "adress": "FLLLF"
-  },
-  {
-    "id": "B17",
-    "bottmpid": "",
-    "type": 0,
-    "x": 4,
-    "y": 0,
-    "z": 1,
-    "vector_x": 0,
-    "vector_y": 0,
-    "vector_z": 1,
-    "checked": 1,
-    "checked_neighbors": [],
-    "adress": "FLFRF"
+    "adress": "FLLFF"
   },
   {
     "id": "B05",
@@ -225,6 +197,34 @@
     "adress": "FLLLL"
   },
   {
+    "id": "B17",
+    "bottmpid": "",
+    "type": 0,
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "vector_x": 0,
+    "vector_y": 0,
+    "vector_z": 1,
+    "checked": 1,
+    "checked_neighbors": [],
+    "adress": "FLFRF"
+  },
+  {
+    "id": "B13",
+    "bottmpid": "",
+    "type": 0,
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "vector_x": 1,
+    "vector_y": 0,
+    "vector_z": 0,
+    "checked": 1,
+    "checked_neighbors": [],
+    "adress": "FLLFR"
+  },
+  {
     "id": "B14",
     "bottmpid": "",
     "type": 0,
@@ -237,34 +237,6 @@
     "checked": 1,
     "checked_neighbors": [],
     "adress": "FLLFRL"
-  },
-  {
-    "id": "B18",
-    "bottmpid": "",
-    "type": 0,
-    "x": 4,
-    "y": 0,
-    "z": 2,
-    "vector_x": 0,
-    "vector_y": 0,
-    "vector_z": 1,
-    "checked": 1,
-    "checked_neighbors": [],
-    "adress": "FLLFRF"
-  },
-  {
-    "id": "B10",
-    "bottmpid": "",
-    "type": 0,
-    "x": 2,
-    "y": 0,
-    "z": 4,
-    "vector_x": 0,
-    "vector_y": 0,
-    "vector_z": 1,
-    "checked": 1,
-    "checked_neighbors": [],
-    "adress": "FLLLFF"
   },
   {
     "id": "B22",
@@ -281,6 +253,34 @@
     "adress": "FLFRFR"
   },
   {
+    "id": "B10",
+    "bottmpid": "",
+    "type": 0,
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "vector_x": 0,
+    "vector_y": 0,
+    "vector_z": 1,
+    "checked": 1,
+    "checked_neighbors": [],
+    "adress": "FLLFFF"
+  },
+  {
+    "id": "B18",
+    "bottmpid": "",
+    "type": 0,
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "vector_x": 0,
+    "vector_y": 0,
+    "vector_z": 1,
+    "checked": 1,
+    "checked_neighbors": [],
+    "adress": "FLLFRF"
+  },
+  {
     "id": "B23",
     "bottmpid": "",
     "type": 0,
@@ -292,7 +292,7 @@
     "vector_z": 0,
     "checked": 1,
     "checked_neighbors": [],
-    "adress": "FLFRFRL"
+    "adress": "FLLFRFR"
   },
   {
     "id": "B15",
@@ -306,7 +306,7 @@
     "vector_z": 0,
     "checked": 1,
     "checked_neighbors": [],
-    "adress": "FLLLFFR"
+    "adress": "FLLFFFR"
   },
   {
     "id": "B19",
@@ -334,7 +334,7 @@
     "vector_z": 0,
     "checked": 1,
     "checked_neighbors": [],
-    "adress": "FLFRFRLL"
+    "adress": "FLLFRLFR"
   },
   {
     "id": "B20",

@@ -259,6 +259,7 @@ Command:<br>
     const cubes     = []; 
     const groups    = []; 
     let botGroupMap = [];
+    let markerGroup = null;
 
     
     let sequences_list = [];
@@ -307,7 +308,37 @@ function handleMoveEvent(event) {
     };
 
     animateMove(group, from, {x: to.x, y: to.y, z: -to.z}, Number(300));
-}
+} // handleMoveEvent()
+
+
+function getYawFromVector(vector) {
+    let vx = Number(vector?.x ?? 0);
+    let vy = Number(vector?.y ?? 0);
+    let vz = Number(vector?.z ?? 0);
+    let rot = 0;
+
+    if (vx == 1  && vy == 0 && vz == 0) rot = 0;
+    if (vx == 0  && vy == 0 && vz == 1) rot = 90;
+    if (vx == -1 && vy == 0 && vz == 0) rot = 180;
+    if (vx == 0  && vy == 0 && vz == -1) rot = 270;
+
+    return degreesToRadians(rot);
+} // getYawFromVector()
+
+
+function handleSpinEvent(event) {
+    const botid = event.botid;
+    const group = botGroupMap[botid];
+    const target = event.to;
+
+    if (!group || !target) return;
+
+    group.rotation.y = getYawFromVector({
+        x: target.vx,
+        y: target.vy,
+        z: target.vz
+    });
+} // handleSpinEvent()
 
 
 
@@ -393,6 +424,52 @@ if (btn)
    btn.textContent = xray_mode_enabled ? "X-Ray Off" : "X-Ray Mode";
    } // if
 } // applyXrayMode()
+
+
+function getMarkerColorHex(colorName) {
+const colorMap = {
+  red: 0xff4444,
+  green: 0x44ff44,
+  blue: 0x4488ff,
+  yellow: 0xffee44,
+  cyan: 0x44ffff,
+  white: 0xffffff
+};
+
+return colorMap[String(colorName ?? "").toLowerCase()] ?? 0xff4444;
+} // getMarkerColorHex()
+
+
+function clearMarkers() {
+if (markerGroup) {
+   rotateGroup.remove(markerGroup);
+   markerGroup.traverse(obj => {
+     if (obj.geometry) obj.geometry.dispose();
+     if (obj.material) obj.material.dispose();
+   });
+   markerGroup = null;
+   } // if
+} // clearMarkers()
+
+
+function addMarker(x, y, z, size, colorName, opacity = 0.8) {
+if (!markerGroup) {
+   markerGroup = new THREE.Group();
+   markerGroup.name = "apiMarkerGroup";
+   rotateGroup.add(markerGroup);
+   } // if
+
+const geometry = new THREE.BoxGeometry(size, size, size);
+const material = new THREE.MeshBasicMaterial({
+  color: getMarkerColorHex(colorName),
+  transparent: true,
+  opacity: opacity
+});
+
+const cube = new THREE.Mesh(geometry, material);
+cube.position.set(Number(x), Number(y), -Number(z));
+markerGroup.add(cube);
+} // addMarker()
 
       
                
@@ -605,75 +682,95 @@ showTargets(scene, decodedobject.target);
 
         if (decodedobject.notify == "update")
            {
-           //console.log( decodedobject ); 
-           
-           if (decodedobject.msg[0].event == 'move')
+           const events = Array.isArray(decodedobject.msg) ? decodedobject.msg : [];
+
+           for (let i = 0; i < events.length; i++)
                {
-               handleMoveEvent( decodedobject.msg[0] );
-               }
-  
-  
-            if (decodedobject.msg[0].event == 'addbot')
-               {
-                             
-               let theid = decodedobject.msg[0].botid;
-               
-               let thex  = decodedobject.msg[0].position.x;
-               let they  = decodedobject.msg[0].position.y;
-               let thez  = decodedobject.msg[0].position.z;
+               const updateEvent = events[i];
 
-               let thevx  = decodedobject.msg[0].orientation.x;
-               let thevy  = decodedobject.msg[0].orientation.y;
-               let thevz  = decodedobject.msg[0].orientation.z;
+               if (updateEvent.event == 'move')
+                  {
+                  handleMoveEvent(updateEvent);
+                  } // if
 
-               let theadress = decodedobject.msg[0].adress;
-               let thecolor  = decodedobject.msg[0].color;
-                              
+               if (updateEvent.event == 'spin')
+                  {
+                  handleSpinEvent(updateEvent);
+                  } // if
 
-               addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 0, thecolor  );       
- 
-               addConsoleLine("Add CellBot " + theid, type='info'); 
-              
-         
-               } // addbot
-               
-           
-            if (decodedobject.msg[0].event == 'console')
-               {               
-               let msg = decodedobject.msg[0].msg;
-               addConsoleLine("Botcontroller: " + msg, type='botcontroller') 
-               } // console
-  
-  
-            if (decodedobject.msg[0].event == 'setcolor')
-               {
-               handleSetColor( decodedobject.msg[0] );               
-               } // setcolor   
+               if (updateEvent.event == 'addbot')
+                  {
+                  let theid = updateEvent.botid;
+                  let thex  = updateEvent.position.x;
+                  let they  = updateEvent.position.y;
+                  let thez  = updateEvent.position.z;
+                  let thevx = updateEvent.orientation.x;
+                  let thevy = updateEvent.orientation.y;
+                  let thevz = updateEvent.orientation.z;
+                  let thecolor  = updateEvent.color;
 
+                  addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 0, thecolor  );
+                  addConsoleLine("Add CellBot " + theid, type='info');
+                  } // if
 
-            if (decodedobject.msg[0].event == 'addinactivebot')
-               {
-               let theid = decodedobject.msg[0].botid;
-               let thex  = decodedobject.msg[0].position.x;
-               let they  = decodedobject.msg[0].position.y;
-               let thez  = decodedobject.msg[0].position.z;
+               if (updateEvent.event == 'console')
+                  {
+                  let msg = updateEvent.msg;
+                  addConsoleLine("Botcontroller: " + msg, type='botcontroller');
+                  } // if
 
-               let thevx  = decodedobject.msg[0].orientation.x;
-               let thevy  = decodedobject.msg[0].orientation.y;
-               let thevz  = decodedobject.msg[0].orientation.z;
+               if (updateEvent.event == 'setcolor')
+                  {
+                  handleSetColor(updateEvent);
+                  } // if
 
-               let thecolor  = decodedobject.msg[0].color;
+               if (updateEvent.event == 'addinactivebot')
+                  {
+                  let theid = updateEvent.botid;
+                  let thex  = updateEvent.position.x;
+                  let they  = updateEvent.position.y;
+                  let thez  = updateEvent.position.z;
+                  let thevx = updateEvent.orientation.x;
+                  let thevy = updateEvent.orientation.y;
+                  let thevz = updateEvent.orientation.z;
+                  let thecolor  = updateEvent.color;
 
-               addCube(
-                       theid,
-                       new THREE.Vector3(thex, they, thez),
-                       new THREE.Vector3(thevx, thevy, thevz),
-                       0,
-                       thecolor,
-                       { opacity: 0.38, transparent: true, showArrow: false, renderType: "inactive" }
-                      );
-               } // addinactivebot
-            
+                  addCube(
+                          theid,
+                          new THREE.Vector3(thex, they, thez),
+                          new THREE.Vector3(thevx, thevy, thevz),
+                          0,
+                          thecolor,
+                          { opacity: 0.38, transparent: true, showArrow: false, renderType: "inactive" }
+                         );
+                  } // if
+
+               if (updateEvent.event == 'setmarker')
+                  {
+                  addMarker(
+                           updateEvent.x,
+                           updateEvent.y,
+                           updateEvent.z,
+                           updateEvent.size,
+                           updateEvent.color,
+                           updateEvent.opacity
+                           );
+                  } // if
+
+               if (updateEvent.event == 'clearmarkers')
+                  {
+                  clearMarkers();
+                  } // if
+
+               if (updateEvent.event == 'refreshworld')
+                  {
+                  if (connected == 1)
+                     {
+                     cmd = "{ \"cmd\":\"getclusterdata\" }";
+                     socket.send(cmd);
+                     } // if
+                  } // if
+               } // for
            } // update
      
      
