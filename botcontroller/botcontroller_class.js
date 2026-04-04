@@ -137,6 +137,16 @@ constructor()
    this.api_grab_state_map = {};
    this.api_payload_links = {};
    this.debug_move_enabled = false;
+   this.safe_mode = 2;
+
+   let configured_save_mode = Number(this.config.save_mode);
+   if (
+      Number.isNaN(configured_save_mode) !== true &&
+      [0, 1, 2].includes(configured_save_mode)
+      )
+      {
+      this.safe_mode = configured_save_mode;
+      } // if
    this.masterbot_incoming_buffer = "";
    this.morph_status = {
                        running: false,
@@ -179,6 +189,7 @@ constructor()
    console.log(`enable_api: ${this.ENABLE_API}`);
    console.log(`API Port: ${this.API_PORT}`);
    console.log(`connect_masterbot: ${this.connect_masterbot}`);
+   console.log(`safe_mode: ${this.safe_mode}`);
 
 
 
@@ -3282,9 +3293,20 @@ return (retstruct);
 //
 // Get return adress with blocketBots
 //
-get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[]) {
-    let queue = [{pos: pos_from, path: ""}];
+get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
+    let normalized_from = {
+                           x: Number(pos_from?.x),
+                           y: Number(pos_from?.y),
+                           z: Number(pos_from?.z)
+                           };
+    let normalized_to = {
+                         x: Number(pos_to?.x),
+                         y: Number(pos_to?.y),
+                         z: Number(pos_to?.z)
+                         };
+    let queue = [{pos: normalized_from, path: ""}];
     let visited = new Set();
+    let routing_mode = String(options?.routing_mode ?? "standard").trim().toLowerCase();
 
      
     // Set for quick block check
@@ -3303,12 +3325,21 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[]) {
         visited.add(key);
 
         if (
-            current.pos.x === pos_to.x &&
-            current.pos.y === pos_to.y &&
-            current.pos.z === pos_to.z
+            Number(current.pos.x) === Number(normalized_to.x) &&
+            Number(current.pos.y) === Number(normalized_to.y) &&
+            Number(current.pos.z) === Number(normalized_to.z)
         ) {
             return current.path;
         }
+
+        let from_bot = bots_tmp.find(b =>
+            Number(b.x) === Number(current.pos.x) &&
+            Number(b.y) === Number(current.pos.y) &&
+            Number(b.z) === Number(current.pos.z)
+        );
+        if (!from_bot) continue;
+
+        let candidate_neighbours = [];
 
         // iterarte all neighbours
         for (let bot of bots_tmp) {
@@ -3327,13 +3358,6 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[]) {
             let dz = Math.abs(bot.z - current.pos.z);
             if (dx + dy + dz !== 1) continue; // only orthogonal neighbours
 
-            let from_bot = bots_tmp.find(b =>
-                b.x === current.pos.x &&
-                b.y === current.pos.y &&
-                b.z === current.pos.z
-            );
-            if (!from_bot) continue;
-
             let dx2 = bot.x - from_bot.x;
             let dy2 = bot.y - from_bot.y;
             let dz2 = bot.z - from_bot.z;
@@ -3344,13 +3368,64 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[]) {
 
             if (!port) continue;
 
-            let newpath = current.path + port;
+            candidate_neighbours.push({
+                                       bot: bot,
+                                       port: port,
+                                       distance_to_target: (
+                                                           Math.abs(Number(bot.x) - Number(normalized_to.x)) +
+                                                           Math.abs(Number(bot.y) - Number(normalized_to.y)) +
+                                                           Math.abs(Number(bot.z) - Number(normalized_to.z))
+                                                           )
+                                       });
+        } // for
+
+        if (routing_mode == "minimal")
+           {
+           const slot_priority = {
+                                 F: 0,
+                                 L: 1,
+                                 R: 2,
+                                 B: 3,
+                                 T: 4,
+                                 D: 5
+                                 };
+
+           candidate_neighbours.sort((a, b) => {
+               if (a.distance_to_target !== b.distance_to_target)
+                  {
+                  return a.distance_to_target - b.distance_to_target;
+                  } // if
+
+               let pa = slot_priority[a.port] ?? 99;
+               let pb = slot_priority[b.port] ?? 99;
+
+               if (pa !== pb)
+                  {
+                  return pa - pb;
+                  } // if
+
+               return String(a.port).localeCompare(String(b.port));
+           }); // sort
+           } // if
+
+        for (let i = 0; i < candidate_neighbours.length; i++)
+            {
+            let candidate = candidate_neighbours[i];
+            let newpath = current.path + candidate.port;
+
             queue.push({
-                pos: { x: bot.x, y: bot.y, z: bot.z, vector_x: bot.vector_x, vector_y: bot.vector_y, vector_z: bot.vector_z },
+                pos: {
+                      x: candidate.bot.x,
+                      y: candidate.bot.y,
+                      z: candidate.bot.z,
+                      vector_x: candidate.bot.vector_x,
+                      vector_y: candidate.bot.vector_y,
+                      vector_z: candidate.bot.vector_z
+                      },
                 path: newpath
             });
-        }
-    }
+            } // for
+        } // while
     // not path found
     return ""; //  
 } // get_mb_returnaddr()
@@ -4509,6 +4584,248 @@ adress = adress.replace(/^undefined/gi, "");
 
 return(adress);
 } // apicall_get_safe_adress()
+
+
+//
+// apicall_recalibrate_bot_address()
+//
+apicall_recalibrate_bot_address(bot_id, mode = "standard")
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+let normalized_mode = String(mode ?? "standard").trim().toLowerCase();
+let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
+let old_adress = "";
+let new_adress = "";
+
+if (normalized_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_recalibrate_bot_address",
+          error: "BOT_ID_EMPTY"
+          });
+   } // if
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_recalibrate_bot_address",
+          error: "BOT_NOT_FOUND",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+if (this.bots[botindex].id == "masterbot")
+   {
+   return({
+          ok: true,
+          answer: "api_recalibrate_bot_address",
+          bot_id: normalized_bot_id,
+          skipped: true,
+          reason: "MASTERBOT_HAS_NO_ADDRESS",
+          old_adress: "",
+          new_adress: ""
+          });
+   } // if
+
+old_adress = this.apicall_get_safe_adress(this.bots[botindex]);
+new_adress = this.get_mb_returnaddr(
+                                    {x: this.mb.x, y: this.mb.y, z: this.mb.z},
+                                    {
+                                    x: Number(this.bots[botindex].x),
+                                    y: Number(this.bots[botindex].y),
+                                    z: Number(this.bots[botindex].z)
+                                    },
+                                    this.bots,
+                                    [],
+                                    { routing_mode: normalized_mode }
+                                    );
+
+this.bots[botindex].adress = new_adress;
+
+return({
+       ok: true,
+       answer: "api_recalibrate_bot_address",
+       bot_id: normalized_bot_id,
+       mode: normalized_mode,
+       old_adress: old_adress,
+       new_adress: new_adress,
+       changed: (String(old_adress) !== String(new_adress)),
+       position: {
+                  x: Number(this.bots[botindex].x),
+                  y: Number(this.bots[botindex].y),
+                  z: Number(this.bots[botindex].z)
+                  }
+       });
+} // apicall_recalibrate_bot_address()
+
+
+//
+// apicall_recalibrate_bot_addresses()
+//
+apicall_recalibrate_bot_addresses(mode = "standard")
+{
+let recalibrated = [];
+let changed_count = 0;
+let normalized_mode = String(mode ?? "standard").trim().toLowerCase();
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i].id == "masterbot")
+       {
+       continue;
+       } // if
+
+    let ret = this.apicall_recalibrate_bot_address(this.bots[i].id, normalized_mode);
+    recalibrated.push(ret);
+
+    if (ret?.changed === true)
+       {
+       changed_count++;
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_recalibrate_bot_addresses",
+       mode: normalized_mode,
+       count: recalibrated.length,
+       changed_count: changed_count,
+       recalibrated: recalibrated
+       });
+} // apicall_recalibrate_bot_addresses()
+
+
+//
+// apicall_apply_safe_mode_for_bot()
+//
+apicall_apply_safe_mode_for_bot(bot_id)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (Number(this.safe_mode) < 1)
+   {
+   return({
+          ok: true,
+          answer: "api_safe_mode_prepare",
+          bot_id: normalized_bot_id,
+          safe_mode: Number(this.safe_mode),
+          recalibrated: false
+          });
+   } // if
+
+if (Number(this.safe_mode) >= 2)
+   {
+   return({
+          ok: true,
+          answer: "api_safe_mode_prepare",
+          bot_id: normalized_bot_id,
+          safe_mode: Number(this.safe_mode),
+          recalibrated: false,
+          deferred_global_recalibration: true
+          });
+   } // if
+
+let ret = this.apicall_recalibrate_bot_address(normalized_bot_id);
+
+return({
+       ok: ret.ok,
+       answer: "api_safe_mode_prepare",
+       bot_id: normalized_bot_id,
+       safe_mode: Number(this.safe_mode),
+       recalibrated: (ret.ok === true),
+       recalibration: ret
+       });
+} // apicall_apply_safe_mode_for_bot()
+
+
+//
+// apicall_apply_safe_mode_after_structure_change()
+//
+apicall_apply_safe_mode_after_structure_change(trigger_bot_id, change_type = "structure_change")
+{
+let normalized_bot_id = String(trigger_bot_id ?? "").trim();
+
+if (Number(this.safe_mode) < 2)
+   {
+   return({
+          ok: true,
+          answer: "api_safe_mode_after_change",
+          bot_id: normalized_bot_id,
+          safe_mode: Number(this.safe_mode),
+          recalibrated: false,
+          change_type: String(change_type ?? "structure_change")
+          });
+   } // if
+
+let recalibration_ret = this.apicall_recalibrate_bot_addresses();
+
+return({
+       ok: recalibration_ret.ok,
+       answer: "api_safe_mode_after_change",
+       bot_id: normalized_bot_id,
+       safe_mode: Number(this.safe_mode),
+       recalibrated: (recalibration_ret.ok === true),
+       change_type: String(change_type ?? "structure_change"),
+       recalibration: recalibration_ret
+       });
+} // apicall_apply_safe_mode_after_structure_change()
+
+
+//
+// apicall_set_safe_mode()
+//
+apicall_set_safe_mode(mode)
+{
+let normalized_mode = String(mode ?? "status").trim().toLowerCase();
+
+if (normalized_mode == "status")
+   {
+   return({
+          ok: true,
+          answer: "api_safe_mode",
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
+
+if (normalized_mode == "0" || normalized_mode == "off")
+   {
+   this.safe_mode = 0;
+   return({
+          ok: true,
+          answer: "api_safe_mode",
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
+
+if (normalized_mode == "1")
+   {
+   this.safe_mode = 1;
+   return({
+          ok: true,
+          answer: "api_safe_mode",
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
+
+if (normalized_mode == "2" || normalized_mode == "on")
+   {
+   this.safe_mode = 2;
+   return({
+          ok: true,
+          answer: "api_safe_mode",
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
+
+return({
+       ok: false,
+       answer: "api_safe_mode",
+       error: "INVALID_SAFE_MODE",
+       mode: mode
+       });
+} // apicall_set_safe_mode()
 
 
 //
@@ -6899,6 +7216,271 @@ return(ret);
 } // apicall_derive_ack_returnaddr_from_neighbours()
 
 
+apicall_diagnose_ack_route(bot_id, x, y, z, vx = null, vy = null, vz = null)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let target_vx = (vx === null || vx === undefined || vx === "") ? null : Number(vx);
+let target_vy = (vy === null || vy === undefined || vy === "") ? null : Number(vy);
+let target_vz = (vz === null || vz === undefined || vz === "") ? null : Number(vz);
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(normalized_bot_id);
+let bot_snapshot = this.apicall_get_bot_snapshot(normalized_bot_id);
+let target_orientation = null;
+let bots_tmp_ack = [];
+let ack_botindex = null;
+let ack_target_addr = "";
+let ack_retaddr = "";
+let ack_target_neighbors_debug = [];
+let ack_target_neighbors_live_debug = [];
+let ack_stl_debug = null;
+let botindex_map_ack = null;
+let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_bot_id);
+let excluded_bot_ids = [];
+let tmp_unreachable_bots = [];
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_ack_route",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: normalized_bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
+
+if (!bot_snapshot)
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_ack_route",
+          error: "BOT_NOT_FOUND",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+if (Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z))
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_ack_route",
+          error: "INVALID_TARGET_POSITION",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+if (String(carried_payload_bot_id ?? "").trim() != "")
+   {
+   excluded_bot_ids.push(String(carried_payload_bot_id));
+   } // if
+
+if (target_vx !== null || target_vy !== null || target_vz !== null)
+   {
+   if (
+      Number.isNaN(target_vx) ||
+      Number.isNaN(target_vy) ||
+      Number.isNaN(target_vz)
+      )
+      {
+      return({
+             ok: false,
+             answer: "api_diagnose_ack_route",
+             error: "INVALID_TARGET_ORIENTATION",
+             bot_id: normalized_bot_id
+             });
+      } // if
+
+   target_orientation = {
+                        x: Number(target_vx),
+                        y: Number(target_vy),
+                        z: Number(target_vz)
+                        };
+   } else
+     {
+     target_orientation = {
+                          x: Number(bot_snapshot.orientation.x),
+                          y: Number(bot_snapshot.orientation.y),
+                          z: Number(bot_snapshot.orientation.z)
+                          };
+     } // else
+
+bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
+ack_botindex = this.get_bot_by_id(normalized_bot_id, bots_tmp_ack);
+
+if (ack_botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_diagnose_ack_route",
+          error: "BOT_NOT_FOUND_IN_TMP",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+bots_tmp_ack[ack_botindex].x = target_x;
+bots_tmp_ack[ack_botindex].y = target_y;
+bots_tmp_ack[ack_botindex].z = target_z;
+bots_tmp_ack[ack_botindex].vector_x = Number(target_orientation.x);
+bots_tmp_ack[ack_botindex].vector_y = Number(target_orientation.y);
+bots_tmp_ack[ack_botindex].vector_z = Number(target_orientation.z);
+
+for (let i = 0; i < bots_tmp_ack.length; i++)
+    {
+    if (bots_tmp_ack[i].id == "masterbot")
+       {
+       continue;
+       } // if
+
+    bots_tmp_ack[i].adress = this.get_mb_returnaddr(
+                                                {x: this.mb.x, y: this.mb.y, z: this.mb.z},
+                                                {
+                                                x: Number(bots_tmp_ack[i].x),
+                                                y: Number(bots_tmp_ack[i].y),
+                                                z: Number(bots_tmp_ack[i].z)
+                                                },
+                                                bots_tmp_ack,
+                                                []
+                                                );
+
+    if (String(bots_tmp_ack[i].adress ?? "").trim() == "")
+       {
+       tmp_unreachable_bots.push({
+                                 id: bots_tmp_ack[i].id,
+                                 x: Number(bots_tmp_ack[i].x),
+                                 y: Number(bots_tmp_ack[i].y),
+                                 z: Number(bots_tmp_ack[i].z)
+                                 });
+       } // if
+    } // for
+
+ack_target_neighbors_debug = this.get_valid_neighbours(
+                                                      {x: target_x, y: target_y, z: target_z},
+                                                      null,
+                                                      bots_tmp_ack
+                                                      ).map((bot) => ({
+                                                                     id: bot.id,
+                                                                     x: Number(bot.x),
+                                                                     y: Number(bot.y),
+                                                                     z: Number(bot.z),
+                                                                     adress: String(bot.adress ?? "")
+                                                                     })); // for
+
+ack_target_addr = String(bots_tmp_ack[ack_botindex].adress ?? "").trim();
+
+if (ack_target_addr == "")
+   {
+   ack_target_addr = this.apicall_derive_target_address_from_neighbours(
+                                                                     {x: target_x, y: target_y, z: target_z},
+                                                                     bots_tmp_ack
+                                                                     );
+   } // if
+
+if (ack_target_addr == "")
+   {
+   ack_target_neighbors_live_debug = this.get_valid_neighbours(
+                                                             {x: target_x, y: target_y, z: target_z},
+                                                             null,
+                                                             this.bots
+                                                             ).map((bot) => ({
+                                                                            id: bot.id,
+                                                                            x: Number(bot.x),
+                                                                            y: Number(bot.y),
+                                                                            z: Number(bot.z),
+                                                                            adress: String(bot.adress ?? "")
+                                                                            })); // for
+
+   ack_target_addr = this.apicall_derive_target_address_from_neighbours(
+                                                                     {x: target_x, y: target_y, z: target_z},
+                                                                     this.bots
+                                                                     );
+   } // if
+
+botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
+
+if (ack_target_neighbors_debug.length > 0)
+   {
+   let preferred_neighbour = ack_target_neighbors_debug[0];
+   let stl_key = this.getKey_3d(
+                              Number(preferred_neighbour.x),
+                              Number(preferred_neighbour.y),
+                              Number(preferred_neighbour.z)
+                              );
+   let stl_index = botindex_map_ack[stl_key];
+
+   ack_stl_debug = {
+                    neighbour: {
+                               x: Number(preferred_neighbour.x),
+                               y: Number(preferred_neighbour.y),
+                               z: Number(preferred_neighbour.z)
+                               },
+                    stl_id: preferred_neighbour.id,
+                    stl_addr: String(preferred_neighbour.adress ?? "")
+                    };
+
+   if (stl_index !== undefined)
+      {
+      let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
+      let stl_retaddr = this.apicall_get_inverse_address_for_bots(
+                                                             masterbot_key,
+                                                             String(bots_tmp_ack[stl_index].adress ?? ""),
+                                                             bots_tmp_ack,
+                                                             botindex_map_ack
+                                                             );
+
+      ack_stl_debug.stl_retaddr = stl_retaddr;
+      } // if
+   } // if
+
+ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
+                                                                 {
+                                                                 x: Number(target_x),
+                                                                 y: Number(target_y),
+                                                                 z: Number(target_z),
+                                                                 vector_x: Number(target_orientation.x),
+                                                                 vector_y: Number(target_orientation.y),
+                                                                 vector_z: Number(target_orientation.z)
+                                                                 },
+                                                                 bots_tmp_ack
+                                                                 );
+
+if (ack_retaddr == "" && ack_target_addr != "")
+   {
+   let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
+   ack_retaddr = this.apicall_get_inverse_address_for_bots(
+                                                           masterbot_key,
+                                                           ack_target_addr,
+                                                           bots_tmp_ack,
+                                                           botindex_map_ack
+                                                           );
+   } // if
+
+return({
+       ok: true,
+       answer: "api_diagnose_ack_route",
+       bot_id: normalized_bot_id,
+       safe_mode: Number(this.safe_mode),
+       current_state: bot_snapshot,
+       target: {
+                x: Number(target_x),
+                y: Number(target_y),
+                z: Number(target_z)
+                },
+       target_orientation: target_orientation,
+       carried_payload_bot_id: carried_payload_bot_id,
+       excluded_bot_ids: excluded_bot_ids,
+       ack_target_addr: ack_target_addr,
+       ack_retaddr: ack_retaddr,
+       ack_target_neighbors_debug: ack_target_neighbors_debug,
+       ack_target_neighbors_live_debug: ack_target_neighbors_live_debug,
+       ack_stl_debug: ack_stl_debug,
+       tmp_unreachable_count: tmp_unreachable_bots.length,
+       tmp_unreachable_bots: tmp_unreachable_bots
+       });
+} // apicall_diagnose_ack_route()
+
+
 apicall_get_simple_move_library()
 {
 return([
@@ -6945,7 +7527,19 @@ return(ret);
 apicall_rotate_bot(bot_id, direction)
 {
 let normalized_direction = String(direction ?? "").trim().toUpperCase();
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
 
 if (!bot_snapshot)
    {
@@ -7070,6 +7664,7 @@ return({
 apicall_execute_rotation_plan(bot_id, rotation_plan, target_orientation = null)
 {
 let normalized_bot_id = String(bot_id ?? "").trim();
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(normalized_bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(normalized_bot_id);
 let normalized_plan = Array.isArray(rotation_plan) ? rotation_plan.map((entry) => String(entry ?? "").trim().toUpperCase()).filter((entry) => entry != "") : [];
 let payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_bot_id);
@@ -7084,6 +7679,17 @@ let raw_ret = null;
 if (String(payload_bot_id ?? "").trim() != "")
    {
    ack_excluded_bot_ids.push(String(payload_bot_id));
+   } // if
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_execute_rotation_plan",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: normalized_bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
    } // if
 
 if (!bot_snapshot)
@@ -7191,6 +7797,7 @@ apicall_rotate_bot_to(bot_id, x, y, z)
 let target_x = Number(x);
 let target_y = Number(y);
 let target_z = Number(z);
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
 let allowed_vectors = [
                       { x:  1, y: 0, z:  0 },
@@ -7199,6 +7806,17 @@ let allowed_vectors = [
                       { x:  0, y: 0, z: -1 }
                       ];
 let matched_target = null;
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_rotate_bot_to",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
 
 if (!bot_snapshot)
    {
@@ -7418,6 +8036,7 @@ return(ack_retaddr);
 
 apicall_grab_bot(bot_id)
 {
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
 let planned_raw_cmd = null;
 let raw_ret = null;
@@ -7426,6 +8045,17 @@ let ack_retaddr = "";
 let payload_bot_id = null;
 let front_rel_vector = null;
 let front_target = null;
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_grab_bot",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
 
 if (!bot_snapshot)
    {
@@ -7519,12 +8149,24 @@ return({
 
 apicall_release_bot(bot_id)
 {
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
 let planned_raw_cmd = null;
 let raw_ret = null;
 let ack_id = null;
 let ack_retaddr = "";
 let payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_release_bot",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
 
 if (!bot_snapshot)
    {
@@ -8440,10 +9082,22 @@ apicall_move_bot_to(bot_id, x, y, z, execute_move = true)
 let target_x = Number(x);
 let target_y = Number(y);
 let target_z = Number(z);
+let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
 let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
 let excluded_bot_ids = [];
 let should_execute_move = (execute_move === true);
+
+if (safe_prepare_ret?.ok !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_move_bot_to",
+          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
+          bot_id: bot_id,
+          safe_mode: Number(this.safe_mode)
+          });
+   } // if
 
 if (!bot_snapshot)
    {
@@ -8520,11 +9174,13 @@ if (path_ret.path_found !== true)
           });
    } // if
 
+let bots_tmp_translate = this.apicall_build_active_bots_tmp(false, excluded_bot_ids);
 let planned_moves = this.apicall_translate_path_to_primitive_paths(
                                                              path_ret.path ?? [],
                                                              Number(bot_snapshot.orientation.x),
                                                              Number(bot_snapshot.orientation.y),
-                                                             Number(bot_snapshot.orientation.z)
+                                                             Number(bot_snapshot.orientation.z),
+                                                             bots_tmp_translate
                                                              );
 let planned_primitives = this.apicall_add_anchors_to_primitive_paths(
                                                                    planned_moves,
@@ -8917,9 +9573,10 @@ return(valid_pairs.includes(pair));
 } // apicall_is_valid_double_primitive()
 
 
-apicall_translate_path_to_primitive_paths(path, vx, vy, vz)
+apicall_translate_path_to_primitive_paths(path, vx, vy, vz, bots_tmp = null)
 {
 let planned_moves = [];
+let raw_slots = [];
 
 if (!Array.isArray(path) || path.length < 2)
    {
@@ -8934,82 +9591,120 @@ for (let i = 0; i < path.length - 1; i++)
     let dy1 = Number(next_node.y) - Number(current_node.y);
     let dz1 = Number(next_node.z) - Number(current_node.z);
     let slot1 = this.get_cell_slot_byvector(dx1, dy1, dz1, vx, vy, vz);
-    let combined = false;
-
-    if ((slot1 == "T" || slot1 == "D") && i + 2 < path.length)
+    if (slot1 != "")
        {
-       let third_node = path[i + 2];
-       let dx2 = Number(third_node.x) - Number(next_node.x);
-       let dy2 = Number(third_node.y) - Number(next_node.y);
-       let dz2 = Number(third_node.z) - Number(next_node.z);
-       let slot2 = this.get_cell_slot_byvector(dx2, dy2, dz2, vx, vy, vz);
-
-       if (this.apicall_is_valid_double_primitive(slot1, slot2) === true)
-          {
-          planned_moves.push({
-                             from: {
-                                    x: Number(current_node.x),
-                                    y: Number(current_node.y),
-                                    z: Number(current_node.z)
-                                    },
-                             to: {
-                                  x: Number(third_node.x),
-                                  y: Number(third_node.y),
-                                  z: Number(third_node.z)
-                                  },
-                             primitive_path: slot1 + slot2
-                             });
-          i++;
-          combined = true;
-          } // if
+       raw_slots.push(slot1);
        } // if
+    } // for
 
-    if ((combined === false) &&
-        (slot1 == "F" || slot1 == "R" || slot1 == "B" || slot1 == "L") &&
-        i + 2 < path.length)
-       {
-       let third_node = path[i + 2];
-       let dx2 = Number(third_node.x) - Number(next_node.x);
-       let dy2 = Number(third_node.y) - Number(next_node.y);
-       let dz2 = Number(third_node.z) - Number(next_node.z);
-       let slot2 = this.get_cell_slot_byvector(dx2, dy2, dz2, vx, vy, vz);
+if (!Array.isArray(bots_tmp) || bots_tmp.length === 0)
+   {
+   let raw_index = 0;
 
-       if (this.apicall_is_valid_double_primitive(slot1, slot2) === true)
-          {
-          planned_moves.push({
-                             from: {
-                                    x: Number(current_node.x),
-                                    y: Number(current_node.y),
-                                    z: Number(current_node.z)
-                                    },
-                             to: {
-                                  x: Number(third_node.x),
-                                  y: Number(third_node.y),
-                                  z: Number(third_node.z)
-                                  },
-                             primitive_path: slot1 + slot2
-                             });
-          i++;
-          combined = true;
-          } // if
-       } // if
-
-    if (combined === false && slot1 != "")
+   for (let i = 0; i < path.length - 1 && raw_index < raw_slots.length; i++, raw_index++)
        {
        planned_moves.push({
                           from: {
-                                 x: Number(current_node.x),
-                                 y: Number(current_node.y),
-                                 z: Number(current_node.z)
+                                 x: Number(path[i].x),
+                                 y: Number(path[i].y),
+                                 z: Number(path[i].z)
                                  },
                           to: {
-                               x: Number(next_node.x),
-                               y: Number(next_node.y),
-                               z: Number(next_node.z)
+                               x: Number(path[i + 1].x),
+                               y: Number(path[i + 1].y),
+                               z: Number(path[i + 1].z)
                                },
-                          primitive_path: slot1
+                          primitive_path: raw_slots[raw_index]
                           });
+       } // for
+
+   return(planned_moves);
+   } // if
+
+let bot_x = Number(path[0].x);
+let bot_y = Number(path[0].y);
+let bot_z = Number(path[0].z);
+let path_cursor = 0;
+
+for (let i = 0; i < raw_slots.length; i++)
+    {
+    let from_pos = {
+                   x: Number(path[path_cursor].x),
+                   y: Number(path[path_cursor].y),
+                   z: Number(path[path_cursor].z)
+                   };
+    let primitive_path = raw_slots[i];
+    let step_count = 1;
+    let teststruct = this.test_virtual_botmove(
+                                          { x: bot_x, y: bot_y, z: bot_z },
+                                          primitive_path,
+                                          bots_tmp
+                                          );
+
+    if (teststruct?.check !== true && i + 1 < raw_slots.length)
+       {
+       let candidate_double = raw_slots[i] + raw_slots[i + 1];
+
+       if (this.apicall_is_valid_double_primitive(raw_slots[i], raw_slots[i + 1]) === true)
+          {
+          let double_teststruct = this.test_virtual_botmove(
+                                                       { x: bot_x, y: bot_y, z: bot_z },
+                                                       candidate_double,
+                                                       bots_tmp
+                                                       );
+
+          if (double_teststruct?.check === true)
+             {
+             primitive_path = candidate_double;
+             step_count = 2;
+             teststruct = double_teststruct;
+             } // if
+          } // if
        } // if
+
+    let to_pos = null;
+
+    if (teststruct?.check === true && teststruct?.lastpos != null)
+       {
+       to_pos = {
+                x: Number(teststruct.lastpos.x),
+                y: Number(teststruct.lastpos.y),
+                z: Number(teststruct.lastpos.z)
+                };
+
+       let botindex = this.get_botindex_by_xyz({ x: bot_x, y: bot_y, z: bot_z }, bots_tmp);
+
+       if (botindex != null)
+          {
+          bots_tmp[botindex].x = Number(teststruct.lastpos.x);
+          bots_tmp[botindex].y = Number(teststruct.lastpos.y);
+          bots_tmp[botindex].z = Number(teststruct.lastpos.z);
+          } // if
+
+       bot_x = Number(teststruct.lastpos.x);
+       bot_y = Number(teststruct.lastpos.y);
+       bot_z = Number(teststruct.lastpos.z);
+       } else
+         {
+         let fallback_index = Math.min(path.length - 1, path_cursor + step_count);
+         to_pos = {
+                  x: Number(path[fallback_index].x),
+                  y: Number(path[fallback_index].y),
+                  z: Number(path[fallback_index].z)
+                  };
+         bot_x = Number(to_pos.x);
+         bot_y = Number(to_pos.y);
+         bot_z = Number(to_pos.z);
+         } // else
+
+    planned_moves.push({
+                       from: from_pos,
+                       to: to_pos,
+                       primitive_path: primitive_path
+                       });
+
+    path_cursor += step_count;
+    i += (step_count - 1);
     } // for
 
 return(planned_moves);
@@ -9527,6 +10222,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
 
       this.bots[tmpbotid].adress = this.get_mb_returnaddr( {x:this.mb.x, y:this.mb.y, z:this.mb.z }, {x:new_x, y:new_y, z:new_z }, this.bots );
 
+      let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
+                                                                               this.signal_botids[ msgarray.bottmpid ].thebotid,
+                                                                               "signal_move"
+                                                                               );
+      this.append_api_bot_history(
+                                 this.signal_botids[ msgarray.bottmpid ].thebotid,
+                                 "safe_mode_after_change",
+                                 {
+                                 ack_id: msgarray.bottmpid,
+                                 change_type: "signal_move"
+                                 },
+                                 {
+                                 ok: Boolean(safe_mode_after_ret?.ok),
+                                 answer: safe_mode_after_ret?.answer ?? "",
+                                 recalibrated: Boolean(safe_mode_after_ret?.recalibrated),
+                                 safe_mode: Number(safe_mode_after_ret?.safe_mode ?? this.safe_mode)
+                                 }
+                                 );
+
 
          
       }
@@ -9623,6 +10337,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              }
                                              );
 
+                  let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
+                                                                                           api_ack_entry.bot_id,
+                                                                                           "spin"
+                                                                                           );
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "safe_mode_after_change",
+                                             {
+                                             ack_id: msgarray.bottmpid,
+                                             change_type: "spin"
+                                             },
+                                             {
+                                             ok: Boolean(safe_mode_after_ret?.ok),
+                                             answer: safe_mode_after_ret?.answer ?? "",
+                                             recalibrated: Boolean(safe_mode_after_ret?.recalibrated),
+                                             safe_mode: Number(safe_mode_after_ret?.safe_mode ?? this.safe_mode)
+                                             }
+                                             );
+
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
@@ -9697,6 +10430,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              );
                   } // if
 
+               let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
+                                                                                        api_ack_entry.bot_id,
+                                                                                        "move"
+                                                                                        );
+               this.append_api_bot_history(
+                                          api_ack_entry.bot_id,
+                                          "safe_mode_after_change",
+                                          {
+                                          ack_id: msgarray.bottmpid,
+                                          change_type: "move"
+                                          },
+                                          {
+                                          ok: Boolean(safe_mode_after_ret?.ok),
+                                          answer: safe_mode_after_ret?.answer ?? "",
+                                          recalibrated: Boolean(safe_mode_after_ret?.recalibrated),
+                                          safe_mode: Number(safe_mode_after_ret?.safe_mode ?? this.safe_mode)
+                                          }
+                                          );
+
                this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
                this.append_api_bot_history(
                                           api_ack_entry.bot_id,
@@ -9718,6 +10470,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                                        );
                      } // if
 
+                  let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
+                                                                                           api_ack_entry.bot_id,
+                                                                                           "grab"
+                                                                                           );
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "safe_mode_after_change",
+                                             {
+                                             ack_id: msgarray.bottmpid,
+                                             change_type: "grab"
+                                             },
+                                             {
+                                             ok: Boolean(safe_mode_after_ret?.ok),
+                                             answer: safe_mode_after_ret?.answer ?? "",
+                                             recalibrated: Boolean(safe_mode_after_ret?.recalibrated),
+                                             safe_mode: Number(safe_mode_after_ret?.safe_mode ?? this.safe_mode)
+                                             }
+                                             );
+
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
@@ -9735,6 +10506,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                if (api_ack_entry.mode == "release")
                   {
                   this.apicall_clear_payload_link(api_ack_entry.bot_id);
+
+                  let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
+                                                                                           api_ack_entry.bot_id,
+                                                                                           "release"
+                                                                                           );
+                  this.append_api_bot_history(
+                                             api_ack_entry.bot_id,
+                                             "safe_mode_after_change",
+                                             {
+                                             ack_id: msgarray.bottmpid,
+                                             change_type: "release"
+                                             },
+                                             {
+                                             ok: Boolean(safe_mode_after_ret?.ok),
+                                             answer: safe_mode_after_ret?.answer ?? "",
+                                             recalibrated: Boolean(safe_mode_after_ret?.recalibrated),
+                                             safe_mode: Number(safe_mode_after_ret?.safe_mode ?? this.safe_mode)
+                                             }
+                                             );
 
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
                   this.append_api_bot_history(
@@ -10671,6 +11461,64 @@ async handleAPIMessage(message, socket) {
                         description: "Enables, disables or queries the global MOVE diagnostics flag in the BotController."
                     },
                     {
+                        cmd: "safe_mode",
+                        params: {
+                            mode: "0|1|2|on|off|status"
+                        },
+                        returns: {
+                            answer: "api_safe_mode",
+                            safe_mode: "number"
+                        },
+                        description: "Enables, disables or queries the address recalibration safety level. Mode 0 disables recalibration, mode 1 recalibrates one addressed bot before bot-scoped API actions, and mode 2 globally recalibrates all bot addresses after successful structural changes. Default is 2."
+                    },
+                    {
+                        cmd: "recalibrate_bot_address",
+                        params: {
+                            bot_id: "string",
+                            mode: "standard|minimal (optional)"
+                        },
+                        returns: {
+                            answer: "api_recalibrate_bot_address",
+                            old_adress: "string",
+                            new_adress: "string",
+                            changed: "boolean"
+                        },
+                        description: "Recalculates the current local address of one known bot from the existing BotController world model without performing a full scan. Optional mode=minimal prefers shorter and simpler routes."
+                    },
+                    {
+                        cmd: "recalibrate_bot_addresses",
+                        params: {
+                            mode: "standard|minimal (optional)"
+                        },
+                        returns: {
+                            answer: "api_recalibrate_bot_addresses",
+                            count: "number",
+                            changed_count: "number"
+                        },
+                        description: "Recalculates the current local addresses of all known non-master bots from the existing BotController world model. Optional mode=minimal prefers shorter and simpler routes."
+                    },
+                    {
+                        cmd: "diagnose_ack_route",
+                        params: {
+                            bot_id: "string",
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            vx: "number|null",
+                            vy: "number|null",
+                            vz: "number|null"
+                        },
+                        returns: {
+                            answer: "api_diagnose_ack_route",
+                            ack_target_addr: "string",
+                            ack_retaddr: "string",
+                            ack_target_neighbors_debug: "array",
+                            ack_target_neighbors_live_debug: "array",
+                            ack_stl_debug: "object|null"
+                        },
+                        description: "Diagnoses the target-side address and ALIFE/RALIFE return route for a hypothetical bot target pose without executing a move."
+                    },
+                    {
                         cmd: "structurescan",
                         params: {},
                         returns: {
@@ -11216,6 +12064,52 @@ async handleAPIMessage(message, socket) {
         if (decodedobject.cmd === 'debug_move') {
             let ret = this.apicall_set_debug_move(decodedobject.mode);
             this.append_api_action_log("debug_move", { mode: decodedobject.mode }, { ok: ret.ok, answer: ret.answer, debug_move_enabled: ret.debug_move_enabled ?? null });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'safe_mode') {
+            let ret = this.apicall_set_safe_mode(decodedobject.mode);
+            this.append_api_action_log("safe_mode", { mode: decodedobject.mode }, { ok: ret.ok, answer: ret.answer, safe_mode: ret.safe_mode ?? null, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'recalibrate_bot_address') {
+            let ret = this.apicall_recalibrate_bot_address(decodedobject.bot_id, decodedobject.mode ?? "standard");
+            this.append_api_action_log("recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, error: ret.error ?? "" });
+            this.append_api_bot_history(decodedobject.bot_id, "recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, old_adress: ret.old_adress ?? "", new_adress: ret.new_adress ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'recalibrate_bot_addresses') {
+            let ret = this.apicall_recalibrate_bot_addresses(decodedobject.mode ?? "standard");
+            this.append_api_action_log("recalibrate_bot_addresses", { mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, changed_count: ret.changed_count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'diagnose_ack_route') {
+            let ret = this.apicall_diagnose_ack_route(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz);
+            this.append_api_action_log("diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
+            this.append_api_bot_history(decodedobject.bot_id, "diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
             answer = JSON.stringify(ret) + "\n";
 
             socket.write(answer, () => {

@@ -99,6 +99,41 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "safe_mode") {
+    return {
+      cmd: "safe_mode",
+      mode: process.argv[3] ?? "status"
+    };
+  } // if
+
+  if (cmd == "recalibrate_bot_address") {
+    return {
+      cmd: "recalibrate_bot_address",
+      bot_id: process.argv[3] ?? "",
+      mode: process.argv[4] ?? "standard"
+    };
+  } // if
+
+  if (cmd == "recalibrate_bot_addresses") {
+    return {
+      cmd: "recalibrate_bot_addresses",
+      mode: process.argv[3] ?? "standard"
+    };
+  } // if
+
+  if (cmd == "diagnose_ack_route") {
+    return {
+      cmd: "diagnose_ack_route",
+      bot_id: process.argv[3] ?? "",
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0),
+      vx: process.argv[7] ?? "",
+      vy: process.argv[8] ?? "",
+      vz: process.argv[9] ?? ""
+    };
+  } // if
+
   if (cmd == "structurescan") {
     return { cmd: "structurescan" };
   } // if
