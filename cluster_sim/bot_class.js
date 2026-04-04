@@ -337,8 +337,15 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_CHECK )
 if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
    {   
    let size = cmdarray.subcmd.length;
+   let move_sequence_aborted = false;
+
    for (let i=0; i<size; i++)
        {
+       if (move_sequence_aborted)
+          {
+          break;
+          } // if
+
        let sub    = cmdarray.subcmd[i].sub;       
        let repeat = cmdarray.subcmd[i].repeat;
        let fa     = cmdarray.subcmd[i].fa;
@@ -385,16 +392,27 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
        if ( sub == "SPIN" )
           {
           let direction     = cmdarray.subcmd[i].direction;
+          let spin_success  = true;
           
           for (let i2=0; i2 < repeat; i2++)
               {    
               let size2 = moves.length;
               for (let i3=0; i3 < size2; i3++)
                   {
+                  spin_success = await this.motoric_spin( caller, fa, la, direction );
 
-                  await this.motoric_spin( caller, fa, la, direction );
+                  if (!spin_success)
+                     {
+                     move_sequence_aborted = true;
+                     break;
+                     } // if
                   
                   } // for i3...
+
+              if (move_sequence_aborted)
+                 {
+                 break;
+                 } // if
               
               } // for i2...
               
@@ -425,12 +443,28 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           let size = slots.length;
           
           let targetslot = slots[0];
+          let previous_grabbed_cellbot = this.grabbed_cellbot;
+
+          if (previous_grabbed_cellbot !== null)
+             {
+             caller.unregister_payload_bot_int_id(previous_grabbed_cellbot);
+             } // if
+
+          if (size == 0)
+             {
+             this.grabbed_cellbot = null;
+             } // if
           
           // Only F-Transport is permitted
           if (targetslot == 'F')
              {
                          
-             this.grabbed_cellbot = caller.get_target_int_id( this.x, this.y, this.z, targetslot )
+             this.grabbed_cellbot = caller.get_target_int_id( this.x, this.y, this.z, targetslot );
+
+             if (this.grabbed_cellbot !== null && this.grabbed_cellbot >= 0)
+                {
+                caller.register_payload_bot_int_id(this.grabbed_cellbot);
+                } // if
       
              } // if (targetslot == 'F')
           
@@ -853,6 +887,270 @@ if ( update_grabbed_bot )
       
       
 //
+// get_spin_block_profile()
+//
+get_spin_block_profile( caller, direction )
+{
+let ret =
+{
+blocked: false,
+blocked_reason: "",
+occupied_horizontal_count: 0,
+occupied_vertical_count: 0,
+occupied_orthogonal_slots: [],
+occupied_orthogonal_neighbors: [],
+occupied_sweep_slots: [],
+occupied_sweep_neighbors: []
+};
+let vector_new = [ 0, 0, 0 ];
+let orthogonal_checks = [
+                        { slot: "XP", dx:  1, dy:  0, dz:  0, axis: "horizontal" },
+                        { slot: "XN", dx: -1, dy:  0, dz:  0, axis: "horizontal" },
+                        { slot: "ZP", dx:  0, dy:  0, dz:  1, axis: "horizontal" },
+                        { slot: "ZN", dx:  0, dy:  0, dz: -1, axis: "horizontal" },
+                        { slot: "YP", dx:  0, dy:  1, dz:  0, axis: "vertical"   },
+                        { slot: "YN", dx:  0, dy: -1, dz:  0, axis: "vertical"   }
+                        ];
+let excluded_botindex = this.grabbed_cellbot;
+let excluded_x = this.x;
+let excluded_y = this.y;
+let excluded_z = this.z;
+
+if (this.grabbed_cellbot !== null && caller.bots[this.grabbed_cellbot] !== undefined)
+   {
+   excluded_x = caller.bots[this.grabbed_cellbot].x;
+   excluded_y = caller.bots[this.grabbed_cellbot].y;
+   excluded_z = caller.bots[this.grabbed_cellbot].z;
+   } // if
+
+if (direction == 'R')
+   {
+   if ( this.vector_x ==  1 && this.vector_y ==  0 && this.vector_z ==  0) vector_new = [  0,  0, -1 ];
+   if ( this.vector_x ==  0 && this.vector_y ==  0 && this.vector_z == -1) vector_new = [ -1,  0,  0 ];
+   if ( this.vector_x == -1 && this.vector_y ==  0 && this.vector_z ==  0) vector_new = [  0,  0,  1 ];
+   if ( this.vector_x ==  0 && this.vector_y ==  0 && this.vector_z ==  1) vector_new = [  1,  0,  0 ];
+   } // if
+
+if (direction == 'L')
+   {
+   if ( this.vector_x ==  1 && this.vector_y ==  0 && this.vector_z ==  0) vector_new = [  0,  0,  1 ];
+   if ( this.vector_x ==  0 && this.vector_y ==  0 && this.vector_z == -1) vector_new = [  1,  0,  0 ];
+   if ( this.vector_x == -1 && this.vector_y ==  0 && this.vector_z ==  0) vector_new = [  0,  0, -1 ];
+   if ( this.vector_x ==  0 && this.vector_y ==  0 && this.vector_z ==  1) vector_new = [ -1,  0,  0 ];
+   } // if
+
+for (let i = 0; i < orthogonal_checks.length; i++)
+    {
+    let check = orthogonal_checks[i];
+    let target_x = Number(this.x) + Number(check.dx);
+    let target_y = Number(this.y) + Number(check.dy);
+    let target_z = Number(this.z) + Number(check.dz);
+    let botindex = caller.get_3d(target_x, target_y, target_z);
+
+    if (botindex !== null)
+       {
+       if (excluded_botindex !== null && botindex === excluded_botindex)
+          {
+          continue;
+          } // if
+
+       if ( target_x == excluded_x &&
+            target_y == excluded_y &&
+            target_z == excluded_z )
+          {
+          continue;
+          } // if
+
+       if (caller.is_payload_bot_at_position(target_x, target_y, target_z))
+          {
+          continue;
+          } // if
+
+       ret.occupied_orthogonal_slots.push(check.slot);
+       ret.occupied_orthogonal_neighbors.push({
+                                             slot: check.slot,
+                                             id: caller.bots[botindex].id,
+                                             x: Number(target_x),
+                                             y: Number(target_y),
+                                             z: Number(target_z)
+                                             });
+
+       if (check.axis == "horizontal")
+          {
+          ret.occupied_horizontal_count++;
+          } // if
+       else
+          {
+          ret.occupied_vertical_count++;
+          } // else
+       } // if
+    } // for
+
+let sweep_checks = [
+                   { slot: "FRONT_OLD", dx: Number(this.vector_x), dy: Number(this.vector_y), dz: Number(this.vector_z) },
+                   { slot: "FRONT_NEW", dx: Number(vector_new[0]), dy: Number(vector_new[1]), dz: Number(vector_new[2]) },
+                   { slot: "BACK_OLD",  dx: Number(this.vector_x) * -1, dy: Number(this.vector_y) * -1, dz: Number(this.vector_z) * -1 },
+                   { slot: "BACK_NEW",  dx: Number(vector_new[0]) * -1, dy: Number(vector_new[1]) * -1, dz: Number(vector_new[2]) * -1 }
+                   ];
+let seen_sweep_keys = {};
+
+for (let i = 0; i < sweep_checks.length; i++)
+    {
+    let check = sweep_checks[i];
+    let target_x = Number(this.x) + Number(check.dx);
+    let target_y = Number(this.y) + Number(check.dy);
+    let target_z = Number(this.z) + Number(check.dz);
+    let sweep_key = String(target_x) + "," + String(target_y) + "," + String(target_z);
+
+    if (seen_sweep_keys[sweep_key] === true)
+       {
+       continue;
+       } // if
+
+    seen_sweep_keys[sweep_key] = true;
+
+    let botindex = caller.get_3d(target_x, target_y, target_z);
+
+    if (botindex !== null)
+       {
+       if (excluded_botindex !== null && botindex === excluded_botindex)
+          {
+          continue;
+          } // if
+
+       if ( target_x == excluded_x &&
+            target_y == excluded_y &&
+            target_z == excluded_z )
+          {
+          continue;
+          } // if
+
+       if (caller.is_payload_bot_at_position(target_x, target_y, target_z))
+          {
+          continue;
+          } // if
+
+       ret.occupied_sweep_slots.push(check.slot);
+       ret.occupied_sweep_neighbors.push({
+                                         slot: check.slot,
+                                         id: caller.bots[botindex].id,
+                                         x: Number(target_x),
+                                         y: Number(target_y),
+                                         z: Number(target_z)
+                                         });
+       } // if
+    } // for
+
+if (ret.occupied_horizontal_count > 0)
+   {
+   ret.blocked = true;
+   ret.blocked_reason = "HORIZONTAL_NEIGHBOR_ATTACHED";
+   } // if
+
+if (!ret.blocked && ret.occupied_sweep_neighbors.length > 0)
+   {
+   ret.blocked = true;
+   ret.blocked_reason = "LOCAL_SPIN_SWEEP_OCCUPIED";
+   } // if
+
+return(ret);
+} // get_spin_block_profile()
+
+
+//
+// get_payload_spin_collision_profile()
+//
+get_payload_spin_collision_profile( caller, payload_botindex, payload_old_vector, payload_new_vector )
+{
+let ret =
+{
+blocked: false,
+blocked_reason: "",
+payload_target: null,
+payload_sweep: null,
+blocking_target_bot_id: null,
+blocking_sweep_bot_id: null
+};
+let payload_target_x = Number(this.x) + Number(payload_new_vector[0]);
+let payload_target_y = Number(this.y) + Number(payload_new_vector[1]);
+let payload_target_z = Number(this.z) + Number(payload_new_vector[2]);
+let payload_sweep_x = Number(this.x) + Number(payload_old_vector[0]) + Number(payload_new_vector[0]);
+let payload_sweep_y = Number(this.y) + Number(payload_old_vector[1]) + Number(payload_new_vector[1]);
+let payload_sweep_z = Number(this.z) + Number(payload_old_vector[2]) + Number(payload_new_vector[2]);
+
+ret.payload_target =
+{
+x: Number(payload_target_x),
+y: Number(payload_target_y),
+z: Number(payload_target_z)
+};
+ret.payload_sweep =
+{
+x: Number(payload_sweep_x),
+y: Number(payload_sweep_y),
+z: Number(payload_sweep_z)
+};
+
+let sweep_botindex = caller.get_3d( payload_sweep_x, payload_sweep_y, payload_sweep_z );
+
+if ( sweep_botindex !== null &&
+     sweep_botindex !== payload_botindex )
+   {
+   ret.blocked = true;
+   ret.blocked_reason = "PAYLOAD_SPIN_SWEEP_OCCUPIED";
+   ret.blocking_sweep_bot_id = caller.bots[ sweep_botindex ].id;
+
+   return(ret);
+   } // if
+
+let target_botindex = caller.get_3d( payload_target_x, payload_target_y, payload_target_z );
+
+if ( target_botindex !== null &&
+     target_botindex !== payload_botindex )
+   {
+   ret.blocked = true;
+   ret.blocked_reason = "PAYLOAD_SPIN_TARGET_OCCUPIED";
+   ret.blocking_target_bot_id = caller.bots[ target_botindex ].id;
+   } // if
+
+return(ret);
+} // get_payload_spin_collision_profile()
+
+
+//
+// is_spin_blocked()
+//
+is_spin_blocked( caller, direction )
+{
+let spin_profile = this.get_spin_block_profile( caller, direction );
+
+if (spin_profile.blocked)
+   {
+   let orth_details = spin_profile.occupied_orthogonal_neighbors.map(
+                                                               (entry) => entry.slot + ":" + entry.id
+                                                               ).join(",");
+   let sweep_details = spin_profile.occupied_sweep_neighbors.map(
+                                                           (entry) => entry.slot + ":" + entry.id
+                                                           ).join(",");
+   Logger.log(
+             "spin_blocked(" + this.id + ") reason(" + spin_profile.blocked_reason + ") " +
+             "orth(" + spin_profile.occupied_orthogonal_slots.join(",") + ") " +
+             "orth_ids(" + orth_details + ") " +
+             "sweep(" + spin_profile.occupied_sweep_slots.join(",") + ") " +
+             "sweep_ids(" + sweep_details + ")"
+             );
+   } // if
+
+return(spin_profile);
+} // is_spin_blocked()
+
+
+      
+      
+      
+      
+      
+//
 // motoric_spin
 //
 async motoric_spin( caller, fa, la, direction )
@@ -873,6 +1171,10 @@ let vector_grabbed_new           = [  0, 0, 0 ];
 let grabbed_vector_x, grabbed_vector_y, grabbed_vector_z;
 let grabbed_vector_x_old, grabbed_vector_y_old, grabbed_vector_z_old;
 let grabbed_new_x, grabbed_new_y, grabbed_new_z;
+let grabbed_vector_new = [  0, 0, 0 ];
+let blocked_horizontal_spin = false;
+let spin_block_profile = null;
+let payload_spin_profile = null;
 
  
 // Right
@@ -898,25 +1200,35 @@ if (direction == 'L')
    } // right
    
 
-// Set new values   
-update_carrier_bot = true;
-this.vector_x = vector_new[0];
-this.vector_y = vector_new[1];
-this.vector_z = vector_new[2];
+//
+// Prevent spins if the local neighbourhood blocks the move.
+// Transported payload bots are excluded inside get_spin_block_profile()
+// and are handled separately by the payload target collision below.
+//
+spin_block_profile = this.is_spin_blocked( caller, direction );
+blocked_horizontal_spin = (spin_block_profile.blocked === true);
 
-// Update_neighbors
-let self_int_index     = caller.get_3d(this.x,this.y,this.z);    
-caller.update_bot_index_neighbors( self_int_index );
+
+if (!blocked_horizontal_spin)
+   {
+   // Set new values
+   update_carrier_bot = true;
+   this.vector_x = vector_new[0];
+   this.vector_y = vector_new[1];
+   this.vector_z = vector_new[2];
+
+   // Update_neighbors
+   let self_int_index     = caller.get_3d(this.x,this.y,this.z);
+   caller.update_bot_index_neighbors( self_int_index );
+   } // if (!blocked_horizontal_spin)
     
     
 
 //
 // Transport
 //
-if (this.grabbed_cellbot !== null)
+if (!blocked_horizontal_spin && this.grabbed_cellbot !== null)
    {
-   let vector_translate_new = [  0, 0, 0 ];
-     
    grabbed_botid = caller.bots[ this.grabbed_cellbot ].id;
    
    grabbed_x = caller.bots[ this.grabbed_cellbot ].x;
@@ -933,50 +1245,56 @@ if (this.grabbed_cellbot !== null)
    grabbed_vector_z_old = grabbed_vector_z;
    
    
-   // Coordinates will change in the same way like transporter CellBot!
+   // The grabbed bot must end up exactly at the new F-slot of the carrier.
+   // A carrier spin changes the payload attachment slot, not just its world
+   // translation by a diagonal offset.
    
    // Right
    if (direction == 'R')
       {
    
-      if ( grabbed_vector_x ==  1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) vector_new = [  0,  0, -1 ];
-      if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z == -1) vector_new = [ -1,  0,  0 ];
-      if ( grabbed_vector_x == -1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) vector_new = [  0,  0,  1 ];
-      if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z ==  1) vector_new = [  1,  0,  0 ];
+      if ( grabbed_vector_x ==  1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) grabbed_vector_new = [  0,  0, -1 ];
+      if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z == -1) grabbed_vector_new = [ -1,  0,  0 ];
+      if ( grabbed_vector_x == -1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) grabbed_vector_new = [  0,  0,  1 ];
+      if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z ==  1) grabbed_vector_new = [  1,  0,  0 ];
     
-      if ( vector_x_old ==  1 && vector_y_old ==  0 && vector_z_old ==  0) vector_translate_new = [ -1,  0, -1 ];
-      if ( vector_x_old ==  0 && vector_y_old ==  0 && vector_z_old == -1) vector_translate_new = [ -1,  0,  1 ];
-      if ( vector_x_old == -1 && vector_y_old ==  0 && vector_z_old ==  0) vector_translate_new = [  1,  0,  1 ];
-      if ( vector_x_old ==  0 && vector_y_old ==  0 && vector_z_old ==  1) vector_translate_new = [  1,  0, -1 ];
-
       } // right
 
     // Right
     if (direction == 'L')
        {
    
-       if ( grabbed_vector_x ==  1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) vector_new = [  0,  0,  1 ];
-       if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z == -1) vector_new = [  1,  0,  0 ];
-       if ( grabbed_vector_x == -1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) vector_new = [  0,  0, -1 ];
-       if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z ==  1) vector_new = [ -1,  0,  0 ];
-    
-       if ( vector_x_old ==  1 && vector_y_old ==  0 && vector_z_old ==  0) vector_translate_new = [ -1,  0,  1 ];
-       if ( vector_x_old ==  0 && vector_y_old ==  0 && vector_z_old == -1) vector_translate_new = [  1,  0,  1 ];
-       if ( vector_x_old == -1 && vector_y_old ==  0 && vector_z_old ==  0) vector_translate_new = [  1,  0, -1 ];
-       if ( vector_x_old ==  0 && vector_y_old ==  0 && vector_z_old ==  1) vector_translate_new = [ -1,  0, -1 ];
+       if ( grabbed_vector_x ==  1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) grabbed_vector_new = [  0,  0,  1 ];
+       if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z == -1) grabbed_vector_new = [  1,  0,  0 ];
+       if ( grabbed_vector_x == -1 && grabbed_vector_y ==  0 && grabbed_vector_z ==  0) grabbed_vector_new = [  0,  0, -1 ];
+       if ( grabbed_vector_x ==  0 && grabbed_vector_y ==  0 && grabbed_vector_z ==  1) grabbed_vector_new = [ -1,  0,  0 ];
     
        } // right
    
-   // Collision-Detection
-   
-   
-   
+   payload_spin_profile = this.get_payload_spin_collision_profile(
+                                                                 caller,
+                                                                 this.grabbed_cellbot,
+                                                                 [ grabbed_vector_x_old, grabbed_vector_y_old, grabbed_vector_z_old ],
+                                                                 grabbed_vector_new
+                                                                 );
 
-   grabbed_new_x = Number(grabbed_x) + Number(vector_translate_new[0]);
-   grabbed_new_y = Number(grabbed_y) + Number(vector_translate_new[1]);
-   grabbed_new_z = Number(grabbed_z) + Number(vector_translate_new[2]);
+   grabbed_new_x = Number(payload_spin_profile.payload_target.x);
+   grabbed_new_y = Number(payload_spin_profile.payload_target.y);
+   grabbed_new_z = Number(payload_spin_profile.payload_target.z);
 
-   let collision = caller.check_collision( grabbed_new_x, grabbed_new_y, grabbed_new_z );
+   let collision = payload_spin_profile.blocked;
+
+   if (collision)
+      {
+      Logger.log(
+                "payload_spin_blocked(" + this.id + ") reason(" + payload_spin_profile.blocked_reason + ") " +
+                "payload(" + grabbed_botid + ") " +
+                "sweep(" + payload_spin_profile.payload_sweep.x + "," + payload_spin_profile.payload_sweep.y + "," + payload_spin_profile.payload_sweep.z + ") " +
+                "target(" + payload_spin_profile.payload_target.x + "," + payload_spin_profile.payload_target.y + "," + payload_spin_profile.payload_target.z + ") " +
+                "sweep_blocker(" + String(payload_spin_profile.blocking_sweep_bot_id) + ") " +
+                "target_blocker(" + String(payload_spin_profile.blocking_target_bot_id) + ")"
+                );
+      } // if
    
    
    if (collision)
@@ -985,6 +1303,8 @@ if (this.grabbed_cellbot !== null)
       this.vector_x = vector_x_old;
       this.vector_y = vector_y_old;
       this.vector_z = vector_z_old;
+      update_carrier_bot = false;
+      update_grabbed_bot = false;
       
       
       // update_neighbors
@@ -1003,13 +1323,13 @@ if (this.grabbed_cellbot !== null)
           caller.update_keyindex( grabbed_x, grabbed_y, grabbed_z, grabbed_new_x, grabbed_new_y, grabbed_new_z );
 
 
-          caller.bots[ this.grabbed_cellbot ].vector_x = vector_new[0];
-          caller.bots[ this.grabbed_cellbot ].vector_y = vector_new[1];
-          caller.bots[ this.grabbed_cellbot ].vector_z = vector_new[2];
+          caller.bots[ this.grabbed_cellbot ].vector_x = grabbed_vector_new[0];
+          caller.bots[ this.grabbed_cellbot ].vector_y = grabbed_vector_new[1];
+          caller.bots[ this.grabbed_cellbot ].vector_z = grabbed_vector_new[2];
           
           caller.update_bot_index_neighbors( this.grabbed_cellbot );
     
-          vector_grabbed_new = vector_new;
+          vector_grabbed_new = grabbed_vector_new;
           
           update_grabbed_bot = true;
           } // no collision
@@ -1019,7 +1339,7 @@ if (this.grabbed_cellbot !== null)
  
    
    
-   } // grabbed_cellbot != null 
+   } // grabbed_cellbot != null
    
    
    
@@ -1102,8 +1422,12 @@ await this.sleep( this.physical_bot_move_delay );
 //
 
  
-    
+if (!update_carrier_bot)
+   {
+   return(false);
+   } // if
 
+return(true);
 } // motoric_spin()
       
   

@@ -86,6 +86,7 @@ class masterbot_class
   this.index_neighbors['d'] = -1;
   
   this.botindex = [];
+  this.payload_bot_ids = {};
   
   
   this.setlivelogging = false;
@@ -95,6 +96,74 @@ class masterbot_class
   this._stopwatchStart = Date.now();
       
   } // constructor
+
+
+register_payload_bot_int_id(botindex)
+{
+if (botindex === null || botindex === undefined || botindex < 0)
+   {
+   return(false);
+   } // if
+
+if (this.bots[botindex] === undefined)
+   {
+   return(false);
+   } // if
+
+this.payload_bot_ids[String(this.bots[botindex].id)] = true;
+return(true);
+} // register_payload_bot_int_id()
+
+
+unregister_payload_bot_int_id(botindex)
+{
+if (botindex === null || botindex === undefined || botindex < 0)
+   {
+   return(false);
+   } // if
+
+if (this.bots[botindex] === undefined)
+   {
+   return(false);
+   } // if
+
+delete this.payload_bot_ids[String(this.bots[botindex].id)];
+return(true);
+} // unregister_payload_bot_int_id()
+
+
+is_payload_bot_int_id(botindex)
+{
+if (botindex === null || botindex === undefined || botindex < 0)
+   {
+   return(false);
+   } // if
+
+if (this.bots[botindex] === undefined)
+   {
+   return(false);
+   } // if
+
+return(this.payload_bot_ids[String(this.bots[botindex].id)] === true);
+} // is_payload_bot_int_id()
+
+
+is_payload_bot_at_position(x, y, z)
+{
+let botindex = this.get_3d(x, y, z);
+
+if (botindex == null)
+   {
+   return(false);
+   } // if
+
+if (this.bots[botindex] === undefined)
+   {
+   return(false);
+   } // if
+
+return(this.is_payload_bot_int_id(botindex));
+} // is_payload_bot_at_position()
   
   
   
@@ -638,6 +707,41 @@ return(ret);
 } // has_neighbour
 
 
+//
+// Call by bot_class.js / motoric_spin()
+// Returns true, if any horizontal neighbour exists on F/R/B/L
+//
+has_horizontal_neighbor( x,y,z, vx,vy,vz, excl_x,excl_y,excl_z )
+{
+let ret = false;
+const slots = [ 'F', 'R', 'B', 'L' ];
+
+for (let i = 0; i < slots.length; i++)
+    {
+    const hasneighbor = this.has_neighbour(
+                                        x,
+                                        y,
+                                        z,
+                                        vx,
+                                        vy,
+                                        vz,
+                                        excl_x,
+                                        excl_y,
+                                        excl_z,
+                                        slots[i]
+                                        );
+
+    if (hasneighbor)
+       {
+       ret = true;
+       break;
+       } // if (hasneighbor)
+    } // for
+
+return(ret);
+} // has_horizontal_neighbor
+
+
   
 // 
 // dumpdebug()
@@ -895,6 +999,11 @@ return(message);
 calc_inbound_slot(tmp_botindex, vector)
 {
 let inbound_slot = "";
+
+if (tmp_botindex == null || this.bots[tmp_botindex] === undefined)
+   {
+   return(inbound_slot);
+   } // if
  
 
 // From 'down'
@@ -1210,6 +1319,12 @@ if (message != "")
    
           let tmp_botindex = this.get_3d(koor_x,koor_y,koor_z); // e.g. "x,y,z" 
  
+          if (tmp_botindex == null || this.bots[tmp_botindex] === undefined)
+             {
+             Logger.log("Routing target bot missing for destslot: " + destslot + " message: " + message);
+             return;
+             } // if
+
     
           let slot_inbound = this.calc_inbound_slot(tmp_botindex, indexdestbot);
  
@@ -1293,7 +1408,7 @@ for (let i=0; i < l; i++)
 
           let tmp_botindex = this.get_3d(koor_x,koor_y,koor_z);
    
-          if (tmp_botindex != null)
+          if (tmp_botindex != null && this.bots[tmp_botindex] !== undefined)
           {
           
    

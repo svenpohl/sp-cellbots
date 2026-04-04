@@ -108,9 +108,15 @@
 <cell>
 <id>B08</id>
 <pos>
-<x>2</x>
-<y>0</y>
-<z>2</z>
+
+<x_>2</x_>
+<y_>0</y_>
+<z_>2</z_>
+
+
+<x>1</x>
+<y>1</y>
+<z>0</z>
 <vx>0</vx>
 <vy>0</vy>
 <vz>1</vz></pos>
@@ -337,6 +343,9 @@
 <vy>0</vy>
 <vz>0</vz></pos>
 <col>eeeeff</col>
+
+
+
 
 </cell>
 
