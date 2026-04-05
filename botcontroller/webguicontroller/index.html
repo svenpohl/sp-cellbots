@@ -197,6 +197,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <div style="flex-basis:100%; height:0;"></div>
 
     <button id="targetpreview">Target Preview</button>
+    <button id="applypreviewforbidden">Apply F-Bots to BotController</button>
 
     <button id="requestquitbotcontroller">QUIT</button>
     
@@ -367,6 +368,35 @@ console.log("Setcolor: " + color);
 } // handleSetColor
 
 
+function removeBotCube(botid) {
+const group = botGroupMap[botid];
+
+if (!group) return false;
+
+rotateGroup.remove(group);
+
+for (let i = groups.length - 1; i >= 0; i--)
+    {
+    if (groups[i] === group)
+       {
+       groups.splice(i, 1);
+       } // if
+    } // for
+
+for (let i = cubes.length - 1; i >= 0; i--)
+    {
+    if (group.children.includes(cubes[i]))
+       {
+       cubes.splice(i, 1);
+       } // if
+    } // for
+
+delete botGroupMap[botid];
+
+return true;
+} // removeBotCube()
+
+
 
 function applyXrayMode() {
 
@@ -527,6 +557,7 @@ addConsoleLine("Connected" );
           {
           removeAllCubes( true );  
           showForbidden(scene, decodedobject.structure_roles?.forbidden ?? []);
+          showServiceBay(scene, decodedobject.structure_roles?.x ?? []);
                       
           
           let size = decodedobject.jsondata.masterbot.length;
@@ -629,22 +660,33 @@ addConsoleLine("Connected" );
         if ( decodedobject.answer == "answer_getpreviewtarget" )
            {
            console.log("ANSWER answer_getpreviewtarget");
-           
-           console.log( decodedobject.target );
-           // alfalf
-           
-           // Targets anzeigen
-const targets = decodedobject.target;
+           const targets = Array.isArray(decodedobject.target)
+                           ? decodedobject.target
+                           : (Array.isArray(decodedobject.target?.structure) ? decodedobject.target.structure : []);
+           const forbidden = Array.isArray(decodedobject.structure_roles?.forbidden)
+                             ? decodedobject.structure_roles.forbidden
+                             : (Array.isArray(decodedobject.target?.forbidden) ? decodedobject.target.forbidden : []);
+           const service_x = Array.isArray(decodedobject.structure_roles?.x)
+                             ? decodedobject.structure_roles.x
+                             : (Array.isArray(decodedobject.target?.x) ? decodedobject.target.x : []);
 
-showTargets(scene, decodedobject.target);
-
-//const targetGroup = createTargetGroup(targets);
-//rotateGroup.add(targetGroup);
-
-// Targets entfernen
-//rotateGroup.remove(targetGroup);
+           showTargets(scene, targets);
+           showForbidden(scene, forbidden);
+           showServiceBay(scene, service_x);
+           targetPreviewVisible = true;
 
            } // answer_getpreviewtarget
+
+
+        if ( decodedobject.answer == "answer_applypreviewforbidden" )
+           {
+           const applied_count = Number(decodedobject.applied_count ?? 0);
+           const applied_servicebay_count = Number(decodedobject.applied_servicebay_count ?? 0);
+           const structure_name = String(decodedobject.structure ?? "");
+           addConsoleLine("Botcontroller: Applied F-Bots (" + applied_count + ") and X-Bots (" + applied_servicebay_count + ") from " + structure_name, type='botcontroller');
+           cmd = "{ \"cmd\":\"getclusterdata\" }";
+           socket.send(cmd);
+           } // answer_applypreviewforbidden
            
            
        if (decodedobject.answer == "answer_requestmorphalgorithms") 
@@ -743,6 +785,14 @@ showTargets(scene, decodedobject.target);
                           thecolor,
                           { opacity: 0.38, transparent: true, showArrow: false, renderType: "inactive" }
                          );
+                  } // if
+
+               if (updateEvent.event == 'removebot')
+                  {
+                  if (removeBotCube(updateEvent.botid))
+                     {
+                     addConsoleLine("Remove CellBot " + updateEvent.botid, type='warn');
+                     } // if
                   } // if
 
                if (updateEvent.event == 'setmarker')
@@ -851,7 +901,15 @@ showTargets(scene, decodedobject.target);
 
 
         document.getElementById('targetpreview').addEventListener('click', function() {        
-        if (connected == 0) alert('No Connection');
+        if (targetPreviewVisible) {
+           hideTargetPreview();
+           return;
+        } // if
+
+        if (connected == 0) {
+           alert('No Connection');
+           return;
+        } // if
         
         let structure =  document.getElementById("sequences_list").value;
           
@@ -859,6 +917,24 @@ showTargets(scene, decodedobject.target);
         socket.send(cmd);
                                
         });
+
+
+        document.getElementById('applypreviewforbidden').addEventListener('click', function() {
+        if (connected == 0) {
+           alert('No Connection');
+           return;
+        } // if
+
+        let structure = document.getElementById("sequences_list").value;
+
+        if (!structure) {
+           alert('No Structure selected');
+           return;
+        } // if
+
+        cmd = "{ \"cmd\":\"applypreviewforbidden\", \"structure\": \"" + structure + "\" }";
+        socket.send(cmd);
+        }); // applypreviewforbidden
 
 
         document.getElementById('requestquitbotcontroller').addEventListener('click', function() {        
@@ -1186,6 +1262,8 @@ function add_base_grid({ cells = 10, cellSize = 1, y = 0, color = 0x888888, opac
 
 let targetGroup = null;
 let forbiddenGroup = null;
+let serviceBayGroup = null;
+let targetPreviewVisible = false;
 
 //
 // showTargets()
@@ -1204,7 +1282,35 @@ function showTargets(scene, targetArray) {
   // Create new group
   targetGroup = createTargetGroup(targetArray);
   rotateGroup.add(targetGroup);
+  targetPreviewVisible = true;
 } // showTargets()
+
+
+//
+// hideTargets()
+//
+function hideTargets() {
+  if (targetGroup) {
+    rotateGroup.remove(targetGroup);
+    targetGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+    targetGroup = null;
+  } // if
+  targetPreviewVisible = false;
+} // hideTargets()
+
+
+//
+// hideTargetPreview()
+//
+function hideTargetPreview() {
+  hideTargets();
+  showForbidden(scene, []);
+  showServiceBay(scene, []);
+  targetPreviewVisible = false;
+} // hideTargetPreview()
 
 
 //
@@ -1236,6 +1342,37 @@ function showForbidden(scene, forbiddenArray) {
   forbiddenGroup.name = 'forbiddenGroup';
   rotateGroup.add(forbiddenGroup);
 } // showForbidden()
+
+
+//
+// showServiceBay()
+//
+function showServiceBay(scene, serviceArray) {
+  if (serviceBayGroup) {
+    rotateGroup.remove(serviceBayGroup);
+    serviceBayGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+    serviceBayGroup = null;
+  } // if
+
+  if (!Array.isArray(serviceArray) || serviceArray.length === 0) {
+    return;
+  } // if
+
+  serviceBayGroup = createTargetGroup(
+    serviceArray,
+    {
+      color: 0xffc107,
+      opacity: 0.48,
+      cellSize: 1.06,
+      zPositiveIsDepth: true
+    }
+  );
+  serviceBayGroup.name = 'serviceBayGroup';
+  rotateGroup.add(serviceBayGroup);
+} // showServiceBay()
 
 
 //
