@@ -6,6 +6,10 @@
 
 ---
 
+- **1.5.3** (05.04.2026)  
+**Hotfix: release/payload edge case in ClusterSim**
+  - Bugfix in `cluster_sim/bot_class.js` for release flow with carried payloads near servicebay extraction
+
 - **1.5.2** (05.04.2026)  
 **Servicebay lifecycle and payload recycle semantics**
   - Improved runtime role application so **Apply F-Bots** now also applies **X / service-bay** cells consistently in BotController
