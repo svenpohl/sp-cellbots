@@ -136,6 +136,7 @@ constructor()
    this.api_ack_counter = 0;
    this.api_grab_state_map = {};
    this.api_payload_links = {};
+   this.api_servicebay_pending_recycle = {};
    this.debug_move_enabled = false;
    this.safe_mode = 2;
 
@@ -622,6 +623,11 @@ let payload_link = {
 this.api_payload_links[normalized_carrier_bot_id] = payload_link;
 this.api_grab_state_map[normalized_carrier_bot_id] = normalized_payload_bot_id;
 
+if (payload_link.attached === true)
+   {
+   this.apicall_clear_pending_servicebay_recycle(normalized_payload_bot_id);
+   } // if
+
 return(payload_link);
 } // apicall_register_payload_link()
 
@@ -640,6 +646,70 @@ delete this.api_grab_state_map[normalized_carrier_bot_id];
 
 return(true);
 } // apicall_clear_payload_link()
+
+
+apicall_mark_pending_servicebay_recycle(payload_bot_id, carrier_bot_id = "", source = "payload_sync", position = null)
+{
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
+let normalized_position = null;
+
+if (normalized_payload_bot_id == "")
+   {
+   return(null);
+   } // if
+
+if (position && typeof position == "object")
+   {
+   normalized_position = {
+                         x: Number(position.x ?? 0),
+                         y: Number(position.y ?? 0),
+                         z: Number(position.z ?? 0)
+                         };
+   } // if
+
+this.api_servicebay_pending_recycle[normalized_payload_bot_id] = {
+                                                                  payload_bot_id: normalized_payload_bot_id,
+                                                                  carrier_bot_id: normalized_carrier_bot_id,
+                                                                  source: String(source ?? "payload_sync"),
+                                                                  position: normalized_position,
+                                                                  marked_at: new Date().toISOString()
+                                                                  };
+
+return(this.api_servicebay_pending_recycle[normalized_payload_bot_id]);
+} // apicall_mark_pending_servicebay_recycle()
+
+
+apicall_get_pending_servicebay_recycle(payload_bot_id)
+{
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+
+if (normalized_payload_bot_id == "")
+   {
+   return(null);
+   } // if
+
+return(this.api_servicebay_pending_recycle[normalized_payload_bot_id] ?? null);
+} // apicall_get_pending_servicebay_recycle()
+
+
+apicall_clear_pending_servicebay_recycle(payload_bot_id)
+{
+let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
+
+if (normalized_payload_bot_id == "")
+   {
+   return(false);
+   } // if
+
+if (this.api_servicebay_pending_recycle[normalized_payload_bot_id] === undefined)
+   {
+   return(false);
+   } // if
+
+delete this.api_servicebay_pending_recycle[normalized_payload_bot_id];
+return(true);
+} // apicall_clear_pending_servicebay_recycle()
 
 
 apicall_get_payload_link_for_carrier(carrier_bot_id)
@@ -987,6 +1057,57 @@ if (
    } // if
 
 this.notify_frontend(events);
+
+if (
+   payload_link?.attached === true &&
+   this.apicall_is_servicebay_cell(
+                                  Number(payload_target.x),
+                                  Number(payload_target.y),
+                                  Number(payload_target.z)
+                                  ) === true
+   )
+   {
+   let pending_entry = this.apicall_mark_pending_servicebay_recycle(
+                                                                    payload_bot_id,
+                                                                    carrier_bot_id,
+                                                                    "payload_sync_on_servicebay",
+                                                                    {
+                                                                    x: Number(payload_target.x),
+                                                                    y: Number(payload_target.y),
+                                                                    z: Number(payload_target.z)
+                                                                    }
+                                                                    );
+
+   this.append_api_bot_history(
+                              payload_bot_id,
+                              "servicebay_pending_recycle",
+                              {
+                              carrier_bot_id: carrier_bot_id,
+                              source: "payload_sync_on_servicebay"
+                              },
+                              {
+                              ok: true,
+                              answer: "api_servicebay_pending_recycle",
+                              pending: true,
+                              pending_entry: pending_entry
+                              }
+                              );
+
+   this.append_api_bot_history(
+                              carrier_bot_id,
+                              "servicebay_pending_recycle",
+                              {
+                              payload_bot_id: payload_bot_id,
+                              source: "payload_sync_on_servicebay"
+                              },
+                              {
+                              ok: true,
+                              answer: "api_servicebay_pending_recycle",
+                              pending: true,
+                              pending_entry: pending_entry
+                              }
+                              );
+   } // if
 
 this.append_api_bot_history(
                            payload_bot_id,
@@ -1448,6 +1569,7 @@ let matches_expected_orientation = false;
 let mode = String(ack_entry.mode ?? "").trim();
 let likely_blocked_motion = false;
 let likely_late_ack_only = false;
+let likely_servicebay_extraction = false;
 let recovery_hint = "";
 let neighbor_probe = this.apicall_collect_neighbor_probe(bot_id, expected_position, snapshot);
 let effectively_done = false;
@@ -1600,6 +1722,66 @@ if (mode == "move" && matches_expected_position === true)
    resolved_locally = true;
    } // if
 
+if (mode == "move" && expected_position && this.apicall_is_servicebay_cell(expected_position.x, expected_position.y, expected_position.z))
+   {
+   let force_recycle_ret = this.apicall_recycle_bot_force(bot_id, "ack_timeout_servicebay");
+
+   if (force_recycle_ret?.recycled === true)
+      {
+      likely_servicebay_extraction = true;
+      likely_late_ack_only = true;
+      effectively_done = true;
+      resolved_locally = true;
+      recovery_status = "servicebay_extraction_assumed";
+      recovery_hint = "missing ack tolerated: servicebay target reached or assumed, bot recycled locally";
+
+      this.append_api_bot_history(
+                                 bot_id,
+                                 "servicebay_autorecycle",
+                                 {
+                                 ack_id: normalized_ack_id,
+                                 source: "ack_timeout_servicebay"
+                                 },
+                                 force_recycle_ret
+                                 );
+      } // if
+   } // if
+
+if (mode == "release")
+   {
+   let release_payload_bot_id = String(ack_entry.payload_bot_id ?? "").trim();
+   let pending_release_payload = this.apicall_get_pending_servicebay_recycle(release_payload_bot_id);
+
+   if (release_payload_bot_id != "" && pending_release_payload)
+      {
+      let release_recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
+                                                                       release_payload_bot_id,
+                                                                       "ack_timeout_release_payload"
+                                                                       );
+
+      if (release_recycle_ret?.recycled === true)
+         {
+         likely_servicebay_extraction = true;
+         likely_late_ack_only = true;
+         effectively_done = true;
+         resolved_locally = true;
+         recovery_status = "servicebay_payload_extraction_assumed";
+         recovery_hint = "missing release ack tolerated: payload at servicebay recycled locally";
+
+         this.append_api_bot_history(
+                                    release_payload_bot_id,
+                                    "servicebay_autorecycle",
+                                    {
+                                    ack_id: normalized_ack_id,
+                                    source: "ack_timeout_release_payload",
+                                    carrier_bot_id: bot_id
+                                    },
+                                    release_recycle_ret
+                                    );
+         } // if
+      } // if
+   } // if
+
 if (resolved_locally === true)
    {
    this.apicall_mark_ack_recovered(normalized_ack_id);
@@ -1629,6 +1811,7 @@ let recovery_ret = {
                    resolved_locally: resolved_locally,
                    likely_blocked_motion: likely_blocked_motion,
                    likely_late_ack_only: likely_late_ack_only,
+                   likely_servicebay_extraction: likely_servicebay_extraction,
                    recovery_hint: recovery_hint,
                    neighbor_probe: neighbor_probe,
                    snapshot: snapshot
@@ -4829,6 +5012,581 @@ return({
 
 
 //
+// apicall_get_structure_role_list()
+//
+apicall_get_structure_role_list(role_key)
+{
+let key = String(role_key ?? "").trim();
+
+if (!this.structure_roles || typeof this.structure_roles != "object")
+   {
+   this.structure_roles = {};
+   } // if
+
+if (!Array.isArray(this.structure_roles[key]))
+   {
+   this.structure_roles[key] = [];
+   } // if
+
+return(this.structure_roles[key]);
+} // apicall_get_structure_role_list()
+
+
+//
+// apicall_normalize_grid_point()
+//
+apicall_normalize_grid_point(x, y, z)
+{
+let nx = Number(x);
+let ny = Number(y);
+let nz = Number(z);
+
+if (Number.isNaN(nx) || Number.isNaN(ny) || Number.isNaN(nz))
+   {
+   return(null);
+   } // if
+
+return({
+       x: nx,
+       y: ny,
+       z: nz
+       });
+} // apicall_normalize_grid_point()
+
+
+//
+// apicall_role_point_index()
+//
+apicall_role_point_index(role_key, x, y, z)
+{
+let list = this.apicall_get_structure_role_list(role_key);
+
+for (let i = 0; i < list.length; i++)
+    {
+    if (Number(list[i].x) == Number(x) && Number(list[i].y) == Number(y) && Number(list[i].z) == Number(z))
+       {
+       return(i);
+       } // if
+    } // for
+
+return(-1);
+} // apicall_role_point_index()
+
+
+//
+// apicall_forbidden_add()
+//
+apicall_forbidden_add(x, y, z)
+{
+let point = this.apicall_normalize_grid_point(x, y, z);
+
+if (!point)
+   {
+   return({
+          ok: false,
+          answer: "api_forbidden_add",
+          error: "INVALID_COORDINATES"
+          });
+   } // if
+
+let list = this.apicall_get_structure_role_list("forbidden");
+let idx = this.apicall_role_point_index("forbidden", point.x, point.y, point.z);
+let changed = false;
+
+if (idx < 0)
+   {
+   list.push(point);
+   changed = true;
+   } // if
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_forbidden_add",
+       changed: changed,
+       point: point,
+       count: list.length,
+       list: list,
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_forbidden_add()
+
+
+//
+// apicall_forbidden_remove()
+//
+apicall_forbidden_remove(x, y, z)
+{
+let point = this.apicall_normalize_grid_point(x, y, z);
+
+if (!point)
+   {
+   return({
+          ok: false,
+          answer: "api_forbidden_remove",
+          error: "INVALID_COORDINATES"
+          });
+   } // if
+
+let list = this.apicall_get_structure_role_list("forbidden");
+let idx = this.apicall_role_point_index("forbidden", point.x, point.y, point.z);
+let changed = false;
+
+if (idx >= 0)
+   {
+   list.splice(idx, 1);
+   changed = true;
+   } // if
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_forbidden_remove",
+       changed: changed,
+       point: point,
+       count: list.length,
+       list: list,
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_forbidden_remove()
+
+
+//
+// apicall_forbidden_clear()
+//
+apicall_forbidden_clear()
+{
+let list = this.apicall_get_structure_role_list("forbidden");
+let removed_count = list.length;
+this.structure_roles.forbidden = [];
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_forbidden_clear",
+       removed_count: removed_count,
+       count: 0,
+       list: [],
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_forbidden_clear()
+
+
+//
+// apicall_forbidden_list()
+//
+apicall_forbidden_list()
+{
+let list = this.apicall_get_structure_role_list("forbidden");
+
+return({
+       ok: true,
+       answer: "api_forbidden_list",
+       count: list.length,
+       list: list
+       });
+} // apicall_forbidden_list()
+
+
+//
+// apicall_servicebay_add()
+//
+apicall_servicebay_add(x, y, z)
+{
+let point = this.apicall_normalize_grid_point(x, y, z);
+
+if (!point)
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_add",
+          error: "INVALID_COORDINATES"
+          });
+   } // if
+
+let list = this.apicall_get_structure_role_list("x");
+let idx = this.apicall_role_point_index("x", point.x, point.y, point.z);
+let changed = false;
+
+if (idx < 0)
+   {
+   list.push(point);
+   changed = true;
+   } // if
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_servicebay_add",
+       changed: changed,
+       point: point,
+       count: list.length,
+       list: list,
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_servicebay_add()
+
+
+//
+// apicall_servicebay_remove()
+//
+apicall_servicebay_remove(x, y, z)
+{
+let point = this.apicall_normalize_grid_point(x, y, z);
+
+if (!point)
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_remove",
+          error: "INVALID_COORDINATES"
+          });
+   } // if
+
+let list = this.apicall_get_structure_role_list("x");
+let idx = this.apicall_role_point_index("x", point.x, point.y, point.z);
+let changed = false;
+
+if (idx >= 0)
+   {
+   list.splice(idx, 1);
+   changed = true;
+   } // if
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_servicebay_remove",
+       changed: changed,
+       point: point,
+       count: list.length,
+       list: list,
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_servicebay_remove()
+
+
+//
+// apicall_servicebay_clear()
+//
+apicall_servicebay_clear()
+{
+let list = this.apicall_get_structure_role_list("x");
+let removed_count = list.length;
+this.structure_roles.x = [];
+
+let refresh_ret = this.apicall_gui_refresh();
+
+return({
+       ok: true,
+       answer: "api_servicebay_clear",
+       removed_count: removed_count,
+       count: 0,
+       list: [],
+       gui_refresh: {
+                     accepted: refresh_ret.accepted ?? false,
+                     frontend_attached: refresh_ret.frontend_attached ?? false
+                     }
+       });
+} // apicall_servicebay_clear()
+
+
+//
+// apicall_servicebay_list()
+//
+apicall_servicebay_list()
+{
+let list = this.apicall_get_structure_role_list("x");
+
+return({
+       ok: true,
+       answer: "api_servicebay_list",
+       count: list.length,
+       list: list
+       });
+} // apicall_servicebay_list()
+
+
+//
+// apicall_is_servicebay_cell()
+//
+apicall_is_servicebay_cell(x, y, z)
+{
+return(this.apicall_role_point_index("x", Number(x), Number(y), Number(z)) >= 0);
+} // apicall_is_servicebay_cell()
+
+
+//
+// apicall_rebuild_botindex()
+//
+apicall_rebuild_botindex()
+{
+this.botindex = [];
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    this.set_3d(
+                Number(this.bots[i].x),
+                Number(this.bots[i].y),
+                Number(this.bots[i].z),
+                i
+                );
+    } // for
+
+return(true);
+} // apicall_rebuild_botindex()
+
+
+//
+// apicall_recycle_bot_if_in_servicebay()
+//
+apicall_recycle_bot_if_in_servicebay(bot_id, source = "move")
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (normalized_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "INVALID_BOT_ID"
+          });
+   } // if
+
+let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "BOT_NOT_FOUND",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+let pos_x = Number(bot.x);
+let pos_y = Number(bot.y);
+let pos_z = Number(bot.z);
+
+if (this.apicall_is_servicebay_cell(pos_x, pos_y, pos_z) !== true)
+   {
+   return({
+          ok: true,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "BOT_NOT_IN_SERVICEBAY",
+          bot_id: normalized_bot_id,
+          position: {
+                     x: pos_x,
+                     y: pos_y,
+                     z: pos_z
+                     }
+          });
+   } // if
+
+if (normalized_bot_id == "masterbot")
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "MASTERBOT_NOT_ALLOWED",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+let old_key = this.getKey_3d(pos_x, pos_y, pos_z);
+delete this.botindex[old_key];
+
+this.apicall_clear_pending_servicebay_recycle(normalized_bot_id);
+this.apicall_clear_payload_link(normalized_bot_id);
+
+let carrier_ids = Object.keys(this.api_payload_links ?? {});
+for (let i = 0; i < carrier_ids.length; i++)
+    {
+    let carrier_id = carrier_ids[i];
+    let payload_id = String(this.api_payload_links[carrier_id]?.payload_bot_id ?? "").trim();
+
+    if (payload_id == normalized_bot_id)
+       {
+       this.apicall_clear_payload_link(carrier_id);
+       } // if
+    } // for
+
+let grab_carrier_ids = Object.keys(this.api_grab_state_map ?? {});
+for (let i = 0; i < grab_carrier_ids.length; i++)
+    {
+    let carrier_id = grab_carrier_ids[i];
+    let payload_id = String(this.api_grab_state_map[carrier_id] ?? "").trim();
+
+    if (payload_id == normalized_bot_id)
+       {
+       delete this.api_grab_state_map[carrier_id];
+       } // if
+    } // for
+
+this.bots.splice(botindex, 1);
+this.apicall_rebuild_botindex();
+
+const events = [];
+events.push({
+            event: "removebot",
+            botid: normalized_bot_id
+            });
+events.push({
+            event: "console",
+            msg: "Servicebay auto-recycle: " + normalized_bot_id + " @ (" + pos_x + "," + pos_y + "," + pos_z + ")"
+            });
+this.notify_frontend(events);
+
+return({
+       ok: true,
+       answer: "api_servicebay_autorecycle",
+       recycled: true,
+       reason: "RECYCLED_AT_SERVICEBAY",
+       source: String(source ?? "move"),
+       bot_id: normalized_bot_id,
+       position: {
+                  x: pos_x,
+                  y: pos_y,
+                  z: pos_z
+                  }
+       });
+} // apicall_recycle_bot_if_in_servicebay()
+
+
+//
+// apicall_recycle_bot_force()
+//
+apicall_recycle_bot_force(bot_id, source = "ack_timeout_servicebay")
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (normalized_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "INVALID_BOT_ID"
+          });
+   } // if
+
+if (normalized_bot_id == "masterbot")
+   {
+   return({
+          ok: false,
+          answer: "api_servicebay_autorecycle",
+          recycled: false,
+          reason: "MASTERBOT_NOT_ALLOWED",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
+
+if (botindex == null)
+   {
+   return({
+          ok: true,
+          answer: "api_servicebay_autorecycle",
+          recycled: true,
+          reason: "BOT_ALREADY_ABSENT",
+          source: String(source ?? "ack_timeout_servicebay"),
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+let pos_x = Number(bot.x);
+let pos_y = Number(bot.y);
+let pos_z = Number(bot.z);
+
+let old_key = this.getKey_3d(pos_x, pos_y, pos_z);
+delete this.botindex[old_key];
+
+this.apicall_clear_pending_servicebay_recycle(normalized_bot_id);
+this.apicall_clear_payload_link(normalized_bot_id);
+
+let carrier_ids = Object.keys(this.api_payload_links ?? {});
+for (let i = 0; i < carrier_ids.length; i++)
+    {
+    let carrier_id = carrier_ids[i];
+    let payload_id = String(this.api_payload_links[carrier_id]?.payload_bot_id ?? "").trim();
+
+    if (payload_id == normalized_bot_id)
+       {
+       this.apicall_clear_payload_link(carrier_id);
+       } // if
+    } // for
+
+let grab_carrier_ids = Object.keys(this.api_grab_state_map ?? {});
+for (let i = 0; i < grab_carrier_ids.length; i++)
+    {
+    let carrier_id = grab_carrier_ids[i];
+    let payload_id = String(this.api_grab_state_map[carrier_id] ?? "").trim();
+
+    if (payload_id == normalized_bot_id)
+       {
+       delete this.api_grab_state_map[carrier_id];
+       } // if
+    } // for
+
+this.bots.splice(botindex, 1);
+this.apicall_rebuild_botindex();
+
+const events = [];
+events.push({
+            event: "removebot",
+            botid: normalized_bot_id
+            });
+events.push({
+            event: "console",
+            msg: "Servicebay timeout-recycle: " + normalized_bot_id + " @ (" + pos_x + "," + pos_y + "," + pos_z + ")"
+            });
+this.notify_frontend(events);
+
+return({
+       ok: true,
+       answer: "api_servicebay_autorecycle",
+       recycled: true,
+       reason: "RECYCLED_AT_SERVICEBAY_TIMEOUT",
+       source: String(source ?? "ack_timeout_servicebay"),
+       bot_id: normalized_bot_id,
+       position: {
+                  x: pos_x,
+                  y: pos_y,
+                  z: pos_z
+                  }
+       });
+} // apicall_recycle_bot_force()
+
+
+//
 // apicall_get_bots()
 //
 apicall_get_bots( center_x, center_y, center_z, mode, radius )
@@ -5509,6 +6267,7 @@ let dy = target_y - Number(bot.y);
 let dz = target_z - Number(bot.z);
 let manhattan = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
 let target_status = this.apicall_is_occupied(target_x, target_y, target_z);
+let target_forbidden = this.apicall_is_forbidden_cell(target_x, target_y, target_z);
 let target_local_contacts = 0;
 let reachable = false;
 let reason = "COMPLEX_PATH_SEARCH_NOT_YET_IMPLEMENTED";
@@ -5527,7 +6286,13 @@ for (let i=0; i<target_neighbor_offsets.length; i++)
        } // if
     } // for
 
-if (target_status.occupied === true)
+if (target_forbidden === true)
+   {
+   reachable = false;
+   reason = "TARGET_POSITION_IS_FORBIDDEN";
+   notes.push("The requested target coordinate is marked as forbidden.");
+   } // if
+else if (target_status.occupied === true)
    {
    reachable = false;
    reason = "TARGET_POSITION_IS_OCCUPIED";
@@ -5596,6 +6361,7 @@ return({
                   manhattan: manhattan
                   },
        target_status: target_status,
+       target_forbidden: target_forbidden,
        target_local_contacts: target_local_contacts,
        reachable: reachable,
        reason: reason,
@@ -5819,6 +6585,7 @@ return({
 apicall_build_forbidden_grid()
 {
 let grid = this.apicall_create_sparse_grid();
+let role_forbidden = this.apicall_get_structure_role_list("forbidden");
 
 for (let i=0; i<this.detected_inactive_bots.length; i++)
     {
@@ -5830,8 +6597,31 @@ for (let i=0; i<this.detected_inactive_bots.length; i++)
              );
     } // for
 
+for (let i=0; i<role_forbidden.length; i++)
+    {
+    grid.set(
+             Number(role_forbidden[i].x),
+             Number(role_forbidden[i].y),
+             Number(role_forbidden[i].z),
+             "forbidden"
+             );
+    } // for
+
 return(grid);
 } // apicall_build_forbidden_grid()
+
+
+apicall_is_forbidden_cell(x, y, z, forbidden_grid = null)
+{
+let grid = forbidden_grid ?? this.apicall_build_forbidden_grid();
+
+if (!grid)
+   {
+   return(false);
+   } // if
+
+return(grid.get(Number(x), Number(y), Number(z)) !== null);
+} // apicall_is_forbidden_cell()
 
 
 apicall_get_wrapped_cell_for_double_step(from_pos, to_pos)
@@ -6128,7 +6918,7 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
 
       if (!is_empty(final_x, final_y, final_z))
          {
-         rejection_reason = "TARGET_NOT_EMPTY";
+         rejection_reason = (is_forbidden(final_x, final_y, final_z) ? "TARGET_IS_FORBIDDEN" : "TARGET_NOT_EMPTY");
          } // if
       else if (!has_contact(final_x, final_y, final_z))
          {
@@ -6155,7 +6945,7 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
 
          if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
             {
-            rejection_reason = "INTERMEDIATE_NOT_EMPTY";
+            rejection_reason = (is_forbidden(intermediate_x, intermediate_y, intermediate_z) ? "INTERMEDIATE_IS_FORBIDDEN" : "INTERMEDIATE_NOT_EMPTY");
             } // if
          } // if
 
@@ -6167,17 +6957,8 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
             } // if
          } // if
 
-      if (!rejection_reason && rule.intermediate && Number(rule.final.dy) !== 0 && Number(rule.final.dx) + Number(rule.final.dz) !== 0)
-         {
-         if (this.apicall_is_valid_wrapped_double_step(
-                                                     { x: Number(startX), y: Number(startY), z: Number(startZ) },
-                                                     { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
-                                                     bots_s
-                                                     ) !== true)
-            {
-            rejection_reason = "WRAPPED_CELL_MISSING";
-            } // if
-         } // if
+      // Für normale Bot-Moves reicht ein gültiger Rule-Anchor aus; ein zusätzlicher Wrapped-Cell-Zwang
+      // würde gültige Schritte wie T_RT_L künstlich blockieren.
 
       if (rejection_reason)
          {
@@ -6454,17 +7235,6 @@ const has_payload_wrapped_support = (startX, startY, startZ, rule, final_x, fina
      return(false);
      } // if
 
-  if (!(rule.name === "K_RD" || rule.name === "K_LD"))
-     {
-     return(
-            this.apicall_is_valid_wrapped_double_step(
-                                                    { x: Number(startX), y: Number(startY), z: Number(startZ) },
-                                                    { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
-                                                    bots_s
-                                                    ) === true
-            );
-     } // if
-
   let anchor_x = Number(startX) + Number(rule.anchor?.dx ?? 0);
   let anchor_y = Number(startY) + Number(rule.anchor?.dy ?? 0);
   let anchor_z = Number(startZ) + Number(rule.anchor?.dz ?? 0);
@@ -6516,7 +7286,7 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
 
       if (!is_empty(final_x, final_y, final_z))
          {
-         rejection_reason = "TARGET_NOT_EMPTY";
+         rejection_reason = (is_forbidden(final_x, final_y, final_z) ? "TARGET_IS_FORBIDDEN" : "TARGET_NOT_EMPTY");
          } // if
       else if (!has_contact(final_x, final_y, final_z))
          {
@@ -6543,7 +7313,7 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
 
          if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
             {
-            rejection_reason = "INTERMEDIATE_NOT_EMPTY";
+            rejection_reason = (is_forbidden(intermediate_x, intermediate_y, intermediate_z) ? "INTERMEDIATE_IS_FORBIDDEN" : "INTERMEDIATE_NOT_EMPTY");
             } // if
          } // if
 
@@ -6582,7 +7352,25 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
 
       if (!rejection_reason && has_payload_collision_for_path(carrier_positions))
          {
-         rejection_reason = "PAYLOAD_COLLISION";
+         let payload_collision_is_forbidden = false;
+
+         for (let p = 0; p < carrier_positions.length; p++)
+             {
+             let payload_position = get_payload_position_for_carrier(carrier_positions[p]);
+
+             if (!payload_position)
+                {
+                continue;
+                } // if
+
+             if (is_forbidden(payload_position.x, payload_position.y, payload_position.z))
+                {
+                payload_collision_is_forbidden = true;
+                break;
+                } // if
+             } // for
+
+         rejection_reason = (payload_collision_is_forbidden ? "PAYLOAD_TARGET_IS_FORBIDDEN" : "PAYLOAD_COLLISION");
          } // if
 
       if (rejection_reason)
@@ -6797,6 +7585,69 @@ let dest = {
 let path_result = null;
 let path = null;
 let path_debug_rejections = [];
+let src_is_forbidden = this.apicall_is_forbidden_cell(src.x, src.y, src.z, bots_f);
+let dest_is_forbidden = this.apicall_is_forbidden_cell(dest.x, dest.y, dest.z, bots_f);
+
+if (src_is_forbidden === true)
+   {
+   return({
+          ok: true,
+          answer: "api_find_path_for_bot",
+          bot_id: bot_id,
+          target: dest,
+          path_found: false,
+          reason: "BOT_POSITION_IS_FORBIDDEN",
+          show_requested: show_path,
+          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+          path_debug_rejections: path_debug_rejections,
+          path: []
+          });
+   } // if
+
+if (dest_is_forbidden === true)
+   {
+   return({
+          ok: true,
+          answer: "api_find_path_for_bot",
+          bot_id: bot_id,
+          target: dest,
+          path_found: false,
+          reason: "TARGET_POSITION_IS_FORBIDDEN",
+          show_requested: show_path,
+          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+          path_debug_rejections: path_debug_rejections,
+          path: []
+          });
+   } // if
+
+if (carried_payload_bot_id != "")
+   {
+   let payload_target = this.apicall_get_payload_target_from_carrier_state(
+                                                                   dest,
+                                                                   bot_snapshot?.orientation ?? null
+                                                                   );
+
+   if (payload_target && this.apicall_is_forbidden_cell(payload_target.x, payload_target.y, payload_target.z, bots_f))
+      {
+      return({
+             ok: true,
+             answer: "api_find_path_for_bot",
+             bot_id: bot_id,
+             target: dest,
+             payload_target: {
+                              x: Number(payload_target.x),
+                              y: Number(payload_target.y),
+                              z: Number(payload_target.z)
+                              },
+             path_found: false,
+             reason: "PAYLOAD_TARGET_POSITION_IS_FORBIDDEN",
+             show_requested: show_path,
+             carried_payload_bot_id: carried_payload_bot_id,
+             path_debug_rejections: path_debug_rejections,
+             path: []
+             });
+      } // if
+   } // if
 
 if (carried_payload_bot_id != "")
    {
@@ -10222,9 +11073,23 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
 
       this.bots[tmpbotid].adress = this.get_mb_returnaddr( {x:this.mb.x, y:this.mb.y, z:this.mb.z }, {x:new_x, y:new_y, z:new_z }, this.bots );
 
+      let recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
+                                                                   this.signal_botids[ msgarray.bottmpid ].thebotid,
+                                                                   "signal_move"
+                                                                   );
+      this.append_api_bot_history(
+                                 this.signal_botids[ msgarray.bottmpid ].thebotid,
+                                 "servicebay_autorecycle",
+                                 {
+                                 ack_id: msgarray.bottmpid,
+                                 source: "signal_move"
+                                 },
+                                 recycle_ret
+                                 );
+
       let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
                                                                                this.signal_botids[ msgarray.bottmpid ].thebotid,
-                                                                               "signal_move"
+                                                                               (recycle_ret?.recycled === true ? "servicebay_recycle" : "signal_move")
                                                                                );
       this.append_api_bot_history(
                                  this.signal_botids[ msgarray.bottmpid ].thebotid,
@@ -10399,7 +11264,21 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                                                   this.bots
                                                                   );
 
-               if (api_ack_entry.mode == "move")
+               let recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
+                                                                            api_ack_entry.bot_id,
+                                                                            "api_move_ack"
+                                                                            );
+               this.append_api_bot_history(
+                                          api_ack_entry.bot_id,
+                                          "servicebay_autorecycle",
+                                          {
+                                          ack_id: msgarray.bottmpid,
+                                          source: "api_move_ack"
+                                          },
+                                          recycle_ret
+                                          );
+
+               if (api_ack_entry.mode == "move" && recycle_ret?.recycled !== true)
                   {
                   let payload_sync_applied = this.apicall_sync_payload_from_carrier(
                                                                                 api_ack_entry.bot_id,
@@ -10432,7 +11311,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
 
                let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
                                                                                         api_ack_entry.bot_id,
-                                                                                        "move"
+                                                                                        (recycle_ret?.recycled === true ? "servicebay_recycle" : "move")
                                                                                         );
                this.append_api_bot_history(
                                           api_ack_entry.bot_id,
@@ -10505,11 +11384,43 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
 
                if (api_ack_entry.mode == "release")
                   {
+                  let release_payload_bot_id = String(api_ack_entry.payload_bot_id ?? "").trim();
+                  let release_recycle_ret = {
+                                            ok: true,
+                                            answer: "api_servicebay_autorecycle",
+                                            recycled: false,
+                                            reason: "NO_PAYLOAD_LINKED"
+                                            };
+
+                  if (release_payload_bot_id != "")
+                     {
+                     release_recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
+                                                                              release_payload_bot_id,
+                                                                              "release_ack_payload"
+                                                                              );
+
+                     if (release_recycle_ret?.recycled !== true)
+                        {
+                        this.apicall_clear_pending_servicebay_recycle(release_payload_bot_id);
+                        } // if
+
+                     this.append_api_bot_history(
+                                                release_payload_bot_id,
+                                                "servicebay_autorecycle",
+                                                {
+                                                ack_id: msgarray.bottmpid,
+                                                source: "release_ack_payload",
+                                                carrier_bot_id: api_ack_entry.bot_id
+                                                },
+                                                release_recycle_ret
+                                                );
+                     } // if
+
                   this.apicall_clear_payload_link(api_ack_entry.bot_id);
 
                   let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
                                                                                            api_ack_entry.bot_id,
-                                                                                           "release"
+                                                                                           (release_recycle_ret?.recycled === true ? "release_servicebay_recycle" : "release")
                                                                                            );
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
@@ -10535,7 +11446,8 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              ok: true,
                                              answer: "api_ack_applied",
                                              payload_bot_id: api_ack_entry.payload_bot_id ?? null,
-                                             mode: "release"
+                                             mode: "release",
+                                             release_recycle_result: release_recycle_ret
                                              }
                                              );
                   } // if
@@ -11257,14 +12169,94 @@ handleGUIMessage(message) {
         if (decodedobject.cmd === 'getpreviewtarget') {
 
             console.log("getpreviewtarget:", decodedobject.structure);
-
-            const filepath = path.join(__dirname, 'structures', decodedobject.structure + '.json');
-            const data = fs.readFileSync(filepath, 'utf8');
-            const targetBots = JSON.parse(data);
+            const targetDefinition = this.load_structure_definition(decodedobject.structure);
 
             answer = JSON.stringify({
                 answer: "answer_getpreviewtarget",
-                target: targetBots
+                target: targetDefinition.structure,
+                structure_roles: {
+                                  carrier: targetDefinition.carrier,
+                                  reserve: targetDefinition.reserve,
+                                  x: targetDefinition.x,
+                                  forbidden: targetDefinition.forbidden,
+                                  inactive: targetDefinition.inactive
+                                  }
+            });
+
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // APPLY PREVIEW FORBIDDEN
+        //
+        if (decodedobject.cmd === 'applypreviewforbidden') {
+
+            let structure_name = String(decodedobject.structure ?? "").trim();
+
+            if (structure_name == "")
+               {
+               answer = JSON.stringify({
+                   answer: "answer_applypreviewforbidden",
+                   ok: false,
+                   error: "STRUCTURE_MISSING"
+               });
+
+               this.ws_gui.send(answer);
+               return;
+               } // if
+
+            let targetDefinition = null;
+
+            try
+               {
+               targetDefinition = this.load_structure_definition(structure_name);
+               } // try
+            catch (error)
+               {
+               answer = JSON.stringify({
+                   answer: "answer_applypreviewforbidden",
+                   ok: false,
+                   error: "STRUCTURE_LOAD_FAILED",
+                   structure: structure_name,
+                   detail: String(error?.message ?? error)
+               });
+
+               this.ws_gui.send(answer);
+               return;
+               } // catch
+
+            this.structure_roles = this.structure_roles || {};
+            this.structure_roles.forbidden = Array.isArray(targetDefinition?.forbidden)
+                                             ? targetDefinition.forbidden.map((point) => (
+                                                                                          {
+                                                                                          x: Number(point?.x ?? 0),
+                                                                                          y: Number(point?.y ?? 0),
+                                                                                          z: Number(point?.z ?? 0)
+                                                                                          }
+                                                                                          ))
+                                             : [];
+            this.structure_roles.x = Array.isArray(targetDefinition?.x)
+                                     ? targetDefinition.x.map((point) => (
+                                                                        {
+                                                                        x: Number(point?.x ?? 0),
+                                                                        y: Number(point?.y ?? 0),
+                                                                        z: Number(point?.z ?? 0)
+                                                                        }
+                                                                        ))
+                                     : [];
+
+            this.apicall_gui_refresh();
+
+            answer = JSON.stringify({
+                answer: "answer_applypreviewforbidden",
+                ok: true,
+                structure: structure_name,
+                applied_count: this.structure_roles.forbidden.length,
+                applied_servicebay_count: this.structure_roles.x.length,
+                forbidden: this.structure_roles.forbidden,
+                x: this.structure_roles.x
             });
 
             this.ws_gui.send(answer);
@@ -11517,6 +12509,108 @@ async handleAPIMessage(message, socket) {
                             ack_stl_debug: "object|null"
                         },
                         description: "Diagnoses the target-side address and ALIFE/RALIFE return route for a hypothetical bot target pose without executing a move."
+                    },
+                    {
+                        cmd: "forbidden_add",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_forbidden_add",
+                            changed: "boolean",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Adds one forbidden grid cell to the runtime structure roles. The update is idempotent and triggers a WebGUI refresh."
+                    },
+                    {
+                        cmd: "forbidden_remove",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_forbidden_remove",
+                            changed: "boolean",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Removes one forbidden grid cell from the runtime structure roles and triggers a WebGUI refresh."
+                    },
+                    {
+                        cmd: "forbidden_clear",
+                        params: {},
+                        returns: {
+                            answer: "api_forbidden_clear",
+                            removed_count: "number",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Clears all forbidden runtime cells and triggers a WebGUI refresh."
+                    },
+                    {
+                        cmd: "forbidden_list",
+                        params: {},
+                        returns: {
+                            answer: "api_forbidden_list",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Returns the current runtime list of forbidden cells."
+                    },
+                    {
+                        cmd: "servicebay_add",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_servicebay_add",
+                            changed: "boolean",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Adds one service-bay (X) grid cell to the runtime structure roles and triggers a WebGUI refresh. Direct movers can be recycled immediately when they end on X, while carried payload bots are marked pending on X and are recycled on release."
+                    },
+                    {
+                        cmd: "servicebay_remove",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_servicebay_remove",
+                            changed: "boolean",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Removes one service-bay (X) grid cell from the runtime structure roles and triggers a WebGUI refresh."
+                    },
+                    {
+                        cmd: "servicebay_clear",
+                        params: {},
+                        returns: {
+                            answer: "api_servicebay_clear",
+                            removed_count: "number",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Clears all runtime service-bay (X) cells and triggers a WebGUI refresh."
+                    },
+                    {
+                        cmd: "servicebay_list",
+                        params: {},
+                        returns: {
+                            answer: "api_servicebay_list",
+                            count: "number",
+                            list: "list"
+                        },
+                        description: "Returns the current runtime list of service-bay (X) cells used by automatic recycle."
                     },
                     {
                         cmd: "structurescan",
@@ -11823,7 +12917,7 @@ async handleAPIMessage(message, socket) {
                             answer: "api_release_bot",
                             executed: "boolean"
                         },
-                        description: "Sends a direct G command for one bot and appends ALIFE when a return route is available."
+                        description: "Sends a direct G command for one bot and appends ALIFE when a return route is available. If a carried payload is pending on a service-bay (X) cell, release finalizes the recycle and removes that payload from active bots."
                     },
                     {
                         cmd: "move_payload_to",
@@ -12110,6 +13204,94 @@ async handleAPIMessage(message, socket) {
             let ret = this.apicall_diagnose_ack_route(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz);
             this.append_api_action_log("diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
             this.append_api_bot_history(decodedobject.bot_id, "diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'forbidden_add') {
+            let ret = this.apicall_forbidden_add(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("forbidden_add", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'forbidden_remove') {
+            let ret = this.apicall_forbidden_remove(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("forbidden_remove", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'forbidden_clear') {
+            let ret = this.apicall_forbidden_clear();
+            this.append_api_action_log("forbidden_clear", {}, { ok: ret.ok, answer: ret.answer, removed_count: ret.removed_count ?? 0, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'forbidden_list') {
+            let ret = this.apicall_forbidden_list();
+            this.append_api_action_log("forbidden_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'servicebay_add') {
+            let ret = this.apicall_servicebay_add(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("servicebay_add", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'servicebay_remove') {
+            let ret = this.apicall_servicebay_remove(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("servicebay_remove", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'servicebay_clear') {
+            let ret = this.apicall_servicebay_clear();
+            this.append_api_action_log("servicebay_clear", {}, { ok: ret.ok, answer: ret.answer, removed_count: ret.removed_count ?? 0, count: ret.count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'servicebay_list') {
+            let ret = this.apicall_servicebay_list();
+            this.append_api_action_log("servicebay_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
             answer = JSON.stringify(ret) + "\n";
 
             socket.write(answer, () => {
