@@ -119,6 +119,24 @@ This already shows the basic shape of the interface:
 - `get_last_raw_cmds`
 - `get_api_messages`
 
+### Safety and Addressing
+
+- `safe_mode`
+- `recalibrate_bot_address`
+- `recalibrate_bot_addresses`
+- `diagnose_ack_route`
+
+### Runtime Roles (Forbidden / ServiceBay)
+
+- `forbidden_add`
+- `forbidden_remove`
+- `forbidden_clear`
+- `forbidden_list`
+- `servicebay_add`
+- `servicebay_remove`
+- `servicebay_clear`
+- `servicebay_list`
+
 ### Bot Queries and Path Planning
 
 - `get_bot_by_id`
@@ -160,6 +178,9 @@ Important characteristics of the current V1-style interface:
 - recovery and acknowledgement handling are already integrated for many commands
 - `move_carrier_to` is the clearer transport primitive for current payload workflows
 - `move_payload_to` currently still targets the **carrier position**, not a payload target pose
+- service-bay (`X`) semantics are role-aware:
+  - direct movers on `X` can be recycled immediately
+  - carried payload bots on `X` are marked pending and recycled on `release`
 - `morph_check_progress` distinguishes between:
   - calculation success
   - final sequence completion
