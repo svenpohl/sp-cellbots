@@ -347,7 +347,52 @@
 </pos>
 </cell>
 
- 
+
+<cell>
+<id>B26</id>
+<col>8888ff</col>
+<pos>
+<x>2</x>
+<y>1</y>
+<z>2</z>
+<vx>-1</vx>
+<vy>0</vy>
+<vz>0</vz>
+</pos>
+</cell>
+
+
+<cell>
+<id>B27</id>
+<col>88ff88</col>
+<pos>
+<x>3</x>
+<y>1</y>
+<z>2</z>
+<vx>-1</vx>
+<vy>0</vy>
+<vz>0</vz>
+</pos>
+</cell>
+  
+  
+  
+  
+<cell>
+<id>B28</id>
+<col>ffff00</col>
+<pos>
+<x>1</x>
+<y>1</y>
+<z>2</z>
+<vx>-1</vx>
+<vy>0</vy>
+<vz>0</vz>
+</pos>
+
+  <servicebay>true</servicebay>
+</cell>
+   
 
 
 </xml>
