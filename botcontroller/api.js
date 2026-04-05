@@ -134,6 +134,58 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "forbidden_add") {
+    return {
+      cmd: "forbidden_add",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "forbidden_remove") {
+    return {
+      cmd: "forbidden_remove",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "forbidden_clear") {
+    return { cmd: "forbidden_clear" };
+  } // if
+
+  if (cmd == "forbidden_list") {
+    return { cmd: "forbidden_list" };
+  } // if
+
+  if (cmd == "servicebay_add") {
+    return {
+      cmd: "servicebay_add",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "servicebay_remove") {
+    return {
+      cmd: "servicebay_remove",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "servicebay_clear") {
+    return { cmd: "servicebay_clear" };
+  } // if
+
+  if (cmd == "servicebay_list") {
+    return { cmd: "servicebay_list" };
+  } // if
+
   if (cmd == "structurescan") {
     return { cmd: "structurescan" };
   } // if
