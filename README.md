@@ -60,11 +60,15 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.5.2**  
+Current version: **1.5.3**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.5.3** (05.04.2026)  
+**Hotfix: release/payload edge case in ClusterSim**
+  - Bugfix in `cluster_sim/bot_class.js` for release flow with carried payloads near servicebay extraction
 
 - **1.5.2** (05.04.2026)  
 **Servicebay lifecycle and payload recycle semantics**
