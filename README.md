@@ -60,11 +60,22 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.5.1**  
+Current version: **1.5.2**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.5.2** (05.04.2026)  
+**Servicebay lifecycle and payload recycle semantics**
+  - Improved runtime role application so **Apply F-Bots** now also applies **X / service-bay** cells consistently in BotController
+  - Extended WebGUI feedback to show both applied **F-Bot** and **X-Bot** counts after runtime role application
+  - Hardened ClusterSim queue stepping to avoid crashes when bots are removed during iteration (servicebay extraction while processing bot queues)
+  - Introduced a clearer payload recycle protocol in BotController:
+    - payload bots reaching **X** while still grabbed are marked as **pending recycle**
+    - final recycle is executed on **release** (or release-timeout recovery fallback)
+  - Verified that carried-payload transport to servicebay no longer causes premature local deletion and now resolves in a controlled release step
+  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
 
 - **1.5.1** (04.04.2026)  
 **Communication and address stability update**
