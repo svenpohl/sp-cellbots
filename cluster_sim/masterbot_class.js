@@ -87,6 +87,7 @@ class masterbot_class
   
   this.botindex = [];
   this.payload_bot_ids = {};
+  this.servicebay_cells = [];
   
   
   this.setlivelogging = false;
@@ -96,6 +97,21 @@ class masterbot_class
   this._stopwatchStart = Date.now();
       
   } // constructor
+
+parse_role_bool(value)
+{
+if (Array.isArray(value))
+   {
+   value = value[0];
+   } // if
+
+return(
+       value === true ||
+       value === 1 ||
+       value === "1" ||
+       value === "true"
+      );
+} // parse_role_bool()
 
 
 register_payload_bot_int_id(botindex)
@@ -285,9 +301,32 @@ const xml2js = require('xml2js');
      
      
       
+      this.bots = [];
+      this.servicebay_cells = [];
+
       const cells = result.xml.cell;
       cells.forEach(cell => {
-      
+
+      const parsed_inactive = this.parse_role_bool(cell.inactive);
+      const parsed_servicebay = this.parse_role_bool(cell.servicebay);
+
+      if (parsed_servicebay === true)
+         {
+         this.servicebay_cells.push(
+                                    {
+                                     id: cell.id[0],
+                                     x: Number(cell.pos[0].x[0]),
+                                     y: Number(cell.pos[0].y[0]),
+                                     z: Number(cell.pos[0].z[0]),
+                                     vx: Number(cell.pos[0].vx[0]),
+                                     vy: Number(cell.pos[0].vy[0]),
+                                     vz: Number(cell.pos[0].vz[0]),
+                                     color: cell.col[0]
+                                    }
+                                   );
+         return;
+         } // if
+
       const bot_class_obj = new bot_class();
       bot_class_obj.setvalues(
                            cell.id[0],
@@ -297,7 +336,8 @@ const xml2js = require('xml2js');
                            cell.pos[0].vx[0],
                            cell.pos[0].vy[0],
                            cell.pos[0].vz[0],
-                           cell.inactive,
+                           parsed_inactive,
+                           parsed_servicebay,
                            cell.col[0],
                            this.config.physical_bot_move_delay,
                            
@@ -1129,7 +1169,20 @@ for (let i=0; i < this.bots.length; i++)
        
        
 jsondata += "]";       
-        
+
+jsondata += ", \"servicebay_cells\": [ ";
+
+for (let i=0; i<this.servicebay_cells.length; i++)
+    {
+    jsondata += JSON.stringify(this.servicebay_cells[i]);
+
+    if (i < (this.servicebay_cells.length-1))
+       {
+       jsondata += ", ";
+       } // if
+    } // for
+
+jsondata += " ] ";
 
 jsondata += "}";
 
@@ -1241,6 +1294,21 @@ for (let i=0; i<size; i++)
 
 
 jsondata += "  ]  ";
+
+jsondata += ', "servicebay_cells": [ ';
+
+let servicebay_size = this.servicebay_cells.length;
+
+for (let i=0; i<servicebay_size; i++)
+    {
+    jsondata += JSON.stringify(this.servicebay_cells[i]);
+    if (i < (servicebay_size-1) )
+       {
+       jsondata += ", ";
+       } // if
+    } // for
+
+jsondata += " ] ";
 
 jsondata += "}";
 
@@ -1362,10 +1430,13 @@ if (message != "")
 //
 // Work on Bot queues
 //
-let l = this.bots.length;
-
-for (let i=0; i < l; i++)
+for (let i=0; i < this.bots.length; i++)
     {               
+    if (this.bots[i] === undefined || this.bots[i] == null)
+       {
+       continue;
+       } // if
+
     let message = this.bots[i].pop_msg();
 
 
@@ -1658,6 +1729,118 @@ return ret;
 } // check_collision
 
 
+//
+// is_servicebay_coordinate()
+//
+is_servicebay_coordinate(target_x, target_y, target_z)
+{
+let tx = Number(target_x);
+let ty = Number(target_y);
+let tz = Number(target_z);
+
+for (let i=0; i<this.servicebay_cells.length; i++)
+    {
+    if (
+        Number(this.servicebay_cells[i].x) == tx &&
+        Number(this.servicebay_cells[i].y) == ty &&
+        Number(this.servicebay_cells[i].z) == tz
+       )
+       {
+       return(true);
+       } // if
+    } // for
+
+return(false);
+} // is_servicebay_coordinate()
+
+
+//
+// check_service_bay_extraction()
+//
+check_service_bay_extraction(botindex)
+{
+let ret =
+{
+extracted: false,
+botid: "",
+botindex_old: -1
+};
+
+if (botindex === null || botindex === undefined)
+   {
+   return(ret);
+   } // if
+
+if (botindex < 0 || botindex >= this.bots.length)
+   {
+   return(ret);
+   } // if
+
+let target_bot = this.bots[botindex];
+
+if (target_bot === undefined)
+   {
+   return(ret);
+   } // if
+
+if (!this.is_servicebay_coordinate(target_bot.x, target_bot.y, target_bot.z))
+   {
+   return(ret);
+   } // if
+
+let removed_id = String(target_bot.id);
+ret.extracted = true;
+ret.botid = removed_id;
+ret.botindex_old = Number(botindex);
+
+target_bot.active = 0;
+target_bot.inactive = true;
+
+delete this.payload_bot_ids[removed_id];
+
+this.bots.splice(botindex, 1);
+
+for (let i=0; i<this.bots.length; i++)
+    {
+    let grabbed_index = this.bots[i].grabbed_cellbot;
+
+    if (grabbed_index === null || grabbed_index === undefined)
+       {
+       continue;
+       } // if
+
+    if (grabbed_index == botindex)
+       {
+       this.bots[i].grabbed_cellbot = null;
+       continue;
+       } // if
+
+    if (grabbed_index > botindex)
+       {
+       this.bots[i].grabbed_cellbot = Number(grabbed_index) - 1;
+       } // if
+    } // for
+
+this.create_botindex_array();
+
+const events = [];
+events.push(
+            {
+             event: "removebot",
+             botid: removed_id
+            }
+           );
+this.notify_frontend(events);
+
+Logger.log(
+          "check_service_bay_extraction() extracted(" + removed_id + ") " +
+          "at(" + target_bot.x + "," + target_bot.y + "," + target_bot.z + ")"
+          );
+
+return(ret);
+} // check_service_bay_extraction()
+
+
 
 //
 // Call by bot_class.js / run_cmd
@@ -1760,7 +1943,7 @@ return (angle);
 //
 create_botindex_array()
 {
-this.botindex.length = 0;
+this.botindex = [];
 
 let l = this.bots.length;
 

@@ -34,6 +34,7 @@ constructor()
   this.debug = "";
   this.active = 1;
   this.inactive = 0;
+  this.servicebay = 0;
   
   this.msgqueue        = [];
   this.index_neighbors = [];
@@ -53,6 +54,7 @@ constructor()
   this.cmd_parser_class_obj = new cmd_parser_class();
   
   this.grabbed_cellbot = null;
+  this.servicebay_extracted = false;
   
   this.physical_bot_move_delay = 0;
   
@@ -70,7 +72,7 @@ constructor()
 //
 // setvalues()
 //  
-setvalues( id, x,y,z, vx,vy,vz, inactive = 0, color, physical_bot_move_delay,                           
+setvalues( id, x,y,z, vx,vy,vz, inactive = 0, servicebay = 0, color, physical_bot_move_delay,                           
            enable_signing,
            signature_type,
            public_key_or_secret
@@ -90,12 +92,31 @@ if (Array.isArray(inactive))
    inactive = inactive[0];
    }
 
+if (Array.isArray(servicebay))
+   {
+   servicebay = servicebay[0];
+   }
+
+this.servicebay = (
+                   servicebay === true ||
+                   servicebay === 1 ||
+                   servicebay === "1" ||
+                   servicebay === "true"
+                   );
+
 this.inactive = (
                  inactive === true ||
                  inactive === 1 ||
                  inactive === "1" ||
                  inactive === "true"
                  );
+
+// Backward-compatibility:
+// servicebay cells are treated as non-active simulator cells, even without <inactive>.
+if (this.servicebay === true)
+   {
+   this.inactive = true;
+   } // if
 
 this.color = color;
 
@@ -338,6 +359,7 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
    {   
    let size = cmdarray.subcmd.length;
    let move_sequence_aborted = false;
+   this.servicebay_extracted = false;
 
    for (let i=0; i<size; i++)
        {
@@ -371,12 +393,24 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                   if (size2 == 1)
                      {
                      await this.motoric_move( caller, fa, la, moves[i3] );
+
+                     if (this.servicebay_extracted === true)
+                        {
+                        move_sequence_aborted = true;
+                        break;
+                        } // if
                      }
                      
                   if (size2 == 2)
                      {
                      if (i3==0) await this.motoric_move( caller, fa, "", moves[i3] );
                      if (i3==1) await this.motoric_move( caller, "", la, moves[i3] );
+
+                     if (this.servicebay_extracted === true)
+                        {
+                        move_sequence_aborted = true;
+                        break;
+                        } // if
                      } // if (size2 == 2)  
                           
  
@@ -402,6 +436,12 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                   spin_success = await this.motoric_spin( caller, fa, la, direction );
 
                   if (!spin_success)
+                     {
+                     move_sequence_aborted = true;
+                     break;
+                     } // if
+
+                  if (this.servicebay_extracted === true)
                      {
                      move_sequence_aborted = true;
                      break;
@@ -875,9 +915,28 @@ if ( update_grabbed_bot )
    caller.bots[ this.grabbed_cellbot ].y = new_y;
    caller.bots[ this.grabbed_cellbot ].z = new_z;               
    }   
- 
 
- 
+if ( update_grabbed_bot && this.grabbed_cellbot !== null )
+   {
+   let payload_extract_ret = caller.check_service_bay_extraction( this.grabbed_cellbot );
+
+   if (payload_extract_ret.extracted)
+      {
+      this.grabbed_cellbot = null;
+      } // if
+   } // if
+
+if ( update_carrier_bot )
+   {
+   let self_index = caller.get_3d(this.x, this.y, this.z);
+   let self_extract_ret = caller.check_service_bay_extraction( self_index );
+
+   if (self_extract_ret.extracted)
+      {
+      this.servicebay_extracted = true;
+      return;
+      } // if
+   } // if
 
 } // motoric_move()
       
@@ -1424,6 +1483,24 @@ await this.sleep( this.physical_bot_move_delay );
  
 if (!update_carrier_bot)
    {
+   return(false);
+   } // if
+
+if ( update_grabbed_bot && this.grabbed_cellbot !== null )
+   {
+   let payload_extract_ret = caller.check_service_bay_extraction( this.grabbed_cellbot );
+
+   if (payload_extract_ret.extracted)
+      {
+      this.grabbed_cellbot = null;
+      } // if
+   } // if
+
+let self_index = caller.get_3d(this.x, this.y, this.z);
+let self_extract_ret = caller.check_service_bay_extraction( self_index );
+if (self_extract_ret.extracted)
+   {
+   this.servicebay_extracted = true;
    return(false);
    } // if
 
