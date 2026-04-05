@@ -181,6 +181,8 @@
     
     const cubes   = []; 
     const groups  = []; 
+    const servicebayGroups = [];
+    const servicebayCubes  = [];
     let botGroupMap = [];
        
     document.getElementById('debug').innerHTML = "...";
@@ -260,6 +262,21 @@
         addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 0, col  );                     
  
         } // let i...size
+
+
+    if (Array.isArray(decodedobject.jsondata.servicebay_cells))
+       {
+       let sb_size = decodedobject.jsondata.servicebay_cells.length;
+       for (let i=0; i<sb_size; i++)
+           {
+           let sbid = decodedobject.jsondata.servicebay_cells[i].id || ("SB_" + i);
+           let sbx  = decodedobject.jsondata.servicebay_cells[i].x;
+           let sby  = decodedobject.jsondata.servicebay_cells[i].y;
+           let sbz  = decodedobject.jsondata.servicebay_cells[i].z;
+
+           addServicebayCube(sbid, new THREE.Vector3(sbx, sby, sbz));
+           } // for
+       } // if
           
          
   
@@ -302,6 +319,21 @@
            {
            handleSetColor( decodedobject.msg[0] );               
            } // move           
+
+        if (decodedobject.msg[0].event == 'removebot')
+           {
+           handleRemoveBotEvent( decodedobject.msg[0] );
+           } // removebot
+
+        if ( decodedobject.msg[1] != undefined && decodedobject.msg[1].event == 'removebot')
+           {
+           handleRemoveBotEvent( decodedobject.msg[1] );
+           } // removebot
+
+        if ( decodedobject.msg[2] != undefined && decodedobject.msg[2].event == 'removebot')
+           {
+           handleRemoveBotEvent( decodedobject.msg[2] );
+           } // removebot
            
    
         } // update
@@ -445,6 +477,38 @@ cube_tmp.geometry.computeVertexNormals();
 
 } // addCube
 
+
+//
+// addServicebayCube()
+//
+function addServicebayCube(servicebayid, position)
+{
+position.z = -position.z;
+
+let group_tmp = new THREE.Group();
+const material = new THREE.MeshPhongMaterial(
+                                          {
+                                           color: 0xffd000,
+                                           transparent: true,
+                                           opacity: 0.40,
+                                           shininess: 20
+                                          }
+                                         );
+const cube_tmp = new THREE.Mesh(geometry, material);
+cube_tmp.geometry.computeVertexNormals();
+
+group_tmp.position.x = position.x;
+group_tmp.position.y = position.y;
+group_tmp.position.z = position.z;
+group_tmp.add(cube_tmp);
+
+rotateGroup.add(group_tmp);
+
+servicebayGroups.push(group_tmp);
+servicebayCubes.push(cube_tmp);
+botGroupMap["servicebay_" + servicebayid] = group_tmp;
+} // addServicebayCube()
+
  
 // MOVE        
 function animateMove(group, from, to, durationMs, onDone) {
@@ -583,6 +647,17 @@ if (group && group.children.length > 0) {
  
 } // handleSetColor
 
+
+function handleRemoveBotEvent(event) {
+const botid = event.botid;
+const group = botGroupMap[botid];
+
+if (!group) return;
+
+rotateGroup.remove(group);
+delete botGroupMap[botid];
+} // handleRemoveBotEvent
+
  
  
 
@@ -662,6 +737,21 @@ function removeAllCubes() {
     
     });
     cubes.length = 0;  
+
+
+    servicebayGroups.forEach(group => {
+        rotateGroup.remove(group);
+    }); // forEach
+    servicebayGroups.length = 0;
+
+    servicebayCubes.forEach(cube => {
+        rotateGroup.remove(cube);
+    }); // forEach
+    servicebayCubes.length = 0;
+
+    Object.keys(botGroupMap).forEach(key => {
+        if (key.startsWith("servicebay_")) delete botGroupMap[key];
+    }); // forEach
 
 }
 
