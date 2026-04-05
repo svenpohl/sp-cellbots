@@ -484,15 +484,17 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           
           let targetslot = slots[0];
           let previous_grabbed_cellbot = this.grabbed_cellbot;
+          let released_previous_payload = false;
 
           if (previous_grabbed_cellbot !== null)
              {
              caller.unregister_payload_bot_int_id(previous_grabbed_cellbot);
              } // if
 
-          if (size == 0)
+          if (size == 0 || targetslot != 'F')
              {
              this.grabbed_cellbot = null;
+             released_previous_payload = (previous_grabbed_cellbot !== null);
              } // if
           
           // Only F-Transport is permitted
@@ -507,6 +509,11 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                 } // if
       
              } // if (targetslot == 'F')
+
+          if (released_previous_payload)
+             {
+             caller.check_service_bay_extraction(previous_grabbed_cellbot);
+             } // if
           
         
           } // GRAB
@@ -625,6 +632,13 @@ async motoric_move( caller, fa, la, direction_slot )
 let target_x = 0;
 let target_y = 0;
 let target_z = 0;
+const is_valid_grabbed_index = (idx) =>
+   (
+    idx !== null &&
+    idx !== undefined &&
+    Number(idx) >= 0 &&
+    caller.bots[ Number(idx) ] !== undefined
+   );
 
 let carrier_x_old = this.x;
 let carrier_y_old = this.y;
@@ -685,14 +699,17 @@ if (direction_slot == 'D')
 
 
 // Now we get grabbed_cellbot (needed for collision)
-if (this.grabbed_cellbot !== null)
+if (is_valid_grabbed_index(this.grabbed_cellbot))
    {           
    grabbed_x = caller.bots[ this.grabbed_cellbot ].x;
    grabbed_y = caller.bots[ this.grabbed_cellbot ].y;
    grabbed_z = caller.bots[ this.grabbed_cellbot ].z;
    
    grabbed_botid = caller.bots[ this.grabbed_cellbot ].id;
-   }
+   } else
+      {
+      this.grabbed_cellbot = null;
+      } // if/else
 
 
 
@@ -853,6 +870,14 @@ events.push( notify_msg );
 //
 if ( update_grabbed_bot )
 {
+if (!is_valid_grabbed_index(this.grabbed_cellbot))
+   {
+   update_grabbed_bot = false;
+   this.grabbed_cellbot = null;
+   } // if
+
+if (update_grabbed_bot)
+   {
      
 // Update Bot-Position and set new values:     
 caller.bots[ this.grabbed_cellbot ].x = new_x;
@@ -876,6 +901,8 @@ ts : Number(stopwatch_ms)
 
 events.push( notify_msg );
 
+
+   } // if (update_grabbed_bot)
 
 } // if ( update_grabbed_bot )
 
@@ -909,14 +936,23 @@ if ( update_carrier_bot )
    
 if ( update_grabbed_bot )
    {
+   if (!is_valid_grabbed_index(this.grabbed_cellbot))
+      {
+      update_grabbed_bot = false;
+      this.grabbed_cellbot = null;
+      } // if
+
+   if (update_grabbed_bot)
+      {
    // Update Bot-Position and set new values:  
    caller.update_keyindex( grabbed_x, grabbed_y, grabbed_z, new_x, new_y, new_z );   
    caller.bots[ this.grabbed_cellbot ].x = new_x;
    caller.bots[ this.grabbed_cellbot ].y = new_y;
-   caller.bots[ this.grabbed_cellbot ].z = new_z;               
+   caller.bots[ this.grabbed_cellbot ].z = new_z;
+      } // if
    }   
 
-if ( update_grabbed_bot && this.grabbed_cellbot !== null )
+if ( update_grabbed_bot && is_valid_grabbed_index(this.grabbed_cellbot) )
    {
    let payload_extract_ret = caller.check_service_bay_extraction( this.grabbed_cellbot );
 
