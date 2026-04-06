@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "SPCellBots"
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+
+authors:
+  - family-names: "Pohl"
+    given-names: "Sven"
+    orcid: "https://orcid.org/0009-0001-6232-9579"
+
+repository-code: "https://github.com/svenpohl/sp-cellbots"
+url: "https://github.com/svenpohl/sp-cellbots"
+license: "MIT"
+version: "1.5.3"
+date-released: "2026-04-06"
+
+keywords:
+  - modular robotics
+  - voxel morphing
+  - self-reconfiguration
+  - swarm robotics
+  - api
+
+abstract: >
+  SPCellBots is a framework for simulation and API-based control of modular
+  cell-bot clusters, including movement, transport, morphing workflows, and
+  LLM-assisted debugging and planning.
