@@ -37,6 +37,7 @@ const signature_class = require('../common/signature/signature_class');
 
 //const MorphBFSSimple    = require('./morph/morph_bfs_simple');
 const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
+const CalcCraterHelper = require('./morph/calc_crater_helper');
 
 
 const Logger = require('./logger');
@@ -137,6 +138,10 @@ constructor()
    this.api_grab_state_map = {};
    this.api_payload_links = {};
    this.api_servicebay_pending_recycle = {};
+   this.api_crater_counter = 0;
+   this.api_crater_default_id = "crater_default";
+   this.api_crater_runs = {};
+   this.crater_active_id = this.api_crater_default_id;
    this.debug_move_enabled = false;
    this.safe_mode = 2;
 
@@ -161,6 +166,24 @@ constructor()
                        last_update: null,
                        message: ""
                        };
+   this.crater_status = {
+                        running: false,
+                        phase: "idle",
+                        progress: 0,
+                        success: null,
+                        started_at: null,
+                        finished_at: null,
+                        last_update: null,
+                        message: "",
+                        session_id: null,
+                        request: null,
+                        total_steps: 0,
+                        completed_steps: 0,
+                        current_step: null,
+                        last_result: null,
+                        last_error: null,
+                        failed_step: null
+                        };
    
    this.ws_gui = null;
    this.api_server = null;
@@ -5659,6 +5682,56 @@ return({
 
 
 //
+// apicall_get_bots_by_prefix()
+//
+apicall_get_bots_by_prefix(prefix = "")
+{
+let normalized_prefix = String(prefix ?? "").trim();
+let retbots = [];
+
+if (normalized_prefix.length < 1)
+   {
+   return({
+          ok: false,
+          answer: "api_get_bots_by_prefix",
+          error: "EMPTY_PREFIX"
+          });
+   } // if
+
+for (let i=0; i<this.bots.length; i++)
+    {
+    let bot_id = String(this.bots[i].id ?? "");
+
+    if (bot_id.startsWith(normalized_prefix))
+       {
+       retbots.push({
+                    id: bot_id,
+                    position: {
+                               x: Number(this.bots[i].x),
+                               y: Number(this.bots[i].y),
+                               z: Number(this.bots[i].z)
+                               },
+                    orientation: {
+                                  x: Number(this.bots[i].vector_x),
+                                  y: Number(this.bots[i].vector_y),
+                                  z: Number(this.bots[i].vector_z)
+                                  },
+                    adress: this.apicall_get_safe_adress(this.bots[i])
+                    });
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_bots_by_prefix",
+       prefix: normalized_prefix,
+       count: retbots.length,
+       bots: retbots
+       });
+} // apicall_get_bots_by_prefix()
+
+
+//
 // apicall_raw_cmd()
 //
 apicall_raw_cmd( raw_value )
@@ -5878,6 +5951,279 @@ return({
        neighbors: neighbors
        });
 } // apicall_get_neighbors()
+
+
+//
+// apicall_get_grab_positions()
+//
+apicall_get_grab_positions(x, y, z)
+{
+let target_x = Number(x);
+let target_y = Number(y);
+let target_z = Number(z);
+let target_occupancy = this.apicall_is_occupied(target_x, target_y, target_z);
+let candidates = [];
+let feasible_candidates = 0;
+const side_vectors = [
+                      { side: "PX", dx:  1, dz:  0 },
+                      { side: "NX", dx: -1, dz:  0 },
+                      { side: "PZ", dx:  0, dz:  1 },
+                      { side: "NZ", dx:  0, dz: -1 }
+                      ];
+
+if (target_occupancy.occupied !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_get_grab_positions",
+          error: "TARGET_NOT_OCCUPIED",
+          target: {
+                   x: target_x,
+                   y: target_y,
+                   z: target_z
+                   }
+          });
+   } // if
+
+for (let i=0; i<side_vectors.length; i++)
+    {
+    let side = side_vectors[i];
+    let carrier_x = target_x - Number(side.dx);
+    let carrier_y = target_y;
+    let carrier_z = target_z - Number(side.dz);
+    let required_orientation = {
+                               x: Number(side.dx),
+                               y: 0,
+                               z: Number(side.dz)
+                               };
+    let carrier_cell_forbidden = this.apicall_is_forbidden_cell(carrier_x, carrier_y, carrier_z);
+    let carrier_cell_occupancy = this.apicall_is_occupied(carrier_x, carrier_y, carrier_z);
+    let anchor_down = this.apicall_is_occupied(carrier_x, carrier_y - 1, carrier_z);
+    let anchor_up = this.apicall_is_occupied(carrier_x, carrier_y + 1, carrier_z);
+    let anchor_ok = (anchor_down.occupied === true || anchor_up.occupied === true);
+    let feasible = true;
+    let blocked_reasons = [];
+
+    if (carrier_cell_forbidden === true)
+       {
+       feasible = false;
+       blocked_reasons.push("CARRIER_POS_FORBIDDEN");
+       } // if
+
+    if (carrier_cell_occupancy.occupied === true)
+       {
+       feasible = false;
+       blocked_reasons.push("CARRIER_POS_OCCUPIED");
+       } // if
+
+    if (anchor_ok !== true)
+       {
+       feasible = false;
+       blocked_reasons.push("ANCHOR_MISSING");
+       } // if
+
+    if (feasible === true)
+       {
+       feasible_candidates++;
+       } // if
+
+    candidates.push(
+                    {
+                    side: side.side,
+                    carrier_pos: {
+                                 x: carrier_x,
+                                 y: carrier_y,
+                                 z: carrier_z
+                                 },
+                    required_orientation: required_orientation,
+                    grab_slot: "F",
+                    feasible: feasible,
+                    carrier_cell_forbidden: carrier_cell_forbidden,
+                    carrier_cell_status: carrier_cell_occupancy,
+                    anchor_ok: anchor_ok,
+                    anchor_options: {
+                                     down: anchor_down,
+                                     up: anchor_up
+                                     },
+                    blocked_reasons: blocked_reasons
+                    }
+                    );
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_grab_positions",
+       target: {
+                position: {
+                           x: target_x,
+                           y: target_y,
+                           z: target_z
+                           },
+                state: target_occupancy.state,
+                id: target_occupancy.id ?? null
+                },
+       feasible_count: feasible_candidates,
+       candidates: candidates
+       });
+} // apicall_get_grab_positions()
+
+
+apicall_evaluate_turn_position(x, y, z, excluded_bot_ids = [])
+{
+let pos_x = Number(x);
+let pos_y = Number(y);
+let pos_z = Number(z);
+let excluded_ids = Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [];
+let center_status = this.apicall_is_occupied_excluding_ids(pos_x, pos_y, pos_z, excluded_ids);
+let center_forbidden = this.apicall_is_forbidden_cell(pos_x, pos_y, pos_z);
+let anchor_down = this.apicall_is_occupied_excluding_ids(pos_x, pos_y - 1, pos_z, excluded_ids);
+let anchor_up = this.apicall_is_occupied_excluding_ids(pos_x, pos_y + 1, pos_z, excluded_ids);
+let anchor_ok = (anchor_down.occupied === true || anchor_up.occupied === true);
+let orthogonal = {
+                 xp: { x: pos_x + 1, y: pos_y, z: pos_z },
+                 xm: { x: pos_x - 1, y: pos_y, z: pos_z },
+                 zp: { x: pos_x, y: pos_y, z: pos_z + 1 },
+                 zm: { x: pos_x, y: pos_y, z: pos_z - 1 }
+                 };
+let orthogonal_keys = Object.keys(orthogonal);
+let orthogonal_status = {};
+let free_orthogonal_same_y_count = 0;
+let blocked_orthogonal_same_y = [];
+
+for (let i=0; i<orthogonal_keys.length; i++)
+    {
+    let key = orthogonal_keys[i];
+    let p = orthogonal[key];
+    let status = this.apicall_is_occupied_excluding_ids(p.x, p.y, p.z, excluded_ids);
+    let forbidden = this.apicall_is_forbidden_cell(p.x, p.y, p.z);
+    let free = (status.occupied !== true && forbidden !== true);
+
+    if (free === true)
+       {
+       free_orthogonal_same_y_count++;
+       } // if
+    else
+       {
+       blocked_orthogonal_same_y.push({
+                                      side: key.toUpperCase(),
+                                      position: {
+                                                 x: Number(p.x),
+                                                 y: Number(p.y),
+                                                 z: Number(p.z)
+                                                 },
+                                      forbidden: forbidden,
+                                      state: status.state ?? "unknown",
+                                      id: status.id ?? null
+                                      });
+       } // else
+
+    orthogonal_status[key.toUpperCase()] = {
+                                            position: {
+                                                       x: Number(p.x),
+                                                       y: Number(p.y),
+                                                       z: Number(p.z)
+                                                       },
+                                            free: free,
+                                            forbidden: forbidden,
+                                            state: status.state ?? "unknown",
+                                            id: status.id ?? null
+                                            };
+    } // for
+
+let turnable_same_y = (free_orthogonal_same_y_count >= 4);
+let turnable_strict = (turnable_same_y === true && anchor_ok === true && center_forbidden !== true);
+
+return({
+       position: {
+                  x: pos_x,
+                  y: pos_y,
+                  z: pos_z
+                  },
+       center_status: center_status,
+       center_forbidden: center_forbidden,
+       anchor_ok: anchor_ok,
+       anchor_options: {
+                        down: anchor_down,
+                        up: anchor_up
+                        },
+       free_orthogonal_same_y_count: free_orthogonal_same_y_count,
+       turnable_same_y: turnable_same_y,
+       turnable_strict: turnable_strict,
+       orthogonal: orthogonal_status,
+       blocked_orthogonal_same_y: blocked_orthogonal_same_y
+       });
+} // apicall_evaluate_turn_position()
+
+
+apicall_get_turn_positions(x, y, z, radius = 1, excluded_bot_ids = [])
+{
+let center_x = Number(x);
+let center_y = Number(y);
+let center_z = Number(z);
+let r = Number(radius);
+let candidates = [];
+let turnable_same_y_count = 0;
+let turnable_strict_count = 0;
+
+if (
+    Number.isNaN(center_x) ||
+    Number.isNaN(center_y) ||
+    Number.isNaN(center_z) ||
+    Number.isNaN(r)
+   )
+   {
+   return({
+          ok: false,
+          answer: "api_get_turn_positions",
+          error: "INVALID_INPUT"
+          });
+   } // if
+
+r = Math.max(0, Math.min(6, Math.floor(r)));
+
+for (let dx = -r; dx <= r; dx++)
+    {
+    for (let dy = -r; dy <= r; dy++)
+        {
+        for (let dz = -r; dz <= r; dz++)
+            {
+            let eval_ret = this.apicall_evaluate_turn_position(
+                                                            center_x + dx,
+                                                            center_y + dy,
+                                                            center_z + dz,
+                                                            excluded_bot_ids
+                                                            );
+
+            if (eval_ret.turnable_same_y === true)
+               {
+               turnable_same_y_count++;
+               } // if
+
+            if (eval_ret.turnable_strict === true)
+               {
+               turnable_strict_count++;
+               } // if
+
+            candidates.push(eval_ret);
+            } // for
+        } // for
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_turn_positions",
+       center: {
+                x: center_x,
+                y: center_y,
+                z: center_z
+                },
+       radius: r,
+       count: candidates.length,
+       turnable_same_y_count: turnable_same_y_count,
+       turnable_strict_count: turnable_strict_count,
+       candidates: candidates
+       });
+} // apicall_get_turn_positions()
 
 
 //
@@ -9809,6 +10155,815 @@ return({
 } // apicall_diagnose_move_carrier_to()
 
 
+apicall_get_normalized_crater_id(crater_id = "")
+{
+let normalized_crater_id = String(crater_id ?? "").trim();
+
+if (normalized_crater_id == "")
+   {
+   normalized_crater_id = String(this.api_crater_default_id ?? "crater_default");
+   } // if
+
+return(normalized_crater_id);
+} // apicall_get_normalized_crater_id()
+
+
+apicall_has_running_crater_session()
+{
+let crater_ids = Object.keys(this.api_crater_runs ?? {});
+
+for (let i = 0; i < crater_ids.length; i++)
+    {
+    let crater_id = crater_ids[i];
+    let session = this.api_crater_runs[crater_id];
+
+    if (session?.status?.running === true)
+       {
+       return(true);
+       } // if
+    } // for
+
+return(false);
+} // apicall_has_running_crater_session()
+
+
+apicall_ensure_crater_session(crater_id = "")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
+
+if (!this.api_crater_runs[normalized_crater_id])
+   {
+   let now_iso = new Date().toISOString();
+   this.api_crater_runs[normalized_crater_id] = {
+                                                crater_id: normalized_crater_id,
+                                                request: null,
+                                                last_dig_plan: null,
+                                                last_fill_plan: null,
+                                                last_dig_result: null,
+                                                last_fill_result: null,
+                                                status: {
+                                                         crater_id: normalized_crater_id,
+                                                         mode: null,
+                                                         running: false,
+                                                         phase: "idle",
+                                                         progress: 0,
+                                                         success: null,
+                                                         started_at: null,
+                                                         finished_at: null,
+                                                         last_update: now_iso,
+                                                         message: "",
+                                                         session_id: null,
+                                                         total_steps: 0,
+                                                         completed_steps: 0,
+                                                         current_step: null,
+                                                         last_result: null,
+                                                         last_error: null,
+                                                         failed_step: null
+                                                         }
+                                                };
+   } // if
+
+return(this.api_crater_runs[normalized_crater_id]);
+} // apicall_ensure_crater_session()
+
+
+apicall_update_crater_status(patch = {}, crater_id = "")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id || this.crater_active_id);
+let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
+let now_iso = new Date().toISOString();
+
+crater_session.status = {
+                        ...crater_session.status,
+                        ...(patch ?? {}),
+                        crater_id: normalized_crater_id,
+                        last_update: now_iso
+                        };
+
+this.crater_active_id = normalized_crater_id;
+this.crater_status = crater_session.status;
+
+return(crater_session.status);
+} // apicall_update_crater_status()
+
+
+apicall_get_crater_status(crater_id = "")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id || this.crater_active_id);
+let crater_session = this.api_crater_runs[normalized_crater_id];
+
+if (!crater_session)
+   {
+   return({
+          ok: true,
+          answer: "api_crater_check_progress",
+          crater_id: normalized_crater_id,
+          mode: null,
+          running: false,
+          phase: "idle",
+          progress: 0,
+          success: null,
+          started_at: null,
+          finished_at: null,
+          session_id: null,
+          total_steps: 0,
+          completed_steps: 0,
+          current_step: null,
+          message: "",
+          last_result: null,
+          last_error: null,
+          failed_step: null,
+          has_dig_plan: false,
+          has_fill_plan: false
+          });
+   } // if
+
+let status = crater_session.status ?? {};
+
+return({
+       ok: true,
+       answer: "api_crater_check_progress",
+       crater_id: normalized_crater_id,
+       mode: status.mode ?? null,
+       running: Boolean(status.running),
+       phase: status.phase ?? "idle",
+       progress: Number(status.progress ?? 0),
+       success: status.success ?? null,
+       started_at: status.started_at ?? null,
+       finished_at: status.finished_at ?? null,
+       session_id: status.session_id ?? null,
+       total_steps: Number(status.total_steps ?? 0),
+       completed_steps: Number(status.completed_steps ?? 0),
+       current_step: status.current_step ?? null,
+       message: status.message ?? "",
+       last_result: status.last_result ?? null,
+       last_error: status.last_error ?? null,
+       failed_step: status.failed_step ?? null,
+       has_dig_plan: !!crater_session.last_dig_plan,
+       has_fill_plan: !!crater_session.last_fill_plan
+       });
+} // apicall_get_crater_status()
+
+
+apicall_list_craters()
+{
+let crater_ids = Object.keys(this.api_crater_runs ?? {}).sort();
+let crater_list = [];
+
+for (let i = 0; i < crater_ids.length; i++)
+    {
+    let crater_id = crater_ids[i];
+    let crater_session = this.api_crater_runs[crater_id] ?? {};
+    let status = crater_session.status ?? {};
+
+    crater_list.push(
+                    {
+                    crater_id: crater_id,
+                    mode: status.mode ?? null,
+                    running: Boolean(status.running),
+                    phase: status.phase ?? "idle",
+                    progress: Number(status.progress ?? 0),
+                    success: status.success ?? null,
+                    started_at: status.started_at ?? null,
+                    finished_at: status.finished_at ?? null,
+                    total_steps: Number(status.total_steps ?? 0),
+                    completed_steps: Number(status.completed_steps ?? 0),
+                    has_dig_plan: !!crater_session.last_dig_plan,
+                    has_fill_plan: !!crater_session.last_fill_plan
+                    }
+                    );
+    } // for
+
+return({
+       ok: true,
+       answer: "api_crater_list",
+       count: crater_list.length,
+       active_crater_id: this.crater_active_id ?? null,
+       craters: crater_list
+       });
+} // apicall_list_craters()
+
+
+apicall_build_fill_plan_from_crater(crater_id = "")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
+let crater_session = this.api_crater_runs[normalized_crater_id];
+
+if (!crater_session)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_fill",
+          error: "CRATER_NOT_FOUND",
+          crater_id: normalized_crater_id
+          });
+   } // if
+
+let dig_pair_order = Array.isArray(crater_session?.last_dig_plan?.pair_order) ? crater_session.last_dig_plan.pair_order : [];
+if (dig_pair_order.length == 0)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_fill",
+          error: "CRATER_FILL_SOURCE_MISSING",
+          crater_id: normalized_crater_id
+          });
+   } // if
+
+let fill_pair_order = [];
+
+for (let i = dig_pair_order.length - 1; i >= 0; i--)
+    {
+    let dig_pair = dig_pair_order[i] ?? {};
+    let remove_bot = dig_pair.remove_bot ?? {};
+    let crater_target = dig_pair.crater_target ?? {};
+
+    fill_pair_order.push(
+                        {
+                        step: fill_pair_order.length + 1,
+                        remove_bot: {
+                                    id: String(remove_bot.id ?? "").trim(),
+                                    x: Number(crater_target.x),
+                                    y: Number(crater_target.y),
+                                    z: Number(crater_target.z)
+                                    },
+                        crater_target: {
+                                        x: Number(remove_bot.x),
+                                        y: Number(remove_bot.y),
+                                        z: Number(remove_bot.z)
+                                        },
+                        reason: "reverse_pair_order"
+                        }
+                        );
+    } // for
+
+let precheck_steps = [];
+let blocked_steps = [];
+
+for (let i = 0; i < fill_pair_order.length; i++)
+    {
+    let fill_step = fill_pair_order[i];
+    let bot_id = String(fill_step?.remove_bot?.id ?? "").trim();
+    let expected_from = {
+                        x: Number(fill_step?.remove_bot?.x),
+                        y: Number(fill_step?.remove_bot?.y),
+                        z: Number(fill_step?.remove_bot?.z)
+                        };
+    let target_restore = {
+                         x: Number(fill_step?.crater_target?.x),
+                         y: Number(fill_step?.crater_target?.y),
+                         z: Number(fill_step?.crater_target?.z)
+                         };
+    let bot_state = this.apicall_get_bot_by_id(bot_id);
+    let at_expected_position = false;
+    let diagnose_ret = null;
+    let executable = false;
+    let blocked_reason = "";
+
+    if (bot_state?.ok === true)
+       {
+       at_expected_position = (
+                               Number(bot_state?.position?.x) === expected_from.x &&
+                               Number(bot_state?.position?.y) === expected_from.y &&
+                               Number(bot_state?.position?.z) === expected_from.z
+                               );
+
+       diagnose_ret = this.apicall_diagnose_move_bot_to(
+                                                        bot_id,
+                                                        target_restore.x,
+                                                        target_restore.y,
+                                                        target_restore.z
+                                                        );
+       executable = (diagnose_ret?.ok === true && diagnose_ret?.executable === true && diagnose_ret?.path_found === true);
+       } // if
+    else
+       {
+       blocked_reason = "BOT_NOT_FOUND";
+       } // else
+
+    if (blocked_reason == "" && executable !== true)
+       {
+       blocked_reason = diagnose_ret?.final_diagnostic_reason ?? diagnose_ret?.reason ?? diagnose_ret?.error ?? "FILL_STEP_NOT_EXECUTABLE";
+       } // if
+
+    let precheck_entry = {
+                         step: Number(fill_step?.step ?? (i + 1)),
+                         bot_id: bot_id,
+                         expected_from: expected_from,
+                         target_restore: target_restore,
+                         bot_found: (bot_state?.ok === true),
+                         at_expected_position: at_expected_position,
+                         executable: executable,
+                         blocked_reason: (blocked_reason == "" ? null : blocked_reason)
+                         };
+
+    precheck_steps.push(precheck_entry);
+
+    if (precheck_entry.executable !== true)
+       {
+       blocked_steps.push(precheck_entry);
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_crater_fill_plan",
+       crater_id: normalized_crater_id,
+       fillable: (blocked_steps.length == 0),
+       total_steps: fill_pair_order.length,
+       pair_order: fill_pair_order,
+       precheck_steps: precheck_steps,
+       blocked_steps: blocked_steps
+       });
+} // apicall_build_fill_plan_from_crater()
+
+
+async apicall_run_crater_plan(session_id, crater_id, request, plan, run_mode = "dig")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
+let pair_order = Array.isArray(plan?.pair_order) ? plan.pair_order : [];
+let total_steps = pair_order.length;
+let completed_steps = 0;
+let step_results = [];
+let retry_max_attempts = 2;
+let phase_running = (run_mode == "fill" ? "fill_running" : "running");
+let phase_finished = (run_mode == "fill" ? "fill_finished" : "finished");
+let phase_failed = (run_mode == "fill" ? "fill_failed" : "failed");
+
+this.apicall_update_crater_status(
+                                 {
+                                 mode: run_mode,
+                                 phase: phase_running,
+                                 progress: (total_steps === 0 ? 100 : 0),
+                                 total_steps: total_steps,
+                                 completed_steps: 0,
+                                 current_step: null,
+                                 message: (run_mode == "fill" ? "Crater fill execution started." : "Crater execution started."),
+                                 last_error: null,
+                                 failed_step: null
+                                 },
+                                 normalized_crater_id
+                                 );
+
+for (let i = 0; i < total_steps; i++)
+    {
+    let crater_session = this.api_crater_runs[normalized_crater_id];
+    if (Number(crater_session?.status?.session_id) !== Number(session_id))
+       {
+       return({
+              ok: false,
+              error: "CRATER_SESSION_SUPERSEDED",
+              step_results: step_results
+              });
+       } // if
+
+    let pair_entry = pair_order[i] ?? {};
+    let remove_bot = pair_entry.remove_bot ?? {};
+    let crater_target = pair_entry.crater_target ?? {};
+    let bot_id = String(remove_bot.id ?? "").trim();
+    let target_x = Number(crater_target.x);
+    let target_y = Number(crater_target.y);
+    let target_z = Number(crater_target.z);
+    let step_result = {
+                      step: Number(pair_entry.step ?? (i + 1)),
+                      bot_id: bot_id,
+                      target: {
+                               x: target_x,
+                               y: target_y,
+                               z: target_z
+                               },
+                      attempts: 0
+                      };
+
+    this.apicall_update_crater_status(
+                                     {
+                                     current_step: step_result,
+                                     phase: phase_running,
+                                     message: (run_mode == "fill" ? "Executing crater fill step " : "Executing crater pair step ") + String(i + 1) + " of " + String(total_steps) + "."
+                                     },
+                                     normalized_crater_id
+                                     );
+
+    if (
+        bot_id == "" ||
+        Number.isNaN(target_x) ||
+        Number.isNaN(target_y) ||
+        Number.isNaN(target_z)
+       )
+       {
+       step_result.ok = false;
+       step_result.error = "INVALID_PAIR_ORDER_STEP";
+       step_results.push(step_result);
+
+       this.apicall_update_crater_status(
+                                        {
+                                        running: false,
+                                        phase: phase_failed,
+                                        success: false,
+                                        finished_at: new Date().toISOString(),
+                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
+                                        completed_steps: completed_steps,
+                                        last_result: step_result,
+                                        last_error: step_result.error,
+                                        failed_step: step_result,
+                                        message: (run_mode == "fill" ? "Crater fill failed: invalid pair_order entry." : "Crater execution failed: invalid pair_order entry.")
+                                        },
+                                        normalized_crater_id
+                                        );
+       return({
+              ok: false,
+              error: "INVALID_PAIR_ORDER_STEP",
+              step_results: step_results
+              });
+       } // if
+
+    let bot_state_ret = this.apicall_get_bot_by_id(bot_id);
+    if (bot_state_ret?.ok !== true)
+       {
+       step_result.ok = false;
+       step_result.error = "PAIR_BOT_NOT_FOUND";
+       step_result.bot_state = bot_state_ret;
+       step_results.push(step_result);
+
+       this.apicall_update_crater_status(
+                                        {
+                                        running: false,
+                                        phase: phase_failed,
+                                        success: false,
+                                        finished_at: new Date().toISOString(),
+                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
+                                        completed_steps: completed_steps,
+                                        last_result: step_result,
+                                        last_error: step_result.error,
+                                        failed_step: step_result,
+                                        message: (run_mode == "fill" ? "Crater fill failed: bot not found." : "Crater execution failed: remove bot not found.")
+                                        },
+                                        normalized_crater_id
+                                        );
+       return({
+              ok: false,
+              error: "PAIR_BOT_NOT_FOUND",
+              step_results: step_results
+              });
+       } // if
+
+    let move_ret = null;
+    let move_ok = false;
+    let last_error = "MOVE_FAILED";
+
+    for (let attempt = 1; attempt <= retry_max_attempts; attempt++)
+        {
+        step_result.attempts = attempt;
+        move_ret = this.apicall_move_bot_to(bot_id, target_x, target_y, target_z, true);
+
+        if (move_ret?.ok === true && move_ret?.ack_id)
+           {
+           move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
+           } // if
+
+        if (move_ret?.ok === true && move_ret?.executed === true && (move_ret?.ack_id ? move_ret?.ack_received === true : true))
+           {
+           move_ok = true;
+           break;
+           } // if
+
+        let position_probe = this.apicall_get_bot_by_id(bot_id);
+        if (
+            position_probe?.ok === true &&
+            Number(position_probe?.position?.x) === target_x &&
+            Number(position_probe?.position?.y) === target_y &&
+            Number(position_probe?.position?.z) === target_z
+           )
+           {
+           move_ok = true;
+           step_result.recovered_by_position_probe = true;
+           break;
+           } // if
+
+        last_error = move_ret?.error ?? (move_ret?.ack_id ? "MOVE_ACK_FAILED" : "MOVE_NOT_EXECUTED");
+
+        if (attempt < retry_max_attempts)
+           {
+           this.apicall_update_crater_status(
+                                            {
+                                            message: (run_mode == "fill" ? "Crater fill retry " : "Crater step retry ") + String(attempt + 1) + "/" + String(retry_max_attempts) + " for bot " + bot_id + "."
+                                            },
+                                            normalized_crater_id
+                                            );
+           await this.apicall_sleep(350);
+           } // if
+        } // for
+
+    if (move_ok !== true)
+       {
+       step_result.ok = false;
+       step_result.error = "MOVE_EXECUTION_FAILED_AFTER_RETRY";
+       step_result.last_error = last_error;
+       step_result.move_result = move_ret;
+       step_results.push(step_result);
+
+       this.apicall_update_crater_status(
+                                        {
+                                        running: false,
+                                        phase: phase_failed,
+                                        success: false,
+                                        finished_at: new Date().toISOString(),
+                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
+                                        completed_steps: completed_steps,
+                                        last_result: step_result,
+                                        last_error: step_result.error,
+                                        failed_step: step_result,
+                                        message: (run_mode == "fill" ? "Crater fill failed during move execution." : "Crater execution failed during move execution.")
+                                        },
+                                        normalized_crater_id
+                                        );
+       return({
+              ok: false,
+              error: step_result.error,
+              step_results: step_results
+              });
+       } // if
+
+    completed_steps++;
+    step_result.ok = true;
+    step_result.move_result = {
+                              answer: move_ret?.answer ?? "",
+                              ack_id: move_ret?.ack_id ?? null,
+                              ack_received: move_ret?.ack_received ?? null
+                              };
+    step_results.push(step_result);
+
+    this.apicall_update_crater_status(
+                                     {
+                                     completed_steps: completed_steps,
+                                     progress: Math.round((completed_steps / total_steps) * 100),
+                                     last_result: step_result,
+                                     message: (run_mode == "fill" ? "Crater fill step " : "Crater step ") + String(completed_steps) + "/" + String(total_steps) + " completed."
+                                     },
+                                     normalized_crater_id
+                                     );
+    } // for
+
+this.apicall_update_crater_status(
+                                 {
+                                 running: false,
+                                 phase: phase_finished,
+                                 success: true,
+                                 finished_at: new Date().toISOString(),
+                                 progress: 100,
+                                 completed_steps: completed_steps,
+                                 current_step: null,
+                                 message: (run_mode == "fill" ? "Crater fill finished successfully." : "Crater execution finished successfully."),
+                                 failed_step: null
+                                 },
+                                 normalized_crater_id
+                                 );
+
+let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
+if (run_mode == "fill")
+   {
+   crater_session.last_fill_result = {
+                                    ok: true,
+                                    step_results: step_results
+                                    };
+   } // if
+else
+   {
+   crater_session.last_dig_result = {
+                                   ok: true,
+                                   step_results: step_results
+                                   };
+   } // else
+
+return({
+       ok: true,
+       step_results: step_results
+       });
+} // apicall_run_crater_plan()
+
+
+apicall_crater_start(decodedobject = {})
+{
+if (this.apicall_has_running_crater_session() === true)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_start",
+          accepted: false,
+          error: "CRATER_ALREADY_RUNNING",
+          crater_status: this.apicall_get_crater_status()
+          });
+   } // if
+
+let crater_id = this.apicall_get_normalized_crater_id(decodedobject.crater_id);
+let request = {
+              tx: Number(decodedobject.tx),
+              ty: Number(decodedobject.ty),
+              tz: Number(decodedobject.tz),
+              vx: Number(decodedobject.vx),
+              vy: Number(decodedobject.vy),
+              vz: Number(decodedobject.vz),
+              sx: Number(decodedobject.sx),
+              sy: Number(decodedobject.sy),
+              sz: Number(decodedobject.sz),
+              mode: "plan",
+              max_depth: (decodedobject.max_depth !== undefined ? decodedobject.max_depth : null)
+              };
+let plan_ret = this.apicall_calc_crater_stub(request);
+let pair_order = Array.isArray(plan_ret?.plan?.pair_order) ? plan_ret.plan.pair_order : [];
+let session_id = (++this.api_crater_counter);
+let now_iso = new Date().toISOString();
+let crater_session = this.apicall_ensure_crater_session(crater_id);
+
+if (plan_ret?.ok !== true || !plan_ret?.plan)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_start",
+          accepted: false,
+          crater_id: crater_id,
+          error: plan_ret?.error ?? "CRATER_PLAN_FAILED",
+          planning: plan_ret
+          });
+   } // if
+
+crater_session.request = request;
+crater_session.last_dig_plan = plan_ret.plan;
+
+this.apicall_update_crater_status(
+                                 {
+                                 mode: "dig",
+                                 running: true,
+                                 phase: "planned",
+                                 progress: (pair_order.length === 0 ? 100 : 0),
+                                 success: null,
+                                 started_at: now_iso,
+                                 finished_at: null,
+                                 session_id: session_id,
+                                 request: request,
+                                 total_steps: pair_order.length,
+                                 completed_steps: 0,
+                                 current_step: null,
+                                 last_result: null,
+                                 last_error: null,
+                                 failed_step: null,
+                                 message: (pair_order.length === 0 ? "Crater plan has no executable pair_order steps." : "Crater plan accepted; execution queued.")
+                                 },
+                                 crater_id
+                                 );
+
+setTimeout(
+           async () => {
+             await this.apicall_run_crater_plan(session_id, crater_id, request, plan_ret.plan, "dig");
+           },
+           0
+           );
+
+return({
+       ok: true,
+       answer: "api_crater_start",
+       accepted: true,
+       crater_id: crater_id,
+       session_id: session_id,
+       request: request,
+       planning: {
+                 excavation_count: Number(plan_ret?.plan?.stats?.excavation_count ?? 0),
+                 crater_count: Number(plan_ret?.plan?.stats?.crater_count ?? 0),
+                 pair_count: Number(plan_ret?.plan?.stats?.pair_count ?? pair_order.length)
+                 },
+       total_steps: pair_order.length,
+       crater_status: this.apicall_get_crater_status(crater_id)
+       });
+} // apicall_crater_start()
+
+
+apicall_crater_fill(crater_id = "", mode = "execute")
+{
+let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
+let normalized_mode = String(mode ?? "execute").trim().toLowerCase();
+
+if (this.apicall_has_running_crater_session() === true)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_fill",
+          crater_id: normalized_crater_id,
+          accepted: false,
+          error: "CRATER_ALREADY_RUNNING"
+          });
+   } // if
+
+let fill_plan_ret = this.apicall_build_fill_plan_from_crater(normalized_crater_id);
+if (fill_plan_ret?.ok !== true)
+   {
+   return(fill_plan_ret);
+   } // if
+
+let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
+crater_session.last_fill_plan = {
+                                pair_order: fill_plan_ret.pair_order,
+                                precheck_steps: fill_plan_ret.precheck_steps,
+                                blocked_steps: fill_plan_ret.blocked_steps
+                                };
+
+if (normalized_mode == "plan" || normalized_mode == "check" || normalized_mode == "dry")
+   {
+   return({
+          ok: true,
+          answer: "api_crater_fill",
+          crater_id: normalized_crater_id,
+          mode: "plan",
+          accepted: false,
+          fillable: fill_plan_ret.fillable,
+          total_steps: fill_plan_ret.total_steps,
+          precheck_steps: fill_plan_ret.precheck_steps,
+          blocked_steps: fill_plan_ret.blocked_steps
+          });
+   } // if
+
+if (fill_plan_ret.fillable !== true)
+   {
+   return({
+          ok: false,
+          answer: "api_crater_fill",
+          crater_id: normalized_crater_id,
+          accepted: false,
+          error: "FILL_NOT_POSSIBLE",
+          total_steps: fill_plan_ret.total_steps,
+          blocked_steps: fill_plan_ret.blocked_steps
+          });
+   } // if
+
+let session_id = (++this.api_crater_counter);
+let now_iso = new Date().toISOString();
+let fill_request = {
+                   crater_id: normalized_crater_id,
+                   mode: "fill"
+                   };
+
+this.apicall_update_crater_status(
+                                 {
+                                 mode: "fill",
+                                 running: true,
+                                 phase: "fill_planned",
+                                 progress: (fill_plan_ret.total_steps === 0 ? 100 : 0),
+                                 success: null,
+                                 started_at: now_iso,
+                                 finished_at: null,
+                                 session_id: session_id,
+                                 request: fill_request,
+                                 total_steps: fill_plan_ret.total_steps,
+                                 completed_steps: 0,
+                                 current_step: null,
+                                 last_result: null,
+                                 last_error: null,
+                                 failed_step: null,
+                                 message: (fill_plan_ret.total_steps === 0 ? "Crater fill has no executable steps." : "Crater fill accepted; execution queued.")
+                                 },
+                                 normalized_crater_id
+                                 );
+
+setTimeout(
+           async () => {
+             await this.apicall_run_crater_plan(
+                                               session_id,
+                                               normalized_crater_id,
+                                               fill_request,
+                                               { pair_order: fill_plan_ret.pair_order },
+                                               "fill"
+                                               );
+           },
+           0
+           );
+
+return({
+       ok: true,
+       answer: "api_crater_fill",
+       crater_id: normalized_crater_id,
+       accepted: true,
+       mode: "execute",
+       session_id: session_id,
+       fillable: true,
+       total_steps: fill_plan_ret.total_steps,
+       crater_status: this.apicall_get_crater_status(normalized_crater_id)
+       });
+} // apicall_crater_fill()
+
+
+apicall_calc_crater_stub(decodedobject = {})
+{
+let context = {
+              botcontroller: this,
+              world: {
+                     bots: this.bots,
+                     botindex: this.botindex
+                     }
+              };
+
+return( CalcCraterHelper.calcCrater(decodedobject, context) );
+} // apicall_calc_crater_stub()
+
+
 apicall_suggest_simple_move(bot_id, x, y, z)
 {
 let path_ret = this.apicall_find_path_for_bot(bot_id, x, y, z, false);
@@ -10058,6 +11213,7 @@ let ack_target_neighbors_debug = [];
 let ack_target_neighbors_live_debug = [];
 let ack_stl_debug = null;
 let move_diagnostic_summary = null;
+let turn_positions_on_path = [];
 
 if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
    {
@@ -10270,6 +11426,28 @@ move_diagnostic_summary = this.apicall_build_move_diagnostic_summary(
                                                                    path_ret.path_debug_rejections ?? []
                                                                    );
 
+if (Array.isArray(path_ret.path))
+   {
+   for (let i=0; i<path_ret.path.length; i++)
+       {
+       let p = path_ret.path[i];
+       let turn_eval = this.apicall_evaluate_turn_position(
+                                                        Number(p.x),
+                                                        Number(p.y),
+                                                        Number(p.z),
+                                                        excluded_bot_ids
+                                                        );
+
+       if (turn_eval.turnable_same_y === true)
+          {
+          turn_positions_on_path.push({
+                                      path_index: i,
+                                      ...turn_eval
+                                      });
+          } // if
+       } // for
+   } // if
+
 return({
        ok: true,
        answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
@@ -10286,6 +11464,7 @@ return({
        current_state: bot_snapshot,
        carried_payload_bot_id: carried_payload_bot_id,
        planning_excluded_bot_ids: excluded_bot_ids,
+       turn_positions_on_path: turn_positions_on_path,
        path_found: path_ret.path_found === true,
        path_length: path_ret.path_length ?? ((path_ret.path ?? []).length),
        path: path_ret.path ?? [],
@@ -12704,6 +13883,18 @@ async handleAPIMessage(message, socket) {
                         description: "Returns all bots inside a local cube around a given center coordinate."
                     },
                     {
+                        cmd: "get_bots_by_prefix",
+                        params: {
+                            prefix: "string"
+                        },
+                        returns: {
+                            answer: "api_get_bots_by_prefix",
+                            count: "number",
+                            bots: "list"
+                        },
+                        description: "Returns all known bots whose IDs start with the given prefix."
+                    },
+                    {
                         cmd: "get_inactive_bots",
                         params: {},
                         returns: {
@@ -12723,6 +13914,36 @@ async handleAPIMessage(message, socket) {
                             neighbors: "object with F/R/B/L/T/D"
                         },
                         description: "Returns the direct local neighbors of a known bot, including active, inactive or empty slots."
+                    },
+                    {
+                        cmd: "get_grab_positions",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number"
+                        },
+                        returns: {
+                            answer: "api_get_grab_positions",
+                            feasible_count: "number",
+                            candidates: "list"
+                        },
+                        description: "Returns up to four carrier grab candidates around a target coordinate, including required orientation, anchor checks and blocking reasons."
+                    },
+                    {
+                        cmd: "get_turn_positions",
+                        params: {
+                            x: "number",
+                            y: "number",
+                            z: "number",
+                            radius: "optional number, default 1"
+                        },
+                        returns: {
+                            answer: "api_get_turn_positions",
+                            turnable_same_y_count: "number",
+                            turnable_strict_count: "number",
+                            candidates: "list"
+                        },
+                        description: "Returns rotation-capable candidate cells in a local 3D cube around a coordinate. turnable_same_y requires four free orthogonal neighbors on the same y-plane."
                     },
                     {
                         cmd: "is_occupied",
@@ -12836,7 +14057,8 @@ async handleAPIMessage(message, socket) {
                             answer: "api_move_bot_to",
                             executable: "boolean",
                             executed: "boolean",
-                            path_found: "boolean"
+                            path_found: "boolean",
+                            turn_positions_on_path: "list"
                         },
                         description: "Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available."
                     },
@@ -12864,7 +14086,8 @@ async handleAPIMessage(message, socket) {
                             answer: "api_diagnose_move_bot_to",
                             path_found: "boolean",
                             planned_moves: "list",
-                            planned_primitives: "list"
+                            planned_primitives: "list",
+                            turn_positions_on_path: "list"
                         },
                         description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics."
                     },
@@ -12974,6 +14197,91 @@ async handleAPIMessage(message, socket) {
                             steps: "list"
                         },
                         description: "Plans one carrier move like move_carrier_to but stops before execution and returns transport, rotation and optional release planning data."
+                    },
+                    {
+                        cmd: "calc_crater",
+                        params: {
+                            tx: "number",
+                            ty: "number",
+                            tz: "number",
+                            vx: "number",
+                            vy: "number",
+                            vz: "number",
+                            sx: "number",
+                            sy: "number",
+                            sz: "number",
+                            mode: "optional string, default plan",
+                            max_depth: "optional number; when omitted, future implementations may auto-expand toward outer region"
+                        },
+                        returns: {
+                            answer: "api_calc_crater",
+                            implemented: "boolean",
+                            error: "string"
+                        },
+                        description: "Calculates a crater planning stub around a target coordinate. The vector defines the dig direction, while sx/sy/sz define the shaft stamp shape (cross-section) relative to that direction."
+                    },
+                    {
+                        cmd: "crater_start",
+                        params: {
+                            crater_id: "optional string, default crater_default",
+                            tx: "number",
+                            ty: "number",
+                            tz: "number",
+                            vx: "number",
+                            vy: "number",
+                            vz: "number",
+                            sx: "number",
+                            sy: "number",
+                            sz: "number",
+                            max_depth: "optional number"
+                        },
+                        returns: {
+                            answer: "api_crater_start",
+                            accepted: "boolean",
+                            session_id: "number",
+                            total_steps: "number"
+                        },
+                        description: "Starts an asynchronous crater execution process. The controller plans pair_order via calc_crater and executes moves step-by-step with ACK handling."
+                    },
+                    {
+                        cmd: "crater_check_progress",
+                        params: {
+                            crater_id: "optional string, defaults to active crater session"
+                        },
+                        returns: {
+                            answer: "api_crater_check_progress",
+                            running: "boolean",
+                            phase: "string",
+                            progress: "number",
+                            success: "boolean|null",
+                            total_steps: "number",
+                            completed_steps: "number"
+                        },
+                        description: "Returns progress and state for one crater execution session, similar to morph_check_progress."
+                    },
+                    {
+                        cmd: "crater_fill",
+                        params: {
+                            crater_id: "string",
+                            mode: "plan|execute (default execute)"
+                        },
+                        returns: {
+                            answer: "api_crater_fill",
+                            accepted: "boolean",
+                            fillable: "boolean",
+                            blocked_steps: "list"
+                        },
+                        description: "Builds an inverted fill plan from one stored crater id. In mode=plan it only runs prechecks; in mode=execute it starts asynchronous fill execution if prechecks pass."
+                    },
+                    {
+                        cmd: "crater_list",
+                        params: {},
+                        returns: {
+                            answer: "api_crater_list",
+                            count: "number",
+                            craters: "list"
+                        },
+                        description: "Lists known crater sessions by crater_id with their current status and plan availability."
                     },
                     {
                         cmd: "get_last_moves",
@@ -13405,6 +14713,17 @@ async handleAPIMessage(message, socket) {
             return;
         } // if
 
+        if (decodedobject.cmd === 'get_bots_by_prefix') {
+            let ret = this.apicall_get_bots_by_prefix(decodedobject.prefix);
+            this.append_api_action_log("get_bots_by_prefix", { prefix: decodedobject.prefix }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
         if (decodedobject.cmd === 'get_inactive_bots') {
             let ret = this.apicall_get_inactive_bots();
             this.append_api_action_log("get_inactive_bots", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
@@ -13420,6 +14739,28 @@ async handleAPIMessage(message, socket) {
             let ret = this.apicall_get_neighbors(decodedobject.bot_id);
             this.append_api_action_log("get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
             this.append_api_bot_history(decodedobject.bot_id, "get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_grab_positions') {
+            let ret = this.apicall_get_grab_positions(decodedobject.x, decodedobject.y, decodedobject.z);
+            this.append_api_action_log("get_grab_positions", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, feasible_count: ret.feasible_count ?? 0, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'get_turn_positions') {
+            let ret = this.apicall_get_turn_positions(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.radius);
+            this.append_api_action_log("get_turn_positions", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, radius: decodedobject.radius }, { ok: ret.ok, answer: ret.answer, turnable_same_y_count: ret.turnable_same_y_count ?? 0, turnable_strict_count: ret.turnable_strict_count ?? 0, error: ret.error ?? "" });
             answer = JSON.stringify(ret) + "\n";
 
             socket.write(answer, () => {
@@ -13745,6 +15086,64 @@ async handleAPIMessage(message, socket) {
 
             this.append_api_action_log("diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
             this.append_api_bot_history(decodedobject.carrier_bot_id, "diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'calc_crater') {
+            let ret = this.apicall_calc_crater_stub(decodedobject);
+            this.append_api_action_log("calc_crater", { tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, mode: decodedobject.mode ?? "plan", max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, implemented: ret.implemented ?? false, error: ret.error ?? "" });
+            this.append_api_bot_history("", "calc_crater", { tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, mode: decodedobject.mode ?? "plan", max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, implemented: ret.implemented ?? false, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'crater_start') {
+            let ret = this.apicall_crater_start(decodedobject);
+            this.append_api_action_log("crater_start", { crater_id: decodedobject.crater_id ?? "crater_default", tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, crater_id: ret.crater_id ?? "", error: ret.error ?? "" });
+            this.append_api_bot_history("", "crater_start", { crater_id: decodedobject.crater_id ?? "crater_default", tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, crater_id: ret.crater_id ?? "", error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'crater_check_progress') {
+            let ret = this.apicall_get_crater_status(decodedobject.crater_id);
+            this.append_api_action_log("crater_check_progress", { crater_id: decodedobject.crater_id ?? "" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", running: ret.running ?? false, phase: ret.phase ?? "", progress: ret.progress ?? 0 });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'crater_fill') {
+            let ret = this.apicall_crater_fill(decodedobject.crater_id, decodedobject.mode);
+            this.append_api_action_log("crater_fill", { crater_id: decodedobject.crater_id ?? "crater_default", mode: decodedobject.mode ?? "execute" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", accepted: ret.accepted ?? false, fillable: ret.fillable ?? null, error: ret.error ?? "" });
+            this.append_api_bot_history("", "crater_fill", { crater_id: decodedobject.crater_id ?? "crater_default", mode: decodedobject.mode ?? "execute" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", accepted: ret.accepted ?? false, fillable: ret.fillable ?? null, error: ret.error ?? "" });
+            answer = JSON.stringify(ret) + "\n";
+
+            socket.write(answer, () => {
+                socket.end();
+            });
+            return;
+        } // if
+
+        if (decodedobject.cmd === 'crater_list') {
+            let ret = this.apicall_list_craters();
+            this.append_api_action_log("crater_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, active_crater_id: ret.active_crater_id ?? null });
             answer = JSON.stringify(ret) + "\n";
 
             socket.write(answer, () => {

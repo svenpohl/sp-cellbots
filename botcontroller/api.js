@@ -232,6 +232,13 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "get_bots_by_prefix") {
+    return {
+      cmd: "get_bots_by_prefix",
+      prefix: process.argv[3] ?? ""
+    };
+  } // if
+
   if (cmd == "get_inactive_bots") {
     return { cmd: "get_inactive_bots" };
   } // if
@@ -240,6 +247,25 @@ function buildRequestFromCli() {
     return {
       cmd: "get_neighbors",
       bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "get_grab_positions") {
+    return {
+      cmd: "get_grab_positions",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "get_turn_positions") {
+    return {
+      cmd: "get_turn_positions",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0),
+      radius: Number(process.argv[6] ?? 1)
     };
   } // if
 
@@ -408,6 +434,62 @@ function buildRequestFromCli() {
       vz: Number(process.argv[9] ?? 0),
       release_after: ((process.argv[10] ?? "") === "release")
     };
+  } // if
+
+  if (cmd == "calc_crater") {
+    return {
+      cmd: "calc_crater",
+      tx: Number(process.argv[3] ?? 0),
+      ty: Number(process.argv[4] ?? 0),
+      tz: Number(process.argv[5] ?? 0),
+      vx: Number(process.argv[6] ?? 0),
+      vy: Number(process.argv[7] ?? 0),
+      vz: Number(process.argv[8] ?? 0),
+      sx: Number(process.argv[9] ?? 0),
+      sy: Number(process.argv[10] ?? 0),
+      sz: Number(process.argv[11] ?? 0),
+      mode: process.argv[12] ?? "plan",
+      max_depth: (process.argv[13] !== undefined) ? Number(process.argv[13]) : null
+    };
+  } // if
+
+  if (cmd == "crater_start") {
+    const maybeId = process.argv[3] ?? "";
+    const hasCraterId = (maybeId !== "" && Number.isNaN(Number(maybeId)));
+    const base = hasCraterId ? 4 : 3;
+    return {
+      cmd: "crater_start",
+      crater_id: hasCraterId ? maybeId : "crater_default",
+      tx: Number(process.argv[base] ?? 0),
+      ty: Number(process.argv[base + 1] ?? 0),
+      tz: Number(process.argv[base + 2] ?? 0),
+      vx: Number(process.argv[base + 3] ?? 0),
+      vy: Number(process.argv[base + 4] ?? 0),
+      vz: Number(process.argv[base + 5] ?? 0),
+      sx: Number(process.argv[base + 6] ?? 0),
+      sy: Number(process.argv[base + 7] ?? 0),
+      sz: Number(process.argv[base + 8] ?? 0),
+      max_depth: (process.argv[base + 9] !== undefined) ? Number(process.argv[base + 9]) : null
+    };
+  } // if
+
+  if (cmd == "crater_check_progress") {
+    return {
+      cmd: "crater_check_progress",
+      crater_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "crater_fill") {
+    return {
+      cmd: "crater_fill",
+      crater_id: process.argv[3] ?? "crater_default",
+      mode: process.argv[4] ?? "execute"
+    };
+  } // if
+
+  if (cmd == "crater_list") {
+    return { cmd: "crater_list" };
   } // if
 
   if (cmd == "get_last_moves") {
