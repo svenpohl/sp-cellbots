@@ -60,35 +60,20 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.5.3**  
+Current version: **1.5.4**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
 
-- **1.5.3** (05.04.2026)  
-**Hotfix: release/payload edge case in ClusterSim**
-  - Bugfix in `cluster_sim/bot_class.js` for release flow with carried payloads near servicebay extraction
-
-- **1.5.2** (05.04.2026)  
-**Servicebay lifecycle and payload recycle semantics**
-  - Improved runtime role application so **Apply F-Bots** now also applies **X / service-bay** cells consistently in BotController
-  - Extended WebGUI feedback to show both applied **F-Bot** and **X-Bot** counts after runtime role application
-  - Hardened ClusterSim queue stepping to avoid crashes when bots are removed during iteration (servicebay extraction while processing bot queues)
-  - Introduced a clearer payload recycle protocol in BotController:
-    - payload bots reaching **X** while still grabbed are marked as **pending recycle**
-    - final recycle is executed on **release** (or release-timeout recovery fallback)
-  - Verified that carried-payload transport to servicebay no longer causes premature local deletion and now resolves in a controlled release step
-  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
-
-- **1.5.1** (04.04.2026)  
-**Communication and address stability update**
-  - Added address-focused API helpers such as **`safe_mode`**, **`recalibrate_bot_address`**, **`recalibrate_bot_addresses`**, and **`diagnose_ack_route`**
-  - Introduced a staged **safe mode** model for BotController actions, including global address recalibration after confirmed structural changes
-  - Stabilized temporary ACK route planning by fixing numeric coordinate normalization inside the internal return-address search
-  - Added an optional **`minimal`** recalibration mode to prefer shorter and simpler local bot addresses in stable structures such as **`base_25`**
-  - Hardened MOVE path-to-primitive translation so the diagnostic primitive grouping is now much closer to the legacy translator used for real execution
-  - Improved confidence that direct API stacking, restacking, and remorphing flows can be executed without constantly resetting the test setup
+- **1.5.4** (08.04.2026)  
+**Repair workflow expansion: crater build/fill and rescue tooling**
+  - Added API-first crater workflow for repair scenarios: **`calc_crater`**, **`crater_start`**, **`crater_check_progress`**, **`crater_fill`**, **`crater_list`**
+  - Implemented asynchronous crater execution with progress/state tracking (similar to morph progress handling)
+  - Added automatic reverse-fill support for named crater sessions to close previously opened access shafts
+  - Extended API diagnostics and planning helpers for repair/rescue flows, including **`get_grab_positions`**, **`get_turn_positions`**, **`get_bots_by_prefix`**, and **`get_inactive_bots`**
+  - Improved runtime role handling for **Forbidden** and **ServiceBay** cells in practical API workflows
+  - Expanded API docs with a dedicated crater-build section and repair demo visuals
   - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
 
 - **1.5** (04.04.2026)  
