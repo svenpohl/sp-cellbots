@@ -55,15 +55,14 @@ Typical use cases:
 
 ## 🧩 Current Scope
 
-The current API already includes useful building blocks such as:
+The API is now split into practical command families that can be combined for:
 
-- world and scan status queries
-- marker and GUI refresh commands
-- bot lookup and neighborhood inspection
-- pathfinding and MOVE diagnostics
-- carrier and payload transport commands
-- morph structure and algorithm discovery
-- morph start and morph progress checks
+- world introspection and scan orchestration
+- runtime role management (`forbidden`, `servicebay`)
+- path planning, diagnostics and safe execution
+- payload transport and carrier handling
+- morph execution and crater build/fill workflows
+- raw command access and message queue debugging
 
 ---
 
@@ -97,10 +96,17 @@ This already shows the basic shape of the interface:
 
 ---
 
-## 📦 Command Families
+## 📦 Command Families (Current `describe` Snapshot)
+
+For full parameter/return details use:
+
+```bash
+node api.js describe
+```
 
 ### World and Scan
 
+- `version`
 - `get_status`
 - `get_status_extended`
 - `get_masterbot`
@@ -118,6 +124,8 @@ This already shows the basic shape of the interface:
 - `get_bot_history`
 - `get_last_raw_cmds`
 - `get_api_messages`
+- `reset_api_message_log`
+- `poll_masterbot_queue`
 
 ### Safety and Addressing
 
@@ -141,12 +149,19 @@ This already shows the basic shape of the interface:
 
 - `get_bot_by_id`
 - `get_bots`
+- `get_bots_by_prefix`
+- `get_inactive_bots`
 - `get_neighbors`
+- `get_grab_positions`
+- `get_turn_positions`
 - `is_occupied`
 - `get_slot_status`
+- `probe_move_bot`
+- `can_reach_position`
 - `find_path_for_bot`
 - `find_path_for_bot_payload`
 - `suggest_simple_move`
+- `would_split_cluster`
 - `diagnose_move_bot_to`
 - `diagnose_move_carrier_to`
 
@@ -167,6 +182,69 @@ This already shows the basic shape of the interface:
 - `morph_start`
 - `morph_check_progress`
 
+### Crater Build / Fill
+
+- `calc_crater`
+- `crater_start`
+- `crater_check_progress`
+- `crater_fill`
+- `crater_list`
+
+### Low-Level
+
+- `raw_cmd`
+
+---
+
+## 🛠️ Crater Build
+
+SP-CellBots can now build a **crater algorithmically via API** to create a practical rescue/repair access path to inactive bots, without forcing the LLM to hand-plan every single move.
+
+Typical workflow:
+
+1. detect inactive targets (`Scan II` / `get_inactive_bots`)
+2. calculate crater plan (`calc_crater`)
+3. execute asynchronous excavation (`crater_start`)
+4. extract / service transport with standard transport tools
+5. close crater in reverse order (`crater_fill`)
+
+Key properties:
+
+- crater digging supports **all 6 axis directions** (`±x`, `±y`, `±z`), depending on where the inactive bot is located
+- the shaft cross-section is explicitly configurable via `sx/sy/sz` (more compact or wider working space)
+- each crater run gets a **crater id**, so the generated plan can be tracked and later filled automatically in reverse sequence
+- this gives a robust repair baseline: access morphing, payload extraction, service-bay transfer, and structural closure
+
+The following images show the current repair-focused flow:
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="img/repair01.jpg" width="190"/><br>
+      <sub>
+        Repair demo setup<br>
+        <sub>(3×3×3 core with hidden inactive bot)</sub>
+      </sub>
+    </td>
+    <td align="center">
+      <img src="img/repair02.jpg" width="190"/><br>
+      <sub>
+        X-Ray / Scan II view<br>
+        <sub>(inactive bot localized)</sub>
+      </sub>
+    </td>
+    <td align="center">
+      <img src="img/repair03.jpg" width="190"/><br>
+      <sub>
+        Morphed crater in ClusterSim<br>
+        <sub>(open access channel for rescue/repair)</sub>
+      </sub>
+    </td>
+  </tr>
+</table>
+
+This section marks a clear direction of the project: SP-CellBots treats **repair as a first-class capability** and already provides practical, API-driven primitives for simple failure handling.
+
 ---
 
 ## ⚠️ V1 Notes
@@ -184,6 +262,10 @@ Important characteristics of the current V1-style interface:
 - `morph_check_progress` distinguishes between:
   - calculation success
   - final sequence completion
+- crater workflows now distinguish:
+  - `calc_crater` (plan/stub)
+  - `crater_start` (async dig execution)
+  - `crater_fill` (precheck + optional async fill execution)
 
 Some semantics are intentionally conservative and may still be refined in future versions.
 For command details, the built-in `describe` output should be treated as the primary live reference.
