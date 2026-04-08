@@ -6,6 +6,16 @@
 
 ---
 
+- **1.5.4** (08.04.2026)  
+**Repair workflow expansion: crater build/fill and rescue tooling**
+  - Added API-first crater workflow for repair scenarios: **`calc_crater`**, **`crater_start`**, **`crater_check_progress`**, **`crater_fill`**, **`crater_list`**
+  - Implemented asynchronous crater execution with progress/state tracking (similar to morph progress handling)
+  - Added automatic reverse-fill support for named crater sessions to close previously opened access shafts
+  - Extended API diagnostics and planning helpers for repair/rescue flows, including **`get_grab_positions`**, **`get_turn_positions`**, **`get_bots_by_prefix`**, and **`get_inactive_bots`**
+  - Improved runtime role handling for **Forbidden** and **ServiceBay** cells in practical API workflows
+  - Expanded API docs with a dedicated crater-build section and repair demo visuals
+  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
+
 - **1.5.3** (05.04.2026)  
 **Hotfix: release/payload edge case in ClusterSim**
   - Bugfix in `cluster_sim/bot_class.js` for release flow with carried payloads near servicebay extraction
