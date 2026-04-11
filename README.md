@@ -91,6 +91,17 @@ Latest changes:
 
 ---
 
+## 📖 How to cite
+
+If you use SP-CellBots in your work, please cite one (or both) of the following:
+
+- **Software (GitHub / CITATION.cff):**  
+  Use the repository citation metadata (GitHub “Cite this repository” / `CITATION.cff`).
+- **Paper (Zenodo DOI):**  
+  [https://doi.org/10.5281/zenodo.19509605](https://doi.org/10.5281/zenodo.19509605)
+
+---
+
 ## 🚧 Planned Features
 
 - **Decentralized AntMorph algorithm (planned):**  
