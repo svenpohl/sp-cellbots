@@ -180,6 +180,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <button id="requestversionbotcontroller">Get Botcontroller Version</button>
 
     <button id="requeststructurescanbotcontroller">Start Scan</button>
+    <button id="requeststructurescanradiobotcontroller">Start Scan Radio</button>
 
     <button id="requeststructurescanlevel2botcontroller" class="button-pending">Scan Level 2</button>
 
@@ -269,6 +270,25 @@ Command:<br>
     let connected = 0;    
     let scan_level1_started = false;
     let xray_mode_enabled = false;
+    let communication_mode = "mesh_opcode";
+
+function updateRadioScanButtonAvailability(mode) {
+    communication_mode = String(mode ?? "mesh_opcode").trim();
+
+    const radioBtn = document.getElementById('requeststructurescanradiobotcontroller');
+    if (!radioBtn) return;
+
+    const enabled = (communication_mode == "direct_radio");
+    radioBtn.disabled = !enabled;
+
+    if (enabled) {
+       radioBtn.classList.remove('button-pending');
+       radioBtn.title = "Start direct radio scan flow";
+    } else {
+       radioBtn.classList.add('button-pending');
+       radioBtn.title = "Disabled in mesh_opcode mode";
+    } // else
+} // updateRadioScanButtonAvailability()
     
     
     
@@ -553,8 +573,9 @@ addConsoleLine("Connected" );
           addConsoleLine("masterbot_name: [" + decodedobject.masterbot_name + "]", type='info'); 
           } else   
           
-          if (decodedobject.answer == "answer_getclusterdata")
+        if (decodedobject.answer == "answer_getclusterdata")
           {
+          updateRadioScanButtonAvailability(decodedobject.jsondata.communication_mode ?? "mesh_opcode");
           removeAllCubes( true );  
           showForbidden(scene, decodedobject.structure_roles?.forbidden ?? []);
           showServiceBay(scene, decodedobject.structure_roles?.x ?? []);
@@ -851,6 +872,25 @@ addConsoleLine("Connected" );
 
             // Refresh cluster data so newly loaded forbidden cells can be visualized.
             cmd = "{ \"cmd\":\"getclusterdata\" }";; 
+            socket.send(cmd);
+        });
+
+        document.getElementById('requeststructurescanradiobotcontroller').addEventListener('click', function() {
+        if (connected == 0) alert('No Connection');
+        if (communication_mode != "direct_radio")
+           {
+           addConsoleLine("Botcontroller: Start Scan Radio is disabled in mesh_opcode mode", type='botcontroller');
+           return;
+           } // if
+
+        removeAllCubes( false );
+        scan_level1_started = true;
+        document.getElementById('requeststructurescanlevel2botcontroller').classList.remove('button-pending');
+
+            cmd = "{ \"cmd\":\"structurescan_radio\" }";
+            socket.send(cmd);
+
+            cmd = "{ \"cmd\":\"getclusterdata\" }";
             socket.send(cmd);
         });
 
