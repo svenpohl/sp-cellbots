@@ -12,6 +12,7 @@ constructor()
   
   this.id       = "";
   this.bottmpid = "";
+  this.rid      = "";
   this.type     = 0;
   this.x        = 0;
   this.y        = 0;
@@ -24,8 +25,7 @@ constructor()
   
   this.checked = 0;
   
-  this.checked_neighbors = [];
-  
+  this.checked_neighbors = [];  
   this.checked_neighbors['f'] = -1;
   this.checked_neighbors['r'] = -1;
   this.checked_neighbors['b'] = -1;
@@ -35,6 +35,14 @@ constructor()
   
   this.adress = "";
 
+
+  this.nbh_info = [];
+  this.nbh_info['f'] = "";
+  this.nbh_info['r'] = "";
+  this.nbh_info['b'] = "";
+  this.nbh_info['l'] = "";
+  this.nbh_info['t'] = "";
+  this.nbh_info['d'] = "";
   
  
   } // constructor()
@@ -42,9 +50,10 @@ constructor()
   
   
 
-setvalues( id, x,y,z, vx,vy,vz, color, adress)
+setvalues( id, rid = "", x,y,z, vx,vy,vz, color, adress)
 {
 this.id       = id;
+this.rid      = Array.isArray(rid) ? String(rid[0] ?? "") : String(rid ?? "");
 
 this.x        = x;
 this.y        = y;
@@ -55,13 +64,13 @@ this.vector_y = vy;
 this.vector_z = vz;
 
 this.color    = color;
-this.adress   = adress 
-}  
+this.adress   = adress;
+} // setvalues()
 
   
   
   
-}
+} // class bot_class_mini
 
 
 module.exports = bot_class_mini;  

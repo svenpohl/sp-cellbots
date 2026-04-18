@@ -2,9 +2,9 @@
 
 "use strict";
 
-const fs = require("fs");
 const net = require("net");
 const path = require("path");
+const { parse_config_file } = require("../common/config_parser");
 
 //
 // api.js
@@ -28,21 +28,7 @@ const path = require("path");
 //
 
 function loadconfig(filePath) {
-  const configData = fs.readFileSync(filePath, "utf-8");
-  const config = {};
-
-  configData.split("\n").forEach((line) => {
-    const parts = line.split("=");
-    if (parts.length >= 2) {
-      const key = parts[0].trim();
-      const value = parts.slice(1).join("=").trim();
-      if (key && value) {
-        config[key] = value;
-      } // if
-    } // if
-  }); // forEach
-
-  return config;
+  return parse_config_file(filePath);
 } // loadconfig()
 
 
@@ -192,6 +178,18 @@ function buildRequestFromCli() {
 
   if (cmd == "structurescan_lvl2") {
     return { cmd: "structurescan_lvl2" };
+  } // if
+
+  if (cmd == "structurescan_radio") {
+    return { cmd: "structurescan_radio" };
+  } // if
+
+  if (cmd == "search_bot") {
+    return {
+      cmd: "search_bot",
+      bot_id: process.argv[3] ?? "",
+      level: Number(process.argv[4] ?? 1)
+    };
   } // if
 
   if (cmd == "morph_get_structures") {
@@ -548,6 +546,14 @@ function api_interface_description(responseObject) {
   output += "Transport: " + responseObject.transport + "\n";
   output += "Mode: " + responseObject.mode + "\n";
   output += "\n";
+  const general = responseObject.general ?? [];
+  if (general.length > 0) {
+    output += "General information:\n";
+    for (let g = 0; g < general.length; g++) {
+      output += "- " + general[g] + "\n";
+    } // for
+    output += "\n";
+  } // if
   output += "Available commands:\n";
 
   const commands = responseObject.commands ?? [];

@@ -33,11 +33,12 @@ const http      = require('http');
 
 const self_assembly   = require('./self_assembly'); 
 const signature_class = require('../common/signature/signature_class'); 
+const { console_format_log } = require('../common/system_utils');
+const { parse_config_file } = require('../common/config_parser');
 
 
 //const MorphBFSSimple    = require('./morph/morph_bfs_simple');
 const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
-const CalcCraterHelper = require('./morph/calc_crater_helper');
 
 
 const Logger = require('./logger');
@@ -45,6 +46,171 @@ const Logger = require('./logger');
 const cmd_parser_class = require('../common/cmd_parser_class');  
 
 const bot_class_mini = require('./bot_class_mini');
+const BotControllerApiService = require('./api_service/botcontroller_api_service');
+const { build_api_describe_head } = require('./api_service/modules/api_describe_registry');
+const { handle_readonly_api_command } = require('./api_service/modules/api_query_command_handler');
+const { handle_gui_roles_api_command } = require('./api_service/modules/api_gui_roles_command_handler');
+const { handle_ack_api_command } = require('./api_service/modules/api_ack_command_handler');
+const { handle_motion_api_command } = require('./api_service/modules/api_motion_command_handler');
+const { handle_orchestration_api_command } = require('./api_service/modules/api_orchestration_command_handler');
+const {
+      apicall_get_cmd_name: runtime_get_cmd_name,
+      apicall_get_bot_snapshot: runtime_get_bot_snapshot,
+      apicall_get_bot_history: runtime_get_bot_history,
+      apicall_generate_ack_id: runtime_generate_ack_id,
+      apicall_register_ack: runtime_register_ack,
+      apicall_get_ack: runtime_get_ack,
+      apicall_mark_ack_received: runtime_mark_ack_received,
+      apicall_mark_ack_recovered: runtime_mark_ack_recovered,
+      apicall_remove_ack: runtime_remove_ack,
+      apicall_sleep: runtime_sleep,
+      apicall_positions_equal: runtime_positions_equal,
+      apicall_orientations_equal: runtime_orientations_equal,
+      apicall_resolve_bot_id_by_address: runtime_resolve_bot_id_by_address,
+      apicall_get_last_moves: runtime_get_last_moves,
+      apicall_get_last_raw_cmds: runtime_get_last_raw_cmds,
+      apicall_get_api_messages: runtime_get_api_messages
+      } = require('./api_service/modules/api_state_log_runtime');
+const {
+      apicall_get_status_extended: runtime_get_status_extended,
+      apicall_get_masterbot: runtime_get_masterbot,
+      apicall_get_scan_state: runtime_get_scan_state
+      } = require('./api_service/modules/api_scan_sync_runtime');
+const {
+      apicall_gui_set_marker: runtime_gui_set_marker,
+      apicall_gui_clear_markers: runtime_gui_clear_markers,
+      apicall_gui_refresh: runtime_gui_refresh,
+      apicall_set_debug_move: runtime_set_debug_move
+      } = require('./api_service/modules/api_gui_runtime');
+const {
+      apicall_get_structure_role_list: runtime_get_structure_role_list,
+      apicall_normalize_grid_point: runtime_normalize_grid_point,
+      apicall_role_point_index: runtime_role_point_index,
+      apicall_forbidden_add: runtime_forbidden_add,
+      apicall_forbidden_remove: runtime_forbidden_remove,
+      apicall_forbidden_clear: runtime_forbidden_clear,
+      apicall_forbidden_list: runtime_forbidden_list,
+      apicall_servicebay_add: runtime_servicebay_add,
+      apicall_servicebay_remove: runtime_servicebay_remove,
+      apicall_servicebay_clear: runtime_servicebay_clear,
+      apicall_servicebay_list: runtime_servicebay_list
+      } = require('./api_service/modules/api_roles_runtime');
+const {
+      apicall_get_bots: runtime_get_bots,
+      apicall_get_bots_by_prefix: runtime_get_bots_by_prefix,
+      apicall_get_inactive_bots: runtime_get_inactive_bots,
+      apicall_get_inactive_bot_by_xyz: runtime_get_inactive_bot_by_xyz,
+      apicall_get_neighbors: runtime_get_neighbors
+      } = require('./api_service/modules/api_spatial_query_runtime');
+const {
+      apicall_get_grab_positions: runtime_get_grab_positions,
+      apicall_evaluate_turn_position: runtime_evaluate_turn_position,
+      apicall_get_turn_positions: runtime_get_turn_positions,
+      apicall_is_occupied: runtime_is_occupied,
+      apicall_is_occupied_excluding_ids: runtime_is_occupied_excluding_ids,
+      apicall_get_slot_status: runtime_get_slot_status
+      } = require('./api_service/modules/api_spatial_analysis_runtime');
+const {
+      apicall_get_front_neighbor_bot_id: runtime_get_front_neighbor_bot_id,
+      apicall_get_payload_target_from_carrier_state: runtime_get_payload_target_from_carrier_state,
+      apicall_register_payload_link: runtime_register_payload_link,
+      apicall_clear_payload_link: runtime_clear_payload_link,
+      apicall_mark_pending_servicebay_recycle: runtime_mark_pending_servicebay_recycle,
+      apicall_get_pending_servicebay_recycle: runtime_get_pending_servicebay_recycle,
+      apicall_clear_pending_servicebay_recycle: runtime_clear_pending_servicebay_recycle,
+      apicall_get_payload_link_for_carrier: runtime_get_payload_link_for_carrier,
+      apicall_get_carried_payload_bot_id: runtime_get_carried_payload_bot_id,
+      apicall_sync_payload_from_carrier: runtime_sync_payload_from_carrier,
+      apicall_is_servicebay_cell: runtime_is_servicebay_cell,
+      apicall_rebuild_botindex: runtime_rebuild_botindex,
+      apicall_recycle_bot_if_in_servicebay: runtime_recycle_bot_if_in_servicebay,
+      apicall_recycle_bot_force: runtime_recycle_bot_force
+      } = require('./api_service/modules/api_payload_servicebay_runtime');
+const {
+      apicall_morph_get_structures: runtime_morph_get_structures,
+      apicall_morph_get_algos: runtime_morph_get_algos,
+      apicall_morph_start: runtime_morph_start,
+      apicall_update_morph_status: runtime_update_morph_status,
+      apicall_get_morph_status: runtime_get_morph_status
+      } = require('./api_service/modules/api_morph_runtime');
+const {
+      apicall_get_bot_by_id: runtime_get_bot_by_id,
+      apicall_get_safe_adress: runtime_get_safe_adress,
+      apicall_recalibrate_bot_address: runtime_recalibrate_bot_address,
+      apicall_recalibrate_bot_addresses: runtime_recalibrate_bot_addresses,
+      apicall_apply_safe_mode_for_bot: runtime_apply_safe_mode_for_bot,
+      apicall_apply_safe_mode_after_structure_change: runtime_apply_safe_mode_after_structure_change,
+      apicall_set_safe_mode: runtime_set_safe_mode
+      } = require('./api_service/modules/api_safemode_runtime');
+const {
+      apicall_raw_cmd: runtime_raw_cmd,
+      apicall_poll_masterbot_queue: runtime_poll_masterbot_queue,
+      apicall_search_bot: runtime_search_bot,
+      apicall_collect_neighbor_probe: runtime_collect_neighbor_probe,
+      apicall_probe_move_bot: runtime_probe_move_bot
+      } = require('./api_service/modules/api_scan_queue_runtime');
+const {
+      apicall_create_sparse_grid: runtime_create_sparse_grid,
+      apicall_build_structure_grid_without_bot: runtime_build_structure_grid_without_bot,
+      apicall_would_split_cluster: runtime_would_split_cluster,
+      apicall_build_forbidden_grid: runtime_build_forbidden_grid,
+      apicall_is_forbidden_cell: runtime_is_forbidden_cell,
+      apicall_get_wrapped_cell_for_double_step: runtime_get_wrapped_cell_for_double_step,
+      apicall_is_valid_wrapped_double_step: runtime_is_valid_wrapped_double_step,
+      apicall_calc_single_path: runtime_calc_single_path,
+      apicall_calc_single_path_payload: runtime_calc_single_path_payload
+      } = require('./api_service/modules/api_path_core_runtime');
+const {
+      apicall_get_normalized_crater_id: runtime_get_normalized_crater_id,
+      apicall_has_running_crater_session: runtime_has_running_crater_session,
+      apicall_ensure_crater_session: runtime_ensure_crater_session,
+      apicall_update_crater_status: runtime_update_crater_status,
+      apicall_get_crater_status: runtime_get_crater_status,
+      apicall_list_craters: runtime_list_craters,
+      apicall_build_fill_plan_from_crater: runtime_build_fill_plan_from_crater,
+      apicall_run_crater_plan: runtime_run_crater_plan,
+      apicall_crater_start: runtime_crater_start,
+      apicall_crater_fill: runtime_crater_fill,
+      apicall_calc_crater_stub: runtime_calc_crater_stub
+      } = require('./api_service/modules/api_crater_runtime');
+const {
+      apicall_can_reach_position: runtime_can_reach_position,
+      apicall_find_path_for_bot: runtime_find_path_for_bot,
+      apicall_find_path_for_bot_payload: runtime_find_path_for_bot_payload,
+      apicall_suggest_simple_move: runtime_suggest_simple_move,
+      apicall_move_bot_to: runtime_move_bot_to,
+      apicall_diagnose_move_bot_to: runtime_diagnose_move_bot_to,
+      apicall_build_move_diagnostic_summary: runtime_build_move_diagnostic_summary,
+      apicall_get_valid_double_primitives: runtime_get_valid_double_primitives,
+      apicall_is_valid_double_primitive: runtime_is_valid_double_primitive,
+      apicall_translate_path_to_primitive_paths: runtime_translate_path_to_primitive_paths,
+      apicall_select_anchor_slot: runtime_select_anchor_slot,
+      apicall_collect_anchor_candidates: runtime_collect_anchor_candidates,
+      apicall_add_anchors_to_primitive_paths: runtime_add_anchors_to_primitive_paths,
+      apicall_build_raw_move_cmd: runtime_build_raw_move_cmd
+      } = require('./api_service/modules/api_move_runtime');
+const {
+      apicall_rotate_orientation: runtime_rotate_orientation,
+      apicall_build_stationary_ack_returnaddr: runtime_build_stationary_ack_returnaddr,
+      apicall_rotate_bot: runtime_rotate_bot,
+      apicall_execute_rotation_plan: runtime_execute_rotation_plan,
+      apicall_rotate_bot_to: runtime_rotate_bot_to
+      } = require('./api_service/modules/api_rotation_runtime');
+const {
+      apicall_grab_bot: runtime_grab_bot,
+      apicall_release_bot: runtime_release_bot,
+      apicall_move_payload_to: runtime_move_payload_to,
+      apicall_move_carrier_to: runtime_move_carrier_to,
+      apicall_diagnose_move_carrier_to: runtime_diagnose_move_carrier_to
+      } = require('./api_service/modules/api_transport_runtime');
+const {
+      apicall_build_active_bots_tmp: runtime_build_active_bots_tmp,
+      apicall_build_botindex_map_for_bots: runtime_build_botindex_map_for_bots,
+      apicall_get_inverse_address_for_bots: runtime_get_inverse_address_for_bots,
+      apicall_derive_target_address_from_neighbours: runtime_derive_target_address_from_neighbours,
+      apicall_derive_ack_returnaddr_from_neighbours: runtime_derive_ack_returnaddr_from_neighbours,
+      apicall_diagnose_ack_route: runtime_diagnose_ack_route
+      } = require('./api_service/modules/api_ack_route_runtime');
 
 
 
@@ -98,6 +264,7 @@ constructor()
    this.mb['vy']         = this.config.mb_vy;
    this.mb['vz']         = this.config.mb_vz;
    this.mb['connection'] = this.config.mb_connection;
+   this.mb['connection_id'] = String(this.config.mb_connection_id ?? "").trim().replace(/^['"]+|['"]+$/g, "");
 
  
 
@@ -109,10 +276,12 @@ constructor()
 
    this.scan_status  = 0;
    this.scan_status_lvl2 = 0;
+   this.scan_status_radio = 0;
    this.tmpid_cnt    = 0;
  
    this.scan_waiting_info          = {}; 
    this.scan_waiting_check         = {};
+   this.scan_waiting_radio         = {};
    this.scan_targets_lvl2          = [];
    this.scan_targets_lvl2_index    = 0;
    this.scan_timeout = 0;
@@ -121,7 +290,19 @@ constructor()
    this.threadcounter          = 0;
    this.scanwaitingcounter     = 0;
    this.scanwaitingcounter_lvl2 = 0;
+   this.scanwaitingcounter_radio = 0;
    this.max_scanwaitingcounter = 80;
+
+   this.scan_radio_pending_ids = [];
+   this.scan_radio_requested_ids = {};
+   this.scan_radio_completed_ids = {};
+   this.scan_radio_parent_hint = {};
+   this.scan_radio_neighbors_by_bot = {};
+   this.scan_radio_seed_id = "";
+   this.scan_radio_seed_registered = false;
+   this.scan_radio_mode = "full";
+   this.scan_radio_search_level = 1;
+   this.scan_radio_search_target_id = "";
 
    this.signal_botids = null;
    this.detected_inactive_bots = [];
@@ -144,6 +325,10 @@ constructor()
    this.crater_active_id = this.api_crater_default_id;
    this.debug_move_enabled = false;
    this.safe_mode = 2;
+   this.direct_radio_id_rid_map = {};
+   this.direct_radio_rid_id_map = {};
+   this.direct_radio_xml_file = "";
+   this.direct_radio_xml_loaded = false;
 
    let configured_save_mode = Number(this.config.save_mode);
    if (
@@ -208,21 +393,38 @@ constructor()
 
 
 
-   console.log(`BotController Version: ${this.version} - CellBots`);
-   console.log(`Port: ${this.PORT}`);
-   console.log(`enable_api: ${this.ENABLE_API}`);
-   console.log(`API Port: ${this.API_PORT}`);
-   console.log(`connect_masterbot: ${this.connect_masterbot}`);
-   console.log(`safe_mode: ${this.safe_mode}`);
+   console.log(console_format_log("BotController Version", 30, `${this.version} - CellBots`));
+   console.log(console_format_log("Port", 30, this.PORT));
+   console.log(console_format_log("enable_api", 30, this.ENABLE_API));
+   console.log(console_format_log("API Port", 30, this.API_PORT));
+   console.log(console_format_log("connect_masterbot", 30, this.connect_masterbot));
+   console.log(console_format_log("safe_mode", 30, this.safe_mode));
+   console.log(console_format_log("mobility_mode", 30, (this.config.mobility_mode ?? "full_edge")));
+   console.log(console_format_log("communication_mode", 30, (this.config.communication_mode ?? "mesh_opcode")));
+
+   const communication_mode = String(this.config.communication_mode ?? "mesh_opcode").trim();
+   if (communication_mode == "direct_radio")
+      {
+      this.direct_radio_xml_file = String(this.config.direct_radio_xml ?? "").trim();
+
+      if (this.direct_radio_xml_file == "")
+         {
+         Logger.log("WARNING: direct_radio mode active, but config.direct_radio_xml is missing.");
+         } else
+           {
+           this.direct_radio_xml_loaded = this.load_direct_radio_static_info(this.direct_radio_xml_file);
+           } // else
+      } // if
 
 
 
    // Add virtual Masterbot (important for get_inverse_address() !)
    this.bot_class_mini_obj = new bot_class_mini();
-   this.bot_class_mini_obj.setvalues( "masterbot", this.mb['x'], this.mb['y'], this.mb['z'], this.mb['vx'], this.mb['vy'], this.mb['vz'] );
+   this.bot_class_mini_obj.setvalues( "masterbot", "", this.mb['x'], this.mb['y'], this.mb['z'], this.mb['vx'], this.mb['vy'], this.mb['vz'] );
    this.bot_class_mini_obj.checked = 1;
    this.register_bot( this.bot_class_mini_obj );
  
+   this.api_service = new BotControllerApiService(this);
 
 
    this.connect_to_external_masterbot();
@@ -242,6 +444,17 @@ constructor()
 
 
 append_api_message_log(raw_message, parsed_message)
+{
+if (this.api_service === undefined)
+   {
+   return(this.append_api_message_log_internal(raw_message, parsed_message));
+   } // if
+
+return(this.api_service.append_api_message_log(raw_message, parsed_message));
+} // append_api_message_log()
+
+
+append_api_message_log_internal(raw_message, parsed_message)
 {
 const cmd = parsed_message?.cmd ?? null;
 const cmd_name = this.apicall_get_cmd_name(cmd);
@@ -268,25 +481,12 @@ while (this.api_message_log.length > this.api_message_log_max)
       {
       this.api_message_log.shift();
       } // while
-} // append_api_message_log()
+} // append_api_message_log_internal()
 
 
 apicall_get_cmd_name(cmd)
 {
-const cmd_parser_class_obj = new cmd_parser_class();
-
-if (cmd == cmd_parser_class_obj.CMD_INFO)   return("INFO");
-if (cmd == cmd_parser_class_obj.CMD_RINFO)  return("RINFO");
-if (cmd == cmd_parser_class_obj.CMD_CHECK)  return("CHECK");
-if (cmd == cmd_parser_class_obj.CMD_RCHECK) return("RCHECK");
-if (cmd == cmd_parser_class_obj.CMD_ALIFE)  return("ALIFE");
-if (cmd == cmd_parser_class_obj.CMD_RALIFE) return("RALIFE");
-if (cmd == cmd_parser_class_obj.CMD_MOVE)   return("MOVE");
-if (cmd == cmd_parser_class_obj.CMD_SYS)    return("SYS");
-
-if (cmd == null || cmd == "") return("");
-
-return(String(cmd));
+return(runtime_get_cmd_name(this, cmd));
 } // apicall_get_cmd_name()
 
 
@@ -338,27 +538,7 @@ while (this.api_raw_cmd_log.length > this.api_raw_cmd_log_max)
 
 apicall_get_bot_snapshot(bot_id)
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-
-if (botindex == null)
-   {
-   return(null);
-   } // if
-
-return({
-       id: this.bots[botindex].id,
-       position: {
-                  x: Number(this.bots[botindex].x),
-                  y: Number(this.bots[botindex].y),
-                  z: Number(this.bots[botindex].z)
-                  },
-       orientation: {
-                     x: Number(this.bots[botindex].vector_x),
-                     y: Number(this.bots[botindex].vector_y),
-                     z: Number(this.bots[botindex].vector_z)
-                     },
-       adress: this.apicall_get_safe_adress(this.bots[botindex])
-       });
+return(runtime_get_bot_snapshot(this, bot_id));
 } // apicall_get_bot_snapshot()
 
 
@@ -391,174 +571,37 @@ return(true);
 
 apicall_get_bot_history(bot_id, limit)
 {
-let normalized_limit = Number(limit);
-let history = this.api_bot_history_log.filter((entry) => entry.bot_id === bot_id);
-
-if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
-   {
-   normalized_limit = 10;
-   } // if
-
-if (history.length > normalized_limit)
-   {
-   history = history.slice(history.length - normalized_limit);
-   } // if
-
-return({
-       ok: true,
-       answer: "api_get_bot_history",
-       bot_id: bot_id,
-       limit: normalized_limit,
-       count: history.length,
-       history: history
-       });
+return(runtime_get_bot_history(this, bot_id, limit));
 } // apicall_get_bot_history()
 
 
 apicall_generate_ack_id(bot_id = "")
 {
-this.api_ack_counter++;
-
-let normalized_bot_id = String(bot_id ?? "").trim();
-
-if (normalized_bot_id == "")
-   {
-   return("API" + this.api_ack_counter);
-   } // if
-
-return("API_" + normalized_bot_id + "_" + this.api_ack_counter);
+return(runtime_generate_ack_id(this, bot_id));
 } // apicall_generate_ack_id()
 
 
 apicall_register_ack(ack_id, ack_payload = {})
 {
-let normalized_ack_id = String(ack_id ?? "").trim();
-
-if (normalized_ack_id == "")
-   {
-   return(false);
-   } // if
-
-this.api_ack_map[normalized_ack_id] = {
-                                      ack_id: normalized_ack_id,
-                                      bot_id: ack_payload.bot_id ?? "",
-                                      mode: ack_payload.mode ?? "move",
-                                      payload_bot_id: ack_payload.payload_bot_id ?? null,
-                                      to: ack_payload.to ?? null,
-                                      orientation: ack_payload.orientation ?? null,
-                                      planned_raw_cmd: ack_payload.planned_raw_cmd ?? "",
-                                      retaddr: ack_payload.retaddr ?? "",
-                                      status: ack_payload.status ?? "pending",
-                                      created_ts: new Date().toISOString(),
-                                      ack_ts: null
-                                      };
-
-return(true);
+return(runtime_register_ack(this, ack_id, ack_payload));
 } // apicall_register_ack()
 
 
 apicall_get_ack(ack_id)
 {
-let normalized_ack_id = String(ack_id ?? "").trim();
-
-if (normalized_ack_id == "")
-   {
-   return(null);
-   } // if
-
-if (this.api_ack_map[normalized_ack_id] === undefined)
-   {
-   return(null);
-   } // if
-
-return(this.api_ack_map[normalized_ack_id]);
+return(runtime_get_ack(this, ack_id));
 } // apicall_get_ack()
 
 
 apicall_get_front_neighbor_bot_id(bot_snapshot)
 {
-if (!bot_snapshot)
-   {
-   return(null);
-   } // if
-
-let rel_vector = this.get_cell_relation_vector_byslot(
-                                                  "F",
-                                                  Number(bot_snapshot.orientation.x),
-                                                  Number(bot_snapshot.orientation.y),
-                                                  Number(bot_snapshot.orientation.z)
-                                                  );
-
-if (!rel_vector)
-   {
-   return(null);
-   } // if
-
-let target_x = Number(bot_snapshot.position.x) + Number(rel_vector.x);
-let target_y = Number(bot_snapshot.position.y) + Number(rel_vector.y);
-let target_z = Number(bot_snapshot.position.z) + Number(rel_vector.z);
-let target_index = this.get_3d(target_x, target_y, target_z);
-
-if (target_index != null && this.bots[target_index] !== undefined)
-   {
-   if (this.bots[target_index].id == "masterbot")
-      {
-      return(null);
-      } // if
-
-   return(String(this.bots[target_index].id));
-   } // if
-
-for (let i = 0; i < this.bots.length; i++)
-    {
-    if (this.bots[i] === undefined || this.bots[i] === null)
-       {
-       continue;
-       } // if
-
-    if (String(this.bots[i].id) == "masterbot")
-       {
-       continue;
-       } // if
-
-    if (
-       Number(this.bots[i].x) == Number(target_x) &&
-       Number(this.bots[i].y) == Number(target_y) &&
-       Number(this.bots[i].z) == Number(target_z)
-       )
-       {
-       return(String(this.bots[i].id));
-       } // if
-    } // for
-
-return(null);
+return(runtime_get_front_neighbor_bot_id(this, bot_snapshot));
 } // apicall_get_front_neighbor_bot_id()
 
 
 apicall_get_payload_target_from_carrier_state(position, orientation)
 {
-if (!position || !orientation)
-   {
-   return(null);
-   } // if
-
-let rel_vector = this.get_cell_relation_vector_byslot(
-                                                  "F",
-                                                  Number(orientation.x),
-                                                  Number(orientation.y),
-                                                  Number(orientation.z)
-                                                  );
-
-if (!rel_vector)
-   {
-   return(null);
-   } // if
-
-return({
-       x: Number(position.x) + Number(rel_vector.x),
-       y: Number(position.y) + Number(rel_vector.y),
-       z: Number(position.z) + Number(rel_vector.z)
-       });
+return(runtime_get_payload_target_from_carrier_state(this, position, orientation));
 } // apicall_get_payload_target_from_carrier_state()
 
 
@@ -628,586 +671,103 @@ return([]);
 
 apicall_register_payload_link(carrier_bot_id, payload_bot_id, relative_slot = "F", attached = true)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-
-if (normalized_carrier_bot_id == "" || normalized_payload_bot_id == "")
-   {
-   return(null);
-   } // if
-
-let payload_link = {
-                   carrier_bot_id: normalized_carrier_bot_id,
-                   payload_bot_id: normalized_payload_bot_id,
-                   relative_slot: String(relative_slot ?? "F").trim().toUpperCase(),
-                   attached: attached === true
-                   };
-
-this.api_payload_links[normalized_carrier_bot_id] = payload_link;
-this.api_grab_state_map[normalized_carrier_bot_id] = normalized_payload_bot_id;
-
-if (payload_link.attached === true)
-   {
-   this.apicall_clear_pending_servicebay_recycle(normalized_payload_bot_id);
-   } // if
-
-return(payload_link);
+return(runtime_register_payload_link(this, carrier_bot_id, payload_bot_id, relative_slot, attached));
 } // apicall_register_payload_link()
 
 
 apicall_clear_payload_link(carrier_bot_id)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-
-if (normalized_carrier_bot_id == "")
-   {
-   return(false);
-   } // if
-
-delete this.api_payload_links[normalized_carrier_bot_id];
-delete this.api_grab_state_map[normalized_carrier_bot_id];
-
-return(true);
+return(runtime_clear_payload_link(this, carrier_bot_id));
 } // apicall_clear_payload_link()
 
 
 apicall_mark_pending_servicebay_recycle(payload_bot_id, carrier_bot_id = "", source = "payload_sync", position = null)
 {
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let normalized_position = null;
-
-if (normalized_payload_bot_id == "")
-   {
-   return(null);
-   } // if
-
-if (position && typeof position == "object")
-   {
-   normalized_position = {
-                         x: Number(position.x ?? 0),
-                         y: Number(position.y ?? 0),
-                         z: Number(position.z ?? 0)
-                         };
-   } // if
-
-this.api_servicebay_pending_recycle[normalized_payload_bot_id] = {
-                                                                  payload_bot_id: normalized_payload_bot_id,
-                                                                  carrier_bot_id: normalized_carrier_bot_id,
-                                                                  source: String(source ?? "payload_sync"),
-                                                                  position: normalized_position,
-                                                                  marked_at: new Date().toISOString()
-                                                                  };
-
-return(this.api_servicebay_pending_recycle[normalized_payload_bot_id]);
+return(runtime_mark_pending_servicebay_recycle(this, payload_bot_id, carrier_bot_id, source, position));
 } // apicall_mark_pending_servicebay_recycle()
 
 
 apicall_get_pending_servicebay_recycle(payload_bot_id)
 {
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-
-if (normalized_payload_bot_id == "")
-   {
-   return(null);
-   } // if
-
-return(this.api_servicebay_pending_recycle[normalized_payload_bot_id] ?? null);
+return(runtime_get_pending_servicebay_recycle(this, payload_bot_id));
 } // apicall_get_pending_servicebay_recycle()
 
 
 apicall_clear_pending_servicebay_recycle(payload_bot_id)
 {
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-
-if (normalized_payload_bot_id == "")
-   {
-   return(false);
-   } // if
-
-if (this.api_servicebay_pending_recycle[normalized_payload_bot_id] === undefined)
-   {
-   return(false);
-   } // if
-
-delete this.api_servicebay_pending_recycle[normalized_payload_bot_id];
-return(true);
+return(runtime_clear_pending_servicebay_recycle(this, payload_bot_id));
 } // apicall_clear_pending_servicebay_recycle()
 
 
 apicall_get_payload_link_for_carrier(carrier_bot_id)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let payload_link = null;
-let legacy_payload_bot_id = null;
-
-if (normalized_carrier_bot_id == "")
-   {
-   return(null);
-   } // if
-
-payload_link = this.api_payload_links[normalized_carrier_bot_id] ?? null;
-
-if (payload_link)
-   {
-   return(payload_link);
-   } // if
-
-legacy_payload_bot_id = this.api_grab_state_map[normalized_carrier_bot_id] ?? null;
-
-if (String(legacy_payload_bot_id ?? "").trim() == "")
-   {
-   return(null);
-   } // if
-
-return(
-      this.apicall_register_payload_link(
-                                        normalized_carrier_bot_id,
-                                        legacy_payload_bot_id,
-                                        "F",
-                                        true
-                                        )
-      );
+return(runtime_get_payload_link_for_carrier(this, carrier_bot_id));
 } // apicall_get_payload_link_for_carrier()
 
 
 apicall_get_carried_payload_bot_id(carrier_bot_id)
 {
-let payload_link = this.apicall_get_payload_link_for_carrier(carrier_bot_id);
-
-if (!payload_link || payload_link.attached !== true)
-   {
-   return(null);
-   } // if
-
-return(String(payload_link.payload_bot_id ?? "").trim() || null);
+return(runtime_get_carried_payload_bot_id(this, carrier_bot_id));
 } // apicall_get_carried_payload_bot_id()
 
 
 apicall_morph_get_structures()
 {
-const structures_dir = path.join(__dirname, 'structures');
-let structures = [];
-
-try
-   {
-   structures = fs.readdirSync(structures_dir)
-                  .filter((filename) => filename.endsWith('.json'))
-                  .map((filename) => filename.replace(/\.json$/i, ''))
-                  .sort();
-   } catch (err)
-     {
-     return({
-            ok: false,
-            answer: "api_morph_get_structures",
-            error: "STRUCTURES_READ_FAILED",
-            details: String(err?.message ?? err)
-            });
-     } // catch
-
-return({
-       ok: true,
-       answer: "api_morph_get_structures",
-       count: structures.length,
-       list: structures
-       });
+return(runtime_morph_get_structures(this));
 } // apicall_morph_get_structures()
 
 
 apicall_morph_get_algos()
 {
-return({
-       ok: true,
-       answer: "api_morph_get_algos",
-       count: Array.isArray(this.morphAlgorithms) ? this.morphAlgorithms.length : 0,
-       list: Array.isArray(this.morphAlgorithms) ? this.morphAlgorithms : []
-       });
+return(runtime_morph_get_algos(this));
 } // apicall_morph_get_algos()
 
 
 apicall_morph_start(algo, structure)
 {
-let normalized_algo = String(algo ?? "").trim();
-let normalized_structure = String(structure ?? "").trim();
-let structures_ret = this.apicall_morph_get_structures();
-let algos_ret = this.apicall_morph_get_algos();
-let selected_algo = null;
-
-if (normalized_algo == "")
-   {
-   return({
-          ok: false,
-          answer: "api_morph_start",
-          error: "MORPH_ALGO_MISSING"
-          });
-   } // if
-
-if (normalized_structure == "")
-   {
-   return({
-          ok: false,
-          answer: "api_morph_start",
-          error: "MORPH_STRUCTURE_MISSING",
-          algo: normalized_algo
-          });
-   } // if
-
-selected_algo = (algos_ret.list ?? []).find((entry) => String(entry?.id ?? "").trim() == normalized_algo) ?? null;
-
-if (!selected_algo)
-   {
-   return({
-          ok: false,
-          answer: "api_morph_start",
-          error: "MORPH_ALGO_NOT_FOUND",
-          algo: normalized_algo,
-          available_algos: algos_ret.list ?? []
-          });
-   } // if
-
-if (!(structures_ret.list ?? []).includes(normalized_structure))
-   {
-   return({
-          ok: false,
-          answer: "api_morph_start",
-          error: "MORPH_STRUCTURE_NOT_FOUND",
-          algo: normalized_algo,
-          structure: normalized_structure,
-          available_structures: structures_ret.list ?? []
-          });
-   } // if
-
-this.prepare_morph(normalized_structure, normalized_algo);
-
-return({
-       ok: true,
-       answer: "api_morph_start",
-       accepted: true,
-       algo: normalized_algo,
-       structure: normalized_structure
-       });
+return(runtime_morph_start(this, algo, structure));
 } // apicall_morph_start()
 
 
 apicall_update_morph_status(patch = {})
 {
-let now_iso = new Date().toISOString();
-
-this.morph_status = {
-                    ...this.morph_status,
-                    ...(patch ?? {}),
-                    last_update: now_iso
-                    };
-
-return(this.morph_status);
+return(runtime_update_morph_status(this, patch));
 } // apicall_update_morph_status()
 
 
 apicall_get_morph_status()
 {
-return({
-       ok: true,
-       answer: "api_morph_check_progress",
-       running: Boolean(this.morph_status?.running),
-       phase: this.morph_status?.phase ?? "idle",
-       progress: Number(this.morph_status?.progress ?? 0),
-       structure: this.morph_status?.structure ?? null,
-       algo: this.morph_status?.algo ?? null,
-       success: this.morph_status?.success ?? null,
-       started_at: this.morph_status?.started_at ?? null,
-       finished_at: this.morph_status?.finished_at ?? null,
-       last_update: this.morph_status?.last_update ?? null,
-       message: this.morph_status?.message ?? ""
-       });
+return(runtime_get_morph_status(this));
 } // apicall_get_morph_status()
 
 
 apicall_sync_payload_from_carrier(carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [])
 {
-let payload_link = this.apicall_get_payload_link_for_carrier(carrier_bot_id);
-let payload_bot_id = payload_link?.payload_bot_id ?? null;
-
-if (!payload_bot_id)
-   {
-   this.append_api_bot_history(
-                              carrier_bot_id,
-                              "payload_sync_debug",
-                              {
-                              carrier_bot_id: carrier_bot_id,
-                              stage: "no_grab_state"
-                              },
-                              {
-                              ok: false,
-                              answer: "api_payload_sync_skipped",
-                              payload_bot_id: null
-                              }
-                              );
-   return(false);
-   } // if
-
-let payload_target = this.apicall_get_payload_target_from_carrier_state(carrier_position, carrier_orientation);
-
-if (!payload_target)
-   {
-   this.append_api_bot_history(
-                              carrier_bot_id,
-                              "payload_sync_debug",
-                              {
-                              carrier_bot_id: carrier_bot_id,
-                              stage: "no_payload_target",
-                              payload_bot_id: payload_bot_id
-                              },
-                              {
-                              ok: false,
-                              answer: "api_payload_sync_skipped"
-                              }
-                              );
-   return(false);
-   } // if
-
-let payload_index = this.get_bot_by_id(payload_bot_id, this.bots);
-
-if (payload_index == null)
-   {
-   this.append_api_bot_history(
-                              carrier_bot_id,
-                              "payload_sync_debug",
-                              {
-                              carrier_bot_id: carrier_bot_id,
-                              stage: "payload_bot_not_found",
-                              payload_bot_id: payload_bot_id,
-                              payload_target: payload_target
-                              },
-                              {
-                              ok: false,
-                              answer: "api_payload_sync_skipped"
-                              }
-                              );
-   return(false);
-   } // if
-
-let oldx = Number(this.bots[payload_index].x);
-let oldy = Number(this.bots[payload_index].y);
-let oldz = Number(this.bots[payload_index].z);
-let old_vx = Number(this.bots[payload_index].vector_x);
-let old_vy = Number(this.bots[payload_index].vector_y);
-let old_vz = Number(this.bots[payload_index].vector_z);
-let normalized_rotation_plan = Array.isArray(payload_rotation_plan) ? payload_rotation_plan : [];
-let payload_orientation_target = {
-                                 x: old_vx,
-                                 y: old_vy,
-                                 z: old_vz
-                                 };
-
-for (let i = 0; i < normalized_rotation_plan.length; i++)
-    {
-    let next_orientation = this.apicall_rotate_orientation(
-                                                         Number(payload_orientation_target.x),
-                                                         Number(payload_orientation_target.y),
-                                                         Number(payload_orientation_target.z),
-                                                         normalized_rotation_plan[i]
-                                                         );
-
-    if (!next_orientation)
-       {
-       break;
-       } // if
-
-    payload_orientation_target = {
-                                 x: Number(next_orientation.x),
-                                 y: Number(next_orientation.y),
-                                 z: Number(next_orientation.z)
-                                 };
-    } // for
-
-this.update_keyindex(oldx, oldy, oldz, payload_target.x, payload_target.y, payload_target.z);
-this.bots[payload_index].x = Number(payload_target.x);
-this.bots[payload_index].y = Number(payload_target.y);
-this.bots[payload_index].z = Number(payload_target.z);
-this.bots[payload_index].vector_x = Number(payload_orientation_target.x);
-this.bots[payload_index].vector_y = Number(payload_orientation_target.y);
-this.bots[payload_index].vector_z = Number(payload_orientation_target.z);
-this.bots[payload_index].adress = this.get_mb_returnaddr(
-                                                       {x:this.mb.x, y:this.mb.y, z:this.mb.z },
-                                                       {x:payload_target.x, y:payload_target.y, z:payload_target.z },
-                                                       this.bots
-                                                       );
-
-const events = [];
-events.push(
-            {
-            event: "move",
-            botid: payload_bot_id,
-            to: {
-                x: Number(payload_target.x),
-                y: Number(payload_target.y),
-                z: Number(payload_target.z)
-                }
-            }
-            );
-
-if (
-   Number(old_vx) !== Number(payload_orientation_target.x) ||
-   Number(old_vy) !== Number(payload_orientation_target.y) ||
-   Number(old_vz) !== Number(payload_orientation_target.z)
-   )
-   {
-   events.push(
-               {
-               event: "spin",
-               botid: payload_bot_id,
-               from: {
-                     x: Number(payload_target.x),
-                     y: Number(payload_target.y),
-                     z: Number(payload_target.z),
-                     vx: Number(old_vx),
-                     vy: Number(old_vy),
-                     vz: Number(old_vz)
-                     },
-               to: {
-                   x: Number(payload_target.x),
-                   y: Number(payload_target.y),
-                   z: Number(payload_target.z),
-                   vx: Number(payload_orientation_target.x),
-                   vy: Number(payload_orientation_target.y),
-                   vz: Number(payload_orientation_target.z)
-                   },
-               parent: "",
-               duration: 0,
-               ts: Number(new Date().getTime())
-               }
-               );
-   } // if
-
-this.notify_frontend(events);
-
-if (
-   payload_link?.attached === true &&
-   this.apicall_is_servicebay_cell(
-                                  Number(payload_target.x),
-                                  Number(payload_target.y),
-                                  Number(payload_target.z)
-                                  ) === true
-   )
-   {
-   let pending_entry = this.apicall_mark_pending_servicebay_recycle(
-                                                                    payload_bot_id,
-                                                                    carrier_bot_id,
-                                                                    "payload_sync_on_servicebay",
-                                                                    {
-                                                                    x: Number(payload_target.x),
-                                                                    y: Number(payload_target.y),
-                                                                    z: Number(payload_target.z)
-                                                                    }
-                                                                    );
-
-   this.append_api_bot_history(
-                              payload_bot_id,
-                              "servicebay_pending_recycle",
-                              {
-                              carrier_bot_id: carrier_bot_id,
-                              source: "payload_sync_on_servicebay"
-                              },
-                              {
-                              ok: true,
-                              answer: "api_servicebay_pending_recycle",
-                              pending: true,
-                              pending_entry: pending_entry
-                              }
-                              );
-
-   this.append_api_bot_history(
-                              carrier_bot_id,
-                              "servicebay_pending_recycle",
-                              {
-                              payload_bot_id: payload_bot_id,
-                              source: "payload_sync_on_servicebay"
-                              },
-                              {
-                              ok: true,
-                              answer: "api_servicebay_pending_recycle",
-                              pending: true,
-                              pending_entry: pending_entry
-                              }
-                              );
-   } // if
-
-this.append_api_bot_history(
-                           payload_bot_id,
-                           "payload_sync",
-                           { carrier_bot_id: carrier_bot_id },
-                           {
-                           ok: true,
-                           answer: "api_payload_sync_applied",
-                           to: payload_target,
-                           orientation: payload_orientation_target
-                           }
-                           );
-
-this.append_api_bot_history(
-                           carrier_bot_id,
-                           "payload_sync_debug",
-                           {
-                           carrier_bot_id: carrier_bot_id,
-                           stage: "applied",
-                           payload_bot_id: payload_bot_id,
-                           payload_target: payload_target
-                           },
-                           {
-                           ok: true,
-                           answer: "api_payload_sync_applied",
-                           payload_orientation: payload_orientation_target
-                           }
-                           );
-
-return(true);
+return(runtime_sync_payload_from_carrier(this, carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan));
 } // apicall_sync_payload_from_carrier()
 
 
 apicall_mark_ack_received(ack_id, ack_status = "ack")
 {
-let ack_entry = this.apicall_get_ack(ack_id);
-
-if (!ack_entry)
-   {
-   return(false);
-   } // if
-
-ack_entry.status = ack_status;
-ack_entry.ack_ts = new Date().toISOString();
-
-return(true);
+return(runtime_mark_ack_received(this, ack_id, ack_status));
 } // apicall_mark_ack_received()
 
 
 apicall_mark_ack_recovered(ack_id)
 {
-return(this.apicall_mark_ack_received(ack_id, "recovered"));
+return(runtime_mark_ack_recovered(this, ack_id));
 } // apicall_mark_ack_recovered()
 
 
 apicall_remove_ack(ack_id)
 {
-let normalized_ack_id = String(ack_id ?? "").trim();
-
-if (normalized_ack_id == "")
-   {
-   return(false);
-   } // if
-
-if (this.api_ack_map[normalized_ack_id] === undefined)
-   {
-   return(false);
-   } // if
-
-delete this.api_ack_map[normalized_ack_id];
-return(true);
+return(runtime_remove_ack(this, ack_id));
 } // apicall_remove_ack()
 
 
 apicall_sleep(ms)
 {
-return(new Promise((resolve) => setTimeout(resolve, ms)));
+return(runtime_sleep(this, ms));
 } // apicall_sleep()
 
 
@@ -1305,145 +865,19 @@ return(ret);
 
 apicall_positions_equal(pos1, pos2)
 {
-if (!pos1 || !pos2)
-   {
-   return(false);
-   } // if
-
-return(
-       Number(pos1.x) === Number(pos2.x) &&
-       Number(pos1.y) === Number(pos2.y) &&
-       Number(pos1.z) === Number(pos2.z)
-       );
+return(runtime_positions_equal(this, pos1, pos2));
 } // apicall_positions_equal()
 
 
 apicall_orientations_equal(ori1, ori2)
 {
-if (!ori1 || !ori2)
-   {
-   return(false);
-   } // if
-
-return(
-       Number(ori1.x) === Number(ori2.x) &&
-       Number(ori1.y) === Number(ori2.y) &&
-       Number(ori1.z) === Number(ori2.z)
-       );
+return(runtime_orientations_equal(this, ori1, ori2));
 } // apicall_orientations_equal()
 
 
 apicall_collect_neighbor_probe(bot_id, expected_position, snapshot)
 {
-let probe = {
-            bot_id: String(bot_id ?? "").trim(),
-            expected_position: expected_position ?? null,
-            target_state: "unknown",
-            occupied_orthogonal_count: 0,
-            occupied_orthogonal_ids: [],
-            orthogonal_neighbors: {},
-            snapshot_neighbors: null
-            };
-
-if (expected_position)
-   {
-   const neighbor_offsets = [
-                             { key: "XP", x:  1, y:  0, z:  0 },
-                             { key: "XM", x: -1, y:  0, z:  0 },
-                             { key: "YP", x:  0, y:  1, z:  0 },
-                             { key: "YM", x:  0, y: -1, z:  0 },
-                             { key: "ZP", x:  0, y:  0, z:  1 },
-                             { key: "ZM", x:  0, y:  0, z: -1 }
-                             ];
-   let expected_x = Number(expected_position.x);
-   let expected_y = Number(expected_position.y);
-   let expected_z = Number(expected_position.z);
-   let target_bot_index = this.get_3d(expected_x, expected_y, expected_z);
-   let target_inactive_bot = this.apicall_get_inactive_bot_by_xyz(expected_x, expected_y, expected_z);
-
-   if (target_bot_index != null)
-      {
-      probe.target_state = "active";
-      probe.target_bot_id = this.bots[target_bot_index].id;
-      } // if
-   else if (target_inactive_bot != null)
-      {
-      probe.target_state = "inactive";
-      probe.target_bot_id = target_inactive_bot.id;
-      } // else if
-   else
-      {
-      probe.target_state = "empty";
-      } // else
-
-   for (let i = 0; i < neighbor_offsets.length; i++)
-       {
-       let offset = neighbor_offsets[i];
-       let nx = expected_x + offset.x;
-       let ny = expected_y + offset.y;
-       let nz = expected_z + offset.z;
-       let neighbor_index = this.get_3d(nx, ny, nz);
-       let inactive_neighbor = this.apicall_get_inactive_bot_by_xyz(nx, ny, nz);
-       let neighbor_entry = {
-                            position: {
-                                       x: nx,
-                                       y: ny,
-                                       z: nz
-                                       },
-                            state: "empty"
-                            };
-
-       if (inactive_neighbor != null)
-          {
-          neighbor_entry = {
-                           position: {
-                                      x: nx,
-                                      y: ny,
-                                      z: nz
-                                      },
-                           state: "inactive",
-                           id: inactive_neighbor.id
-                           };
-          } // if
-
-       if (neighbor_index != null)
-          {
-          neighbor_entry = {
-                           position: {
-                                      x: nx,
-                                      y: ny,
-                                      z: nz
-                                      },
-                           state: "active",
-                           id: this.bots[neighbor_index].id
-                           };
-          } // if
-
-       if (neighbor_entry.state != "empty")
-          {
-          probe.occupied_orthogonal_count++;
-
-          if (neighbor_entry.id !== undefined)
-             {
-             probe.occupied_orthogonal_ids.push(neighbor_entry.id);
-             } // if
-          } // if
-
-       probe.orthogonal_neighbors[offset.key] = neighbor_entry;
-       } // for
-   } // if
-
-if (snapshot && probe.bot_id != "")
-   {
-   let snapshot_neighbors_ret = this.apicall_get_neighbors(probe.bot_id);
-
-   if (snapshot_neighbors_ret.ok === true)
-      {
-      probe.snapshot_neighbors = snapshot_neighbors_ret.neighbors ?? null;
-      } // if
-   } // if
-
-return(probe);
+return(runtime_collect_neighbor_probe(this, bot_id, expected_position, snapshot));
 } // apicall_collect_neighbor_probe()
 
 
@@ -1867,380 +1301,67 @@ return(recovery_ret);
 
 apicall_resolve_bot_id_by_address(address)
 {
-let normalized_address = String(address ?? "").trim();
-
-if (normalized_address == "")
-   {
-   return(null);
-   } // if
-
-for (let i = 0; i < this.bots.length; i++)
-    {
-    if (this.bots[i].id == "masterbot")
-       {
-       continue;
-       } // if
-
-    if (String(this.apicall_get_safe_adress(this.bots[i])) === normalized_address)
-       {
-       return(this.bots[i].id);
-       } // if
-    } // for
-
-for (let i = this.api_bot_history_log.length - 1; i >= 0; i--)
-    {
-    let entry = this.api_bot_history_log[i];
-
-    if (!entry.snapshot || !entry.snapshot.adress)
-       {
-       continue;
-       } // if
-
-    if (String(entry.snapshot.adress) === normalized_address)
-       {
-       return(entry.bot_id);
-       } // if
-    } // for
-
-return(null);
+return(runtime_resolve_bot_id_by_address(this, address));
 } // apicall_resolve_bot_id_by_address()
 
 
 apicall_get_last_moves(limit)
 {
-let normalized_limit = Number(limit);
-if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
-   {
-   normalized_limit = 10;
-   } // if
-
-let moves = this.api_action_log;
-
-if (moves.length > normalized_limit)
-   {
-   moves = moves.slice(moves.length - normalized_limit);
-   } // if
-
-return(
-       {
-       ok: true,
-       answer: "api_get_last_moves",
-       limit: normalized_limit,
-       count: moves.length,
-       moves: moves
-       }
-       );
+return(runtime_get_last_moves(this, limit));
 } // apicall_get_last_moves()
 
 
 apicall_get_last_raw_cmds(limit)
 {
-let normalized_limit = Number(limit);
-let raw_cmds = this.api_raw_cmd_log;
-
-if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
-   {
-   normalized_limit = 10;
-   } // if
-
-if (raw_cmds.length > normalized_limit)
-   {
-   raw_cmds = raw_cmds.slice(raw_cmds.length - normalized_limit);
-   } // if
-
-return({
-       ok: true,
-       answer: "api_get_last_raw_cmds",
-       limit: normalized_limit,
-       count: raw_cmds.length,
-       raw_cmds: raw_cmds
-       });
+return(runtime_get_last_raw_cmds(this, limit));
 } // apicall_get_last_raw_cmds()
 
 
 apicall_get_status_extended()
 {
-let total_bots = this.bots.length;
-let cluster_bots = this.bots.filter((bot) => bot.id != "masterbot");
-let cluster_count = cluster_bots.length;
-let bounding_box = null;
-
-if (cluster_count > 0)
-   {
-   let min_x = Number(cluster_bots[0].x);
-   let max_x = Number(cluster_bots[0].x);
-   let min_y = Number(cluster_bots[0].y);
-   let max_y = Number(cluster_bots[0].y);
-   let min_z = Number(cluster_bots[0].z);
-   let max_z = Number(cluster_bots[0].z);
-
-   for (let i=1; i<cluster_count; i++)
-       {
-       let x = Number(cluster_bots[i].x);
-       let y = Number(cluster_bots[i].y);
-       let z = Number(cluster_bots[i].z);
-
-       if (x < min_x) min_x = x;
-       if (x > max_x) max_x = x;
-       if (y < min_y) min_y = y;
-       if (y > max_y) max_y = y;
-       if (z < min_z) min_z = z;
-       if (z > max_z) max_z = z;
-       } // for
-
-   bounding_box = {
-                   min_x: min_x,
-                   max_x: max_x,
-                   min_y: min_y,
-                   max_y: max_y,
-                   min_z: min_z,
-                   max_z: max_z
-                   };
-   } // if
-
-return({
-       ok: true,
-       answer: "api_status_extended",
-       loaded_bots_total: total_bots,
-       loaded_cluster_bots: cluster_count,
-       masterbot_connected: (this.MASTERBOT_CONNECTED == 1),
-       masterbot_name: this.masterbot_name,
-       bounding_box: bounding_box
-       });
+return(runtime_get_status_extended(this));
 } // apicall_get_status_extended()
 
 
 apicall_get_masterbot()
 {
-return({
-       ok: true,
-       answer: "api_get_masterbot",
-       id: "masterbot",
-       name: this.masterbot_name,
-       connected: (this.MASTERBOT_CONNECTED == 1),
-       connection_slot: String(this.mb['connection'] ?? "").toUpperCase(),
-       position: {
-                  x: Number(this.mb['x']),
-                  y: Number(this.mb['y']),
-                  z: Number(this.mb['z'])
-                  },
-       orientation: {
-                     x: Number(this.mb['vx']),
-                     y: Number(this.mb['vy']),
-                     z: Number(this.mb['vz'])
-                     }
-       });
+return(runtime_get_masterbot(this));
 } // apicall_get_masterbot()
 
 
 apicall_get_scan_state()
 {
-return({
-       ok: true,
-       answer: "api_get_scan_state",
-       level1: {
-                running: (this.scan_status == 1),
-                waiting_counter: Number(this.scanwaitingcounter),
-                max_waiting_counter: Number(this.max_scanwaitingcounter)
-                },
-       level2: {
-                running: (this.scan_status_lvl2 == 1),
-                waiting_counter: Number(this.scanwaitingcounter_lvl2),
-                max_waiting_counter: Number(this.max_scanwaitingcounter)
-                },
-       loaded_bots: Number(this.bots.length),
-       detected_inactive_bots: Number(this.detected_inactive_bots.length)
-       });
+return(runtime_get_scan_state(this));
 } // apicall_get_scan_state()
 
 
 apicall_gui_set_marker(x, y, z, size, color)
 {
-const allowed_colors = ['red', 'green', 'blue', 'yellow', 'cyan', 'white'];
-let marker_x = Number(x);
-let marker_y = Number(y);
-let marker_z = Number(z);
-let marker_size = Number(size);
-let marker_color = String(color ?? "").trim().toLowerCase();
-
-if (
-    Number.isNaN(marker_x) ||
-    Number.isNaN(marker_y) ||
-    Number.isNaN(marker_z) ||
-    Number.isNaN(marker_size)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_gui_set_marker",
-          error: "INVALID_MARKER_PARAMETERS"
-          });
-   } // if
-
-if (marker_size <= 0)
-   {
-   return({
-          ok: false,
-          answer: "api_gui_set_marker",
-          error: "INVALID_MARKER_SIZE"
-          });
-   } // if
-
-if (!allowed_colors.includes(marker_color))
-   {
-   return({
-          ok: false,
-          answer: "api_gui_set_marker",
-          error: "INVALID_MARKER_COLOR",
-          allowed_colors: allowed_colors
-          });
-   } // if
-
-const events = [];
-events.push(
-           {
-           event: "setmarker",
-           x: marker_x,
-           y: marker_y,
-           z: marker_z,
-           size: marker_size,
-           color: marker_color,
-           opacity: 0.8
-           }
-           );
-
-const sent = this.notify_frontend(events);
-
-return({
-       ok: true,
-       answer: "api_gui_set_marker",
-       accepted: true,
-       frontend_attached: sent,
-       marker: {
-                x: marker_x,
-                y: marker_y,
-                z: marker_z,
-                size: marker_size,
-                color: marker_color,
-                opacity: 0.8
-                }
-       });
+return(runtime_gui_set_marker(this, x, y, z, size, color));
 } // apicall_gui_set_marker()
 
 
 apicall_gui_clear_markers()
 {
-const events = [];
-events.push(
-           {
-           event: "clearmarkers"
-           }
-           );
-
-const sent = this.notify_frontend(events);
-
-return({
-       ok: true,
-       answer: "api_gui_clear_markers",
-       accepted: true,
-       frontend_attached: sent
-       });
+return(runtime_gui_clear_markers(this));
 } // apicall_gui_clear_markers()
 
 
 apicall_gui_refresh()
 {
-const events = [];
-events.push(
-           {
-           event: "refreshworld"
-           }
-           );
-
-const sent = this.notify_frontend(events);
-
-return({
-       ok: true,
-       answer: "api_gui_refresh",
-       accepted: true,
-       frontend_attached: sent
-       });
+return(runtime_gui_refresh(this));
 } // apicall_gui_refresh()
 
 
 apicall_set_debug_move(mode)
 {
-let normalized_mode = String(mode ?? "status").trim().toLowerCase();
-
-if (normalized_mode == "")
-   {
-   normalized_mode = "status";
-   } // if
-
-if (normalized_mode == "on")
-   {
-   this.debug_move_enabled = true;
-   } // if
-else if (normalized_mode == "off")
-   {
-   this.debug_move_enabled = false;
-   } // else if
-else if (normalized_mode != "status")
-   {
-   return({
-          ok: false,
-          answer: "api_debug_move",
-          error: "INVALID_MODE",
-          mode: normalized_mode,
-          allowed_modes: ["on", "off", "status"]
-          });
-   } // else if
-
-return({
-       ok: true,
-       answer: "api_debug_move",
-       mode: normalized_mode,
-       debug_move_enabled: (this.debug_move_enabled === true)
-       });
+return(runtime_set_debug_move(this, mode));
 } // apicall_set_debug_move()
 
 
 apicall_get_api_messages(filter_cmd, limit)
 {
-let normalized_filter_cmd = null;
-
-if (typeof filter_cmd == "string" && filter_cmd.trim() != "")
-   {
-   normalized_filter_cmd = filter_cmd.trim().toUpperCase();
-   } // if
-
-let normalized_limit = Number(limit);
-if (!Number.isFinite(normalized_limit) || normalized_limit <= 0)
-   {
-   normalized_limit = 50;
-   } // if
-
-let filtered_messages = this.api_message_log.filter((entry) =>
-                                                    {
-                                                    if (normalized_filter_cmd == null) return true;
-                                                    return (String(entry.cmd_name ?? "").toUpperCase() == normalized_filter_cmd);
-                                                    });
-
-if (filtered_messages.length > normalized_limit)
-   {
-   filtered_messages = filtered_messages.slice(filtered_messages.length - normalized_limit);
-   } // if
-
-return(
-       {
-       ok: true,
-       answer: "api_get_api_messages",
-       filter_cmd: normalized_filter_cmd,
-       limit: normalized_limit,
-       count: filtered_messages.length,
-       messages: filtered_messages
-       }
-       );
+return(runtime_get_api_messages(this, filter_cmd, limit));
 } // apicall_get_api_messages()
    
    
@@ -2249,19 +1370,117 @@ return(
 
  
 loadconfig(filePath) {
-  const configData = fs.readFileSync(filePath, 'utf-8');
-  const config = {};
+  const config = parse_config_file(filePath);
 
-  configData.split('\n').forEach(line => 
-  {
-    const [key, value] = line.split('=');
-    if (key && value) {
-                      config[key.trim()] = value.trim();
-                      }
-  });
+  if (!config.mobility_mode || config.mobility_mode.trim() == "") {
+    config.mobility_mode = "full_edge";
+  } // if
+
+  if (!config.communication_mode || config.communication_mode.trim() == "") {
+    config.communication_mode = "mesh_opcode";
+  } // if
+
+  if (!config.direct_radio_xml || config.direct_radio_xml.trim() == "") {
+    config.direct_radio_xml = "";
+  } // if
+
+  if (!config.mb_connection_id || String(config.mb_connection_id).trim() == "") {
+    config.mb_connection_id = "";
+  } // if
 
   return config;
-}  
+} // loadconfig()
+
+
+//
+// load_direct_radio_static_info()
+//
+load_direct_radio_static_info(xml_filename)
+{
+const static_dir = path.join(__dirname, "static_bot_info");
+const xml_path = path.join(static_dir, String(xml_filename ?? "").trim());
+
+if (!fs.existsSync(xml_path))
+   {
+   Logger.log("WARNING: direct_radio_xml not found: " + xml_path);
+   return(false);
+   } // if
+
+let xml_content = "";
+try
+   {
+   xml_content = fs.readFileSync(xml_path, "utf8");
+   } catch (error)
+     {
+     Logger.log("WARNING: failed to read direct_radio_xml: " + xml_path + " error: " + error.message);
+     return(false);
+     } // catch
+
+const parsed = this.parse_direct_radio_static_xml(xml_content);
+this.direct_radio_id_rid_map = parsed.id_rid_map;
+this.direct_radio_rid_id_map = parsed.rid_id_map;
+
+Logger.log(
+          "direct_radio static info loaded from " + xml_filename +
+          " entries(id->rid): " + Object.keys(this.direct_radio_id_rid_map).length
+          );
+
+return(true);
+} // load_direct_radio_static_info()
+
+
+//
+// parse_direct_radio_static_xml()
+//
+parse_direct_radio_static_xml(xml_content)
+{
+const id_rid_map = {};
+const rid_id_map = {};
+
+const extract_tag = (block, tag_name) =>
+{
+const re = new RegExp("<" + tag_name + ">\\s*([\\s\\S]*?)\\s*</" + tag_name + ">", "i");
+const match = String(block ?? "").match(re);
+if (!match)
+   {
+   return("");
+   } // if
+return(String(match[1] ?? "").trim());
+}; // extract_tag
+
+const add_entry = (id_value, rid_value) =>
+{
+const id_key = String(id_value ?? "").trim();
+const rid_key = String(rid_value ?? "").trim();
+if (id_key == "" || rid_key == "")
+   {
+   return;
+   } // if
+id_rid_map[id_key] = rid_key;
+rid_id_map[rid_key] = id_key;
+}; // add_entry
+
+const master_match = String(xml_content ?? "").match(/<masterbot>[\s\S]*?<\/masterbot>/i);
+if (master_match)
+   {
+   const master_id = extract_tag(master_match[0], "id");
+   const master_rid = extract_tag(master_match[0], "rid");
+   add_entry(master_id, master_rid);
+   } // if
+
+const cell_matches = String(xml_content ?? "").match(/<cell>[\s\S]*?<\/cell>/gi) ?? [];
+for (let i = 0; i < cell_matches.length; i++)
+    {
+    const cell_id = extract_tag(cell_matches[i], "id");
+    const cell_rid = extract_tag(cell_matches[i], "rid");
+    add_entry(cell_id, cell_rid);
+    } // for
+
+return({
+       id_rid_map: id_rid_map,
+       rid_id_map: rid_id_map
+       });
+} // parse_direct_radio_static_xml()
  
  
   
@@ -2274,7 +1493,548 @@ split_first(text, separator) {
   const part1 = text.slice(0, index);
   const part2 = text.slice(index + separator.length);
   return [part1, part2];
-}
+} // split_first()
+
+
+//
+// get_direct_radio_rid_by_id()
+//
+get_direct_radio_rid_by_id(bot_id)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+
+if (normalized_bot_id == "")
+   {
+   return("");
+   } // if
+
+return(String(this.direct_radio_id_rid_map[normalized_bot_id] ?? "").trim());
+} // get_direct_radio_rid_by_id()
+
+
+//
+// get_direct_radio_master_rid()
+//
+get_direct_radio_master_rid()
+{
+let rid = this.get_direct_radio_rid_by_id("MASTERBOT");
+if (rid == "")
+   {
+   rid = this.get_direct_radio_rid_by_id("masterbot");
+   } // if
+
+if (rid == "")
+   {
+   rid = "00:00:00:00:00:00";
+   } // if
+
+return(String(rid).trim());
+} // get_direct_radio_master_rid()
+
+
+//
+// scan_radio_enqueue_neighbor_ids()
+//
+scan_radio_enqueue_neighbor_ids(source_bot_id, nbh_neighbors)
+{
+const entries = Object.entries(nbh_neighbors ?? {});
+
+for (let i = 0; i < entries.length; i++)
+    {
+    const slot_name = String(entries[i][0] ?? "").trim().toUpperCase();
+    const neighbor_id = String(entries[i][1]?.id ?? "x").trim();
+
+    if (slot_name == "")
+       {
+       continue;
+       } // if
+
+    if (neighbor_id == "" || neighbor_id == "x" || neighbor_id == "MB")
+       {
+       continue;
+       } // if
+
+    if (this.scan_radio_requested_ids[neighbor_id] === true)
+       {
+       continue;
+       } // if
+
+    if (this.scan_radio_completed_ids[neighbor_id] === true)
+       {
+       continue;
+       } // if
+
+    if (this.scan_radio_pending_ids.includes(neighbor_id))
+       {
+       continue;
+       } // if
+
+    this.scan_radio_parent_hint[neighbor_id] = String(source_bot_id ?? "");
+    this.scan_radio_pending_ids.push(neighbor_id);
+    } // for
+} // scan_radio_enqueue_neighbor_ids()
+
+
+//
+// scan_radio_dispatch_nbh_by_id()
+//
+scan_radio_dispatch_nbh_by_id(bot_id)
+{
+let normalized_bot_id = String(bot_id ?? "").trim();
+let target_rid = this.get_direct_radio_rid_by_id(normalized_bot_id);
+let master_rid = this.get_direct_radio_master_rid();
+
+if (normalized_bot_id == "")
+   {
+   return(false);
+   } // if
+
+if (target_rid == "")
+   {
+   Logger.log("scan_radio_dispatch_nbh_by_id: missing RID for bot_id: " + normalized_bot_id);
+   return(false);
+   } // if
+
+let cmd = target_rid + "#NBH#id#.#" + master_rid;
+cmd = this.sign(cmd);
+
+let cellbot_cmd = "{ \"cmd\":\"push\", \"param\":\""+cmd+"\" }\n";
+this.client.write(cellbot_cmd);
+
+this.scan_radio_requested_ids[normalized_bot_id] = true;
+this.scan_waiting_radio[normalized_bot_id] =
+   {
+   bot_id: normalized_bot_id,
+   rid: target_rid,
+   status: 0,
+   requested_ts: Number(new Date().getTime())
+   };
+
+return(true);
+} // scan_radio_dispatch_nbh_by_id()
+
+
+//
+// scan_radio_register_seed_from_rnbh()
+//
+scan_radio_register_seed_from_rnbh(msgarray)
+{
+let seed_id = String(this.scan_radio_seed_id ?? "").trim();
+let response_bot_id = String(msgarray?.botid ?? "").trim();
+let nbh_neighbors = msgarray?.nbh_neighbors ?? {};
+
+if (seed_id == "" || response_bot_id == "" || response_bot_id != seed_id)
+   {
+   return(false);
+   } // if
+
+let mb_slot = "";
+const entries = Object.entries(nbh_neighbors);
+for (let i = 0; i < entries.length; i++)
+    {
+    if (String(entries[i][1]?.id ?? "").trim() == "MB")
+       {
+       mb_slot = String(entries[i][0] ?? "").trim().toUpperCase();
+       break;
+       } // if
+    } // for
+
+if (mb_slot == "")
+   {
+   Logger.log("scan_radio_register_seed_from_rnbh: missing MB slot in seed response for " + response_bot_id);
+   return(false);
+   } // if
+
+let cmd_slot = String(this.mb['connection'] ?? "").toUpperCase().trim();
+if (cmd_slot == "")
+   {
+   Logger.log("scan_radio_register_seed_from_rnbh: missing mb.connection");
+   return(false);
+   } // if
+
+let targetcoor = this.get_next_target_coor(
+                                      this.mb['x'],
+                                      this.mb['y'],
+                                      this.mb['z'],
+                                      this.mb['vx'],
+                                      this.mb['vy'],
+                                      this.mb['vz'],
+                                      cmd_slot
+                                      );
+
+let target_vectorx = Number(this.mb['vx']);
+let target_vectory = Number(this.mb['vy']);
+let target_vectorz = Number(this.mb['vz']);
+
+if (mb_slot != 'T' && mb_slot != 'D')
+   {
+   let orientation_vector = this.calc_target_orientation_vector(
+                                                               this.mb['x'],
+                                                               this.mb['y'],
+                                                               this.mb['z'],
+                                                               targetcoor.x,
+                                                               targetcoor.y,
+                                                               targetcoor.z,
+                                                               mb_slot
+                                                               );
+
+   target_vectorx = Number(orientation_vector.vx);
+   target_vectory = Number(orientation_vector.vy);
+   target_vectorz = Number(orientation_vector.vz);
+   } else
+     {
+     let rel_vec = String(nbh_neighbors[mb_slot]?.vec ?? "x").trim();
+     if (rel_vec != "x")
+        {
+        let vecparts = rel_vec.split(",");
+        if (vecparts.length == 3)
+           {
+           let orientation_vector = this.calc_target_orientation_vector_relative(
+                                                                             Number(this.mb['vx']),
+                                                                             Number(this.mb['vy']),
+                                                                             Number(this.mb['vz']),
+                                                                             Number(vecparts[0]),
+                                                                             Number(vecparts[1]),
+                                                                             Number(vecparts[2])
+                                                                             );
+           target_vectorx = Number(orientation_vector.vx);
+           target_vectory = Number(orientation_vector.vy);
+           target_vectorz = Number(orientation_vector.vz);
+           } // if
+        } // if
+     } // else
+
+let target_bot_index = this.get_3d(targetcoor.x, targetcoor.y, targetcoor.z);
+if (target_bot_index == null)
+   {
+   let bot_class_mini_obj = new bot_class_mini();
+   bot_class_mini_obj.setvalues(
+                               response_bot_id,
+                               this.get_direct_radio_rid_by_id(response_bot_id),
+                               targetcoor.x,
+                               targetcoor.y,
+                               targetcoor.z,
+                               target_vectorx,
+                               target_vectory,
+                               target_vectorz,
+                               "eeeeff",
+                               ""
+                               );
+   this.register_bot(bot_class_mini_obj);
+
+   const events = [];
+   let notify_msg =
+       {
+       event: "addbot",
+       botid: response_bot_id,
+       position: { x: Number(targetcoor.x), y: Number(targetcoor.y), z: Number(targetcoor.z) },
+       orientation: { x: Number(target_vectorx), y: Number(target_vectory), z: Number(target_vectorz) },
+       color: "eeeeff",
+       adress: ""
+       };
+   events.push(notify_msg);
+   this.notify_frontend(events);
+   } // if
+
+this.scan_radio_seed_registered = true;
+this.scanwaitingcounter_radio = 0;
+this.scan_radio_enqueue_neighbor_ids(response_bot_id, nbh_neighbors);
+return(true);
+} // scan_radio_register_seed_from_rnbh()
+
+
+//
+// scan_radio_find_slot_to_neighbor()
+//
+scan_radio_find_slot_to_neighbor(nbh_neighbors, neighbor_id)
+{
+let normalized_neighbor_id = String(neighbor_id ?? "").trim();
+const entries = Object.entries(nbh_neighbors ?? {});
+
+for (let i = 0; i < entries.length; i++)
+    {
+    const slot_name = String(entries[i][0] ?? "").trim().toUpperCase();
+    const slot_neighbor_id = String(entries[i][1]?.id ?? "").trim();
+
+    if (slot_name == "")
+       {
+       continue;
+       } // if
+
+    if (slot_neighbor_id == normalized_neighbor_id)
+       {
+       return(slot_name);
+       } // if
+    } // for
+
+return("");
+} // scan_radio_find_slot_to_neighbor()
+
+
+//
+// scan_radio_get_parent_slot_to_child()
+//
+scan_radio_get_parent_slot_to_child(parent_id, child_id)
+{
+let normalized_parent_id = String(parent_id ?? "").trim();
+let normalized_child_id = String(child_id ?? "").trim();
+
+if (normalized_parent_id == "" || normalized_child_id == "")
+   {
+   return("");
+   } // if
+
+const parent_neighbors = this.scan_radio_neighbors_by_bot[normalized_parent_id] ?? {};
+return(this.scan_radio_find_slot_to_neighbor(parent_neighbors, normalized_child_id));
+} // scan_radio_get_parent_slot_to_child()
+
+
+//
+// scan_radio_register_or_update_bot_from_rnbh()
+//
+scan_radio_register_or_update_bot_from_rnbh(msgarray)
+{
+let child_id = String(msgarray?.botid ?? "").trim();
+let child_neighbors = msgarray?.nbh_neighbors ?? {};
+
+if (child_id == "")
+   {
+   return(false);
+   } // if
+
+if (child_id == String(this.scan_radio_seed_id ?? "").trim())
+   {
+   return(false);
+   } // if
+
+let existing_index = this.get_bot_by_id(child_id, this.bots);
+let parent_id = String(this.scan_radio_parent_hint[child_id] ?? "").trim();
+let parent_index = null;
+let slot_parent_to_child = "";
+let slot_child_to_parent = "";
+
+if (existing_index != null)
+   {
+   const preferred_vertical_slots = ["D", "T"];
+
+   for (let i = 0; i < preferred_vertical_slots.length; i++)
+       {
+       const vertical_slot = preferred_vertical_slots[i];
+       const vertical_neighbor_id = String(child_neighbors?.[vertical_slot]?.id ?? "").trim();
+       const vertical_vec = String(child_neighbors?.[vertical_slot]?.vec ?? "x").trim();
+
+       if (vertical_neighbor_id == "" || vertical_neighbor_id == "x" || vertical_vec == "x")
+          {
+          continue;
+          } // if
+
+       const vertical_parent_index = this.get_bot_by_id(vertical_neighbor_id, this.bots);
+       if (vertical_parent_index == null)
+          {
+          continue;
+          } // if
+
+       const vecparts = vertical_vec.split(",");
+       if (vecparts.length != 3)
+          {
+          continue;
+          } // if
+
+       let orientation_vector = this.calc_target_orientation_vector_relative(
+                                                                         Number(this.bots[vertical_parent_index].vector_x),
+                                                                         Number(this.bots[vertical_parent_index].vector_y),
+                                                                         Number(this.bots[vertical_parent_index].vector_z),
+                                                                         Number(vecparts[0]),
+                                                                         Number(vecparts[1]),
+                                                                         Number(vecparts[2])
+                                                                         );
+
+       this.bots[existing_index].vector_x = Number(orientation_vector.vx);
+       this.bots[existing_index].vector_y = Number(orientation_vector.vy);
+       this.bots[existing_index].vector_z = Number(orientation_vector.vz);
+       break;
+       } // for
+   } // if
+
+if (parent_id != "")
+   {
+   parent_index = this.get_bot_by_id(parent_id, this.bots);
+
+   if (parent_index != null)
+      {
+      slot_parent_to_child = this.scan_radio_get_parent_slot_to_child(parent_id, child_id);
+      slot_child_to_parent = this.scan_radio_find_slot_to_neighbor(child_neighbors, parent_id);
+      } // if
+   } // if
+
+if (parent_index == null || slot_parent_to_child == "")
+   {
+   const slot_names = ["D", "T", "F", "R", "B", "L"];
+
+   for (let i = 0; i < slot_names.length; i++)
+       {
+       const slot_name = String(slot_names[i] ?? "").trim();
+       const candidate_parent_id = String(child_neighbors?.[slot_name]?.id ?? "").trim();
+
+       if (candidate_parent_id == "" || candidate_parent_id == "x")
+          {
+          continue;
+          } // if
+
+       const candidate_parent_index = this.get_bot_by_id(candidate_parent_id, this.bots);
+       if (candidate_parent_index == null)
+          {
+          continue;
+          } // if
+
+       const candidate_slot_parent_to_child = this.scan_radio_get_parent_slot_to_child(candidate_parent_id, child_id);
+       if (candidate_slot_parent_to_child == "")
+          {
+          if (slot_name == "D")
+             {
+             parent_id = candidate_parent_id;
+             parent_index = candidate_parent_index;
+             slot_parent_to_child = "T";
+             slot_child_to_parent = "D";
+             break;
+             } // if
+
+          if (slot_name == "T")
+             {
+             parent_id = candidate_parent_id;
+             parent_index = candidate_parent_index;
+             slot_parent_to_child = "D";
+             slot_child_to_parent = "T";
+             break;
+             } // if
+
+          continue;
+          } // if
+
+       parent_id = candidate_parent_id;
+       parent_index = candidate_parent_index;
+       slot_parent_to_child = candidate_slot_parent_to_child;
+       slot_child_to_parent = slot_name;
+       break;
+       } // for
+   } // if
+
+if (parent_index == null || slot_parent_to_child == "")
+   {
+   return(false);
+   } // if
+
+let parent_bot = this.bots[parent_index];
+
+let targetcoor = this.get_next_target_coor(
+                                      parent_bot.x,
+                                      parent_bot.y,
+                                      parent_bot.z,
+                                      parent_bot.vector_x,
+                                      parent_bot.vector_y,
+                                      parent_bot.vector_z,
+                                      slot_parent_to_child
+                                      );
+
+let child_slot_to_parent = this.scan_radio_find_slot_to_neighbor(child_neighbors, parent_id);
+if (child_slot_to_parent == "" && slot_child_to_parent != "")
+   {
+   child_slot_to_parent = slot_child_to_parent;
+   } // if
+
+let target_vectorx = Number(parent_bot.vector_x);
+let target_vectory = Number(parent_bot.vector_y);
+let target_vectorz = Number(parent_bot.vector_z);
+
+if (child_slot_to_parent != "")
+   {
+   if (child_slot_to_parent != "T" && child_slot_to_parent != "D")
+      {
+      let orientation_vector = this.calc_target_orientation_vector(
+                                                                  parent_bot.x,
+                                                                  parent_bot.y,
+                                                                  parent_bot.z,
+                                                                  targetcoor.x,
+                                                                  targetcoor.y,
+                                                                  targetcoor.z,
+                                                                  child_slot_to_parent
+                                                                  );
+      target_vectorx = Number(orientation_vector.vx);
+      target_vectory = Number(orientation_vector.vy);
+      target_vectorz = Number(orientation_vector.vz);
+      } else
+        {
+        let rel_vec = String(child_neighbors[child_slot_to_parent]?.vec ?? "x").trim();
+        if (rel_vec != "x")
+           {
+           let vecparts = rel_vec.split(",");
+           if (vecparts.length == 3)
+              {
+              let orientation_vector = this.calc_target_orientation_vector_relative(
+                                                                                Number(parent_bot.vector_x),
+                                                                                Number(parent_bot.vector_y),
+                                                                                Number(parent_bot.vector_z),
+                                                                                Number(vecparts[0]),
+                                                                                Number(vecparts[1]),
+                                                                                Number(vecparts[2])
+                                                                                );
+              target_vectorx = Number(orientation_vector.vx);
+              target_vectory = Number(orientation_vector.vy);
+              target_vectorz = Number(orientation_vector.vz);
+              } // if
+           } // if
+        } // else
+   } // if
+
+let target_bot_index = this.get_3d(targetcoor.x, targetcoor.y, targetcoor.z);
+if (target_bot_index != null && target_bot_index != existing_index)
+   {
+   return(false);
+   } // if
+
+if (existing_index != null)
+   {
+   this.bots[existing_index].x = Number(targetcoor.x);
+   this.bots[existing_index].y = Number(targetcoor.y);
+   this.bots[existing_index].z = Number(targetcoor.z);
+   this.bots[existing_index].vector_x = Number(target_vectorx);
+   this.bots[existing_index].vector_y = Number(target_vectory);
+   this.bots[existing_index].vector_z = Number(target_vectorz);
+   this.scanwaitingcounter_radio = 0;
+   return(true);
+   } // if
+
+let bot_class_mini_obj = new bot_class_mini();
+bot_class_mini_obj.setvalues(
+                            child_id,
+                            this.get_direct_radio_rid_by_id(child_id),
+                            targetcoor.x,
+                            targetcoor.y,
+                            targetcoor.z,
+                            target_vectorx,
+                            target_vectory,
+                            target_vectorz,
+                            "eeeeff",
+                            ""
+                            );
+this.register_bot(bot_class_mini_obj);
+
+const events = [];
+let notify_msg =
+    {
+    event: "addbot",
+    botid: child_id,
+    position: { x: Number(targetcoor.x), y: Number(targetcoor.y), z: Number(targetcoor.z) },
+    orientation: { x: Number(target_vectorx), y: Number(target_vectory), z: Number(target_vectorz) },
+    color: "eeeeff",
+    adress: ""
+    };
+events.push(notify_msg);
+this.notify_frontend(events);
+
+this.scanwaitingcounter_radio = 0;
+return(true);
+} // scan_radio_register_or_update_bot_from_rnbh()
 
  
 
@@ -2960,6 +2720,7 @@ const bot_class_mini_obj = new bot_class_mini();
     
 bot_class_mini_obj.setvalues(
                             "masterbot",
+                            "",
                              this.mb['x'],
                              this.mb['y'],
                              this.mb['z'],
@@ -3028,6 +2789,204 @@ this.scan_status_lvl2 = 1;
 
 this.notify_frontend_console("Start Scan Level 2");
 } // start_scan_lvl2
+
+
+//
+// start_scan_radio()
+//
+start_scan_radio( reset = 1 )
+{
+const communication_mode = String(this.config.communication_mode ?? "mesh_opcode").trim();
+
+if (communication_mode != "direct_radio")
+   {
+   this.scan_status_radio = 0;
+   this.notify_frontend_console("Start Scan Radio blocked: communication_mode is not direct_radio");
+   return;
+   } // if
+
+this.bots = [];
+this.botindex = [];
+this.scan_waiting_radio = {};
+this.scan_radio_pending_ids = [];
+this.scan_radio_requested_ids = {};
+this.scan_radio_completed_ids = {};
+this.scan_radio_parent_hint = {};
+this.scan_radio_neighbors_by_bot = {};
+this.scan_radio_mode = "full";
+this.scan_radio_search_level = 1;
+this.scan_radio_search_target_id = "";
+this.scan_radio_seed_registered = false;
+this.scanwaitingcounter_radio = 0;
+
+const bot_class_mini_obj = new bot_class_mini();
+bot_class_mini_obj.setvalues(
+                            "masterbot",
+                            this.get_direct_radio_master_rid(),
+                            this.mb['x'],
+                            this.mb['y'],
+                            this.mb['z'],
+                            this.mb['vx'],
+                            this.mb['vy'],
+                            this.mb['vz'],
+                            "FF0000",
+                            ""
+                            );
+bot_class_mini_obj.checked = 1;
+this.register_bot(bot_class_mini_obj);
+
+this.scan_radio_seed_id = String(this.mb['connection_id'] ?? "").trim();
+
+if (this.scan_radio_seed_id == "")
+   {
+   this.scan_status_radio = 0;
+   this.notify_frontend_console("Start Scan Radio aborted: mb_connection_id missing in config");
+   return;
+   } // if
+
+this.scan_radio_pending_ids.push(this.scan_radio_seed_id);
+this.scan_status_radio = 1;
+this.notify_frontend_console("Start Scan Radio");
+} // start_scan_radio()
+
+
+//
+// scan_radio_collect_known_neighbor_ids()
+//
+scan_radio_collect_known_neighbor_ids(bot_id)
+{
+let ret = [];
+let snapshot = this.apicall_get_neighbors(bot_id);
+const slot_names = ["F", "R", "B", "L", "T", "D"];
+
+if (snapshot?.ok !== true)
+   {
+   return(ret);
+   } // if
+
+for (let i = 0; i < slot_names.length; i++)
+    {
+    const slot_name = slot_names[i];
+    const entry = snapshot?.neighbors?.[slot_name] ?? null;
+    const state = String(entry?.state ?? "").trim().toLowerCase();
+    const neighbor_id = String(entry?.id ?? "").trim();
+
+    if (state != "active" || neighbor_id == "")
+       {
+       continue;
+       } // if
+
+    if (ret.includes(neighbor_id))
+       {
+       continue;
+       } // if
+
+    ret.push(neighbor_id);
+    } // for
+
+return(ret);
+} // scan_radio_collect_known_neighbor_ids()
+
+
+//
+// start_search_bot_radio()
+//
+start_search_bot_radio(bot_id, level = 1)
+{
+const communication_mode = String(this.config.communication_mode ?? "mesh_opcode").trim();
+const normalized_bot_id = String(bot_id ?? "").trim();
+let normalized_level = Number(level);
+
+if (communication_mode != "direct_radio")
+   {
+   return({
+          ok: false,
+          answer: "api_search_bot",
+          error: "SEARCH_BOT_DIRECT_RADIO_ONLY",
+          communication_mode: communication_mode
+          });
+   } // if
+
+if (normalized_bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_search_bot",
+          error: "BOT_ID_REQUIRED"
+          });
+   } // if
+
+if (Number.isNaN(normalized_level) === true || normalized_level < 1)
+   {
+   normalized_level = 1;
+   } // if
+
+if (normalized_level > 2)
+   {
+   normalized_level = 2;
+   } // if
+
+if (this.get_direct_radio_rid_by_id(normalized_bot_id) == "")
+   {
+   return({
+          ok: false,
+          answer: "api_search_bot",
+          error: "BOT_RID_UNKNOWN",
+          bot_id: normalized_bot_id
+          });
+   } // if
+
+this.scan_waiting_radio = {};
+this.scan_radio_pending_ids = [];
+this.scan_radio_requested_ids = {};
+this.scan_radio_completed_ids = {};
+this.scan_radio_parent_hint = {};
+this.scan_radio_neighbors_by_bot = {};
+this.scan_radio_seed_registered = true;
+this.scan_radio_seed_id = normalized_bot_id;
+this.scan_radio_mode = "search";
+this.scan_radio_search_level = normalized_level;
+this.scan_radio_search_target_id = normalized_bot_id;
+this.scanwaitingcounter_radio = 0;
+
+this.scan_radio_pending_ids.push(normalized_bot_id);
+
+if (normalized_level >= 2)
+   {
+   let neighbor_ids = this.scan_radio_collect_known_neighbor_ids(normalized_bot_id);
+
+   for (let i = 0; i < neighbor_ids.length; i++)
+       {
+       if (this.scan_radio_pending_ids.includes(neighbor_ids[i]))
+          {
+          continue;
+          } // if
+
+       this.scan_radio_pending_ids.push(neighbor_ids[i]);
+       } // for
+
+   if (this.scan_radio_pending_ids.includes(normalized_bot_id) !== true)
+      {
+      this.scan_radio_pending_ids.push(normalized_bot_id);
+      } // if
+   else
+      {
+      this.scan_radio_pending_ids.push(normalized_bot_id);
+      } // else
+   } // if
+
+this.scan_status_radio = 1;
+this.notify_frontend_console("Search Bot Radio: " + normalized_bot_id + " (level " + String(normalized_level) + ")");
+
+return({
+       ok: true,
+       answer: "api_search_bot_started",
+       accepted: true,
+       bot_id: normalized_bot_id,
+       level: normalized_level,
+       queued_ids: this.scan_radio_pending_ids.slice()
+       });
+} // start_search_bot_radio()
   
 
 
@@ -4186,6 +4145,7 @@ for (let i=0; i<inactive_size; i++)
     } // for
 
 jsondata += "]";
+jsondata += ", \"communication_mode\": \"" + String(this.config.communication_mode ?? "mesh_opcode") + "\"";
         
 
   
@@ -4736,36 +4696,7 @@ return (ret);
 //
 apicall_get_bot_by_id( bot_id )
 {
-let botindex = this.get_bot_by_id( bot_id, this.bots );
-
-if ( botindex == null )
-   {
-   return({
-          ok: false,
-          answer: "api_get_bot_by_id",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-let bot = this.bots[botindex];
-
-return({
-       ok: true,
-       answer: "api_get_bot_by_id",
-       bot_id: bot.id,
-       position: {
-                  x: Number(bot.x),
-                  y: Number(bot.y),
-                  z: Number(bot.z)
-                  },
-       orientation: {
-                     x: Number(bot.vector_x),
-                     y: Number(bot.vector_y),
-                     z: Number(bot.vector_z)
-                     },
-       adress: this.apicall_get_safe_adress(bot)
-       });
+return(runtime_get_bot_by_id(this, bot_id));
 } // apicall_get_bot_by_id()
 
 
@@ -4774,21 +4705,7 @@ return({
 //
 apicall_get_safe_adress( bot )
 {
-if ( !bot || bot.id == "masterbot" )
-   {
-   return("");
-   } // if
-
-let adress = bot.adress ?? "";
-
-if ( typeof adress != "string" )
-   {
-   return("");
-   } // if
-
-adress = adress.replace(/^undefined/gi, "");
-
-return(adress);
+return(runtime_get_safe_adress(this, bot));
 } // apicall_get_safe_adress()
 
 
@@ -4797,73 +4714,7 @@ return(adress);
 //
 apicall_recalibrate_bot_address(bot_id, mode = "standard")
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-let normalized_mode = String(mode ?? "standard").trim().toLowerCase();
-let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
-let old_adress = "";
-let new_adress = "";
-
-if (normalized_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_recalibrate_bot_address",
-          error: "BOT_ID_EMPTY"
-          });
-   } // if
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_recalibrate_bot_address",
-          error: "BOT_NOT_FOUND",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-if (this.bots[botindex].id == "masterbot")
-   {
-   return({
-          ok: true,
-          answer: "api_recalibrate_bot_address",
-          bot_id: normalized_bot_id,
-          skipped: true,
-          reason: "MASTERBOT_HAS_NO_ADDRESS",
-          old_adress: "",
-          new_adress: ""
-          });
-   } // if
-
-old_adress = this.apicall_get_safe_adress(this.bots[botindex]);
-new_adress = this.get_mb_returnaddr(
-                                    {x: this.mb.x, y: this.mb.y, z: this.mb.z},
-                                    {
-                                    x: Number(this.bots[botindex].x),
-                                    y: Number(this.bots[botindex].y),
-                                    z: Number(this.bots[botindex].z)
-                                    },
-                                    this.bots,
-                                    [],
-                                    { routing_mode: normalized_mode }
-                                    );
-
-this.bots[botindex].adress = new_adress;
-
-return({
-       ok: true,
-       answer: "api_recalibrate_bot_address",
-       bot_id: normalized_bot_id,
-       mode: normalized_mode,
-       old_adress: old_adress,
-       new_adress: new_adress,
-       changed: (String(old_adress) !== String(new_adress)),
-       position: {
-                  x: Number(this.bots[botindex].x),
-                  y: Number(this.bots[botindex].y),
-                  z: Number(this.bots[botindex].z)
-                  }
-       });
+return(runtime_recalibrate_bot_address(this, bot_id, mode));
 } // apicall_recalibrate_bot_address()
 
 
@@ -4872,34 +4723,7 @@ return({
 //
 apicall_recalibrate_bot_addresses(mode = "standard")
 {
-let recalibrated = [];
-let changed_count = 0;
-let normalized_mode = String(mode ?? "standard").trim().toLowerCase();
-
-for (let i = 0; i < this.bots.length; i++)
-    {
-    if (this.bots[i].id == "masterbot")
-       {
-       continue;
-       } // if
-
-    let ret = this.apicall_recalibrate_bot_address(this.bots[i].id, normalized_mode);
-    recalibrated.push(ret);
-
-    if (ret?.changed === true)
-       {
-       changed_count++;
-       } // if
-    } // for
-
-return({
-       ok: true,
-       answer: "api_recalibrate_bot_addresses",
-       mode: normalized_mode,
-       count: recalibrated.length,
-       changed_count: changed_count,
-       recalibrated: recalibrated
-       });
+return(runtime_recalibrate_bot_addresses(this, mode));
 } // apicall_recalibrate_bot_addresses()
 
 
@@ -4908,41 +4732,7 @@ return({
 //
 apicall_apply_safe_mode_for_bot(bot_id)
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-
-if (Number(this.safe_mode) < 1)
-   {
-   return({
-          ok: true,
-          answer: "api_safe_mode_prepare",
-          bot_id: normalized_bot_id,
-          safe_mode: Number(this.safe_mode),
-          recalibrated: false
-          });
-   } // if
-
-if (Number(this.safe_mode) >= 2)
-   {
-   return({
-          ok: true,
-          answer: "api_safe_mode_prepare",
-          bot_id: normalized_bot_id,
-          safe_mode: Number(this.safe_mode),
-          recalibrated: false,
-          deferred_global_recalibration: true
-          });
-   } // if
-
-let ret = this.apicall_recalibrate_bot_address(normalized_bot_id);
-
-return({
-       ok: ret.ok,
-       answer: "api_safe_mode_prepare",
-       bot_id: normalized_bot_id,
-       safe_mode: Number(this.safe_mode),
-       recalibrated: (ret.ok === true),
-       recalibration: ret
-       });
+return(runtime_apply_safe_mode_for_bot(this, bot_id));
 } // apicall_apply_safe_mode_for_bot()
 
 
@@ -4951,31 +4741,7 @@ return({
 //
 apicall_apply_safe_mode_after_structure_change(trigger_bot_id, change_type = "structure_change")
 {
-let normalized_bot_id = String(trigger_bot_id ?? "").trim();
-
-if (Number(this.safe_mode) < 2)
-   {
-   return({
-          ok: true,
-          answer: "api_safe_mode_after_change",
-          bot_id: normalized_bot_id,
-          safe_mode: Number(this.safe_mode),
-          recalibrated: false,
-          change_type: String(change_type ?? "structure_change")
-          });
-   } // if
-
-let recalibration_ret = this.apicall_recalibrate_bot_addresses();
-
-return({
-       ok: recalibration_ret.ok,
-       answer: "api_safe_mode_after_change",
-       bot_id: normalized_bot_id,
-       safe_mode: Number(this.safe_mode),
-       recalibrated: (recalibration_ret.ok === true),
-       change_type: String(change_type ?? "structure_change"),
-       recalibration: recalibration_ret
-       });
+return(runtime_apply_safe_mode_after_structure_change(this, trigger_bot_id, change_type));
 } // apicall_apply_safe_mode_after_structure_change()
 
 
@@ -4984,53 +4750,7 @@ return({
 //
 apicall_set_safe_mode(mode)
 {
-let normalized_mode = String(mode ?? "status").trim().toLowerCase();
-
-if (normalized_mode == "status")
-   {
-   return({
-          ok: true,
-          answer: "api_safe_mode",
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (normalized_mode == "0" || normalized_mode == "off")
-   {
-   this.safe_mode = 0;
-   return({
-          ok: true,
-          answer: "api_safe_mode",
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (normalized_mode == "1")
-   {
-   this.safe_mode = 1;
-   return({
-          ok: true,
-          answer: "api_safe_mode",
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (normalized_mode == "2" || normalized_mode == "on")
-   {
-   this.safe_mode = 2;
-   return({
-          ok: true,
-          answer: "api_safe_mode",
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-return({
-       ok: false,
-       answer: "api_safe_mode",
-       error: "INVALID_SAFE_MODE",
-       mode: mode
-       });
+return(runtime_set_safe_mode(this, mode));
 } // apicall_set_safe_mode()
 
 
@@ -5039,19 +4759,7 @@ return({
 //
 apicall_get_structure_role_list(role_key)
 {
-let key = String(role_key ?? "").trim();
-
-if (!this.structure_roles || typeof this.structure_roles != "object")
-   {
-   this.structure_roles = {};
-   } // if
-
-if (!Array.isArray(this.structure_roles[key]))
-   {
-   this.structure_roles[key] = [];
-   } // if
-
-return(this.structure_roles[key]);
+return(runtime_get_structure_role_list(this, role_key));
 } // apicall_get_structure_role_list()
 
 
@@ -5060,20 +4768,7 @@ return(this.structure_roles[key]);
 //
 apicall_normalize_grid_point(x, y, z)
 {
-let nx = Number(x);
-let ny = Number(y);
-let nz = Number(z);
-
-if (Number.isNaN(nx) || Number.isNaN(ny) || Number.isNaN(nz))
-   {
-   return(null);
-   } // if
-
-return({
-       x: nx,
-       y: ny,
-       z: nz
-       });
+return(runtime_normalize_grid_point(this, x, y, z));
 } // apicall_normalize_grid_point()
 
 
@@ -5082,17 +4777,7 @@ return({
 //
 apicall_role_point_index(role_key, x, y, z)
 {
-let list = this.apicall_get_structure_role_list(role_key);
-
-for (let i = 0; i < list.length; i++)
-    {
-    if (Number(list[i].x) == Number(x) && Number(list[i].y) == Number(y) && Number(list[i].z) == Number(z))
-       {
-       return(i);
-       } // if
-    } // for
-
-return(-1);
+return(runtime_role_point_index(this, role_key, x, y, z));
 } // apicall_role_point_index()
 
 
@@ -5101,41 +4786,7 @@ return(-1);
 //
 apicall_forbidden_add(x, y, z)
 {
-let point = this.apicall_normalize_grid_point(x, y, z);
-
-if (!point)
-   {
-   return({
-          ok: false,
-          answer: "api_forbidden_add",
-          error: "INVALID_COORDINATES"
-          });
-   } // if
-
-let list = this.apicall_get_structure_role_list("forbidden");
-let idx = this.apicall_role_point_index("forbidden", point.x, point.y, point.z);
-let changed = false;
-
-if (idx < 0)
-   {
-   list.push(point);
-   changed = true;
-   } // if
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_forbidden_add",
-       changed: changed,
-       point: point,
-       count: list.length,
-       list: list,
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_forbidden_add(this, x, y, z));
 } // apicall_forbidden_add()
 
 
@@ -5144,41 +4795,7 @@ return({
 //
 apicall_forbidden_remove(x, y, z)
 {
-let point = this.apicall_normalize_grid_point(x, y, z);
-
-if (!point)
-   {
-   return({
-          ok: false,
-          answer: "api_forbidden_remove",
-          error: "INVALID_COORDINATES"
-          });
-   } // if
-
-let list = this.apicall_get_structure_role_list("forbidden");
-let idx = this.apicall_role_point_index("forbidden", point.x, point.y, point.z);
-let changed = false;
-
-if (idx >= 0)
-   {
-   list.splice(idx, 1);
-   changed = true;
-   } // if
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_forbidden_remove",
-       changed: changed,
-       point: point,
-       count: list.length,
-       list: list,
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_forbidden_remove(this, x, y, z));
 } // apicall_forbidden_remove()
 
 
@@ -5187,23 +4804,7 @@ return({
 //
 apicall_forbidden_clear()
 {
-let list = this.apicall_get_structure_role_list("forbidden");
-let removed_count = list.length;
-this.structure_roles.forbidden = [];
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_forbidden_clear",
-       removed_count: removed_count,
-       count: 0,
-       list: [],
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_forbidden_clear(this));
 } // apicall_forbidden_clear()
 
 
@@ -5212,14 +4813,7 @@ return({
 //
 apicall_forbidden_list()
 {
-let list = this.apicall_get_structure_role_list("forbidden");
-
-return({
-       ok: true,
-       answer: "api_forbidden_list",
-       count: list.length,
-       list: list
-       });
+return(runtime_forbidden_list(this));
 } // apicall_forbidden_list()
 
 
@@ -5228,41 +4822,7 @@ return({
 //
 apicall_servicebay_add(x, y, z)
 {
-let point = this.apicall_normalize_grid_point(x, y, z);
-
-if (!point)
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_add",
-          error: "INVALID_COORDINATES"
-          });
-   } // if
-
-let list = this.apicall_get_structure_role_list("x");
-let idx = this.apicall_role_point_index("x", point.x, point.y, point.z);
-let changed = false;
-
-if (idx < 0)
-   {
-   list.push(point);
-   changed = true;
-   } // if
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_servicebay_add",
-       changed: changed,
-       point: point,
-       count: list.length,
-       list: list,
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_servicebay_add(this, x, y, z));
 } // apicall_servicebay_add()
 
 
@@ -5271,41 +4831,7 @@ return({
 //
 apicall_servicebay_remove(x, y, z)
 {
-let point = this.apicall_normalize_grid_point(x, y, z);
-
-if (!point)
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_remove",
-          error: "INVALID_COORDINATES"
-          });
-   } // if
-
-let list = this.apicall_get_structure_role_list("x");
-let idx = this.apicall_role_point_index("x", point.x, point.y, point.z);
-let changed = false;
-
-if (idx >= 0)
-   {
-   list.splice(idx, 1);
-   changed = true;
-   } // if
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_servicebay_remove",
-       changed: changed,
-       point: point,
-       count: list.length,
-       list: list,
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_servicebay_remove(this, x, y, z));
 } // apicall_servicebay_remove()
 
 
@@ -5314,23 +4840,7 @@ return({
 //
 apicall_servicebay_clear()
 {
-let list = this.apicall_get_structure_role_list("x");
-let removed_count = list.length;
-this.structure_roles.x = [];
-
-let refresh_ret = this.apicall_gui_refresh();
-
-return({
-       ok: true,
-       answer: "api_servicebay_clear",
-       removed_count: removed_count,
-       count: 0,
-       list: [],
-       gui_refresh: {
-                     accepted: refresh_ret.accepted ?? false,
-                     frontend_attached: refresh_ret.frontend_attached ?? false
-                     }
-       });
+return(runtime_servicebay_clear(this));
 } // apicall_servicebay_clear()
 
 
@@ -5339,14 +4849,7 @@ return({
 //
 apicall_servicebay_list()
 {
-let list = this.apicall_get_structure_role_list("x");
-
-return({
-       ok: true,
-       answer: "api_servicebay_list",
-       count: list.length,
-       list: list
-       });
+return(runtime_servicebay_list(this));
 } // apicall_servicebay_list()
 
 
@@ -5355,7 +4858,7 @@ return({
 //
 apicall_is_servicebay_cell(x, y, z)
 {
-return(this.apicall_role_point_index("x", Number(x), Number(y), Number(z)) >= 0);
+return(runtime_is_servicebay_cell(this, x, y, z));
 } // apicall_is_servicebay_cell()
 
 
@@ -5364,19 +4867,7 @@ return(this.apicall_role_point_index("x", Number(x), Number(y), Number(z)) >= 0)
 //
 apicall_rebuild_botindex()
 {
-this.botindex = [];
-
-for (let i = 0; i < this.bots.length; i++)
-    {
-    this.set_3d(
-                Number(this.bots[i].x),
-                Number(this.bots[i].y),
-                Number(this.bots[i].z),
-                i
-                );
-    } // for
-
-return(true);
+return(runtime_rebuild_botindex(this));
 } // apicall_rebuild_botindex()
 
 
@@ -5385,120 +4876,7 @@ return(true);
 //
 apicall_recycle_bot_if_in_servicebay(bot_id, source = "move")
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-
-if (normalized_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "INVALID_BOT_ID"
-          });
-   } // if
-
-let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "BOT_NOT_FOUND",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-let bot = this.bots[botindex];
-let pos_x = Number(bot.x);
-let pos_y = Number(bot.y);
-let pos_z = Number(bot.z);
-
-if (this.apicall_is_servicebay_cell(pos_x, pos_y, pos_z) !== true)
-   {
-   return({
-          ok: true,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "BOT_NOT_IN_SERVICEBAY",
-          bot_id: normalized_bot_id,
-          position: {
-                     x: pos_x,
-                     y: pos_y,
-                     z: pos_z
-                     }
-          });
-   } // if
-
-if (normalized_bot_id == "masterbot")
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "MASTERBOT_NOT_ALLOWED",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-let old_key = this.getKey_3d(pos_x, pos_y, pos_z);
-delete this.botindex[old_key];
-
-this.apicall_clear_pending_servicebay_recycle(normalized_bot_id);
-this.apicall_clear_payload_link(normalized_bot_id);
-
-let carrier_ids = Object.keys(this.api_payload_links ?? {});
-for (let i = 0; i < carrier_ids.length; i++)
-    {
-    let carrier_id = carrier_ids[i];
-    let payload_id = String(this.api_payload_links[carrier_id]?.payload_bot_id ?? "").trim();
-
-    if (payload_id == normalized_bot_id)
-       {
-       this.apicall_clear_payload_link(carrier_id);
-       } // if
-    } // for
-
-let grab_carrier_ids = Object.keys(this.api_grab_state_map ?? {});
-for (let i = 0; i < grab_carrier_ids.length; i++)
-    {
-    let carrier_id = grab_carrier_ids[i];
-    let payload_id = String(this.api_grab_state_map[carrier_id] ?? "").trim();
-
-    if (payload_id == normalized_bot_id)
-       {
-       delete this.api_grab_state_map[carrier_id];
-       } // if
-    } // for
-
-this.bots.splice(botindex, 1);
-this.apicall_rebuild_botindex();
-
-const events = [];
-events.push({
-            event: "removebot",
-            botid: normalized_bot_id
-            });
-events.push({
-            event: "console",
-            msg: "Servicebay auto-recycle: " + normalized_bot_id + " @ (" + pos_x + "," + pos_y + "," + pos_z + ")"
-            });
-this.notify_frontend(events);
-
-return({
-       ok: true,
-       answer: "api_servicebay_autorecycle",
-       recycled: true,
-       reason: "RECYCLED_AT_SERVICEBAY",
-       source: String(source ?? "move"),
-       bot_id: normalized_bot_id,
-       position: {
-                  x: pos_x,
-                  y: pos_y,
-                  z: pos_z
-                  }
-       });
+return(runtime_recycle_bot_if_in_servicebay(this, bot_id, source));
 } // apicall_recycle_bot_if_in_servicebay()
 
 
@@ -5507,105 +4885,7 @@ return({
 //
 apicall_recycle_bot_force(bot_id, source = "ack_timeout_servicebay")
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-
-if (normalized_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "INVALID_BOT_ID"
-          });
-   } // if
-
-if (normalized_bot_id == "masterbot")
-   {
-   return({
-          ok: false,
-          answer: "api_servicebay_autorecycle",
-          recycled: false,
-          reason: "MASTERBOT_NOT_ALLOWED",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-let botindex = this.get_bot_by_id(normalized_bot_id, this.bots);
-
-if (botindex == null)
-   {
-   return({
-          ok: true,
-          answer: "api_servicebay_autorecycle",
-          recycled: true,
-          reason: "BOT_ALREADY_ABSENT",
-          source: String(source ?? "ack_timeout_servicebay"),
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-let bot = this.bots[botindex];
-let pos_x = Number(bot.x);
-let pos_y = Number(bot.y);
-let pos_z = Number(bot.z);
-
-let old_key = this.getKey_3d(pos_x, pos_y, pos_z);
-delete this.botindex[old_key];
-
-this.apicall_clear_pending_servicebay_recycle(normalized_bot_id);
-this.apicall_clear_payload_link(normalized_bot_id);
-
-let carrier_ids = Object.keys(this.api_payload_links ?? {});
-for (let i = 0; i < carrier_ids.length; i++)
-    {
-    let carrier_id = carrier_ids[i];
-    let payload_id = String(this.api_payload_links[carrier_id]?.payload_bot_id ?? "").trim();
-
-    if (payload_id == normalized_bot_id)
-       {
-       this.apicall_clear_payload_link(carrier_id);
-       } // if
-    } // for
-
-let grab_carrier_ids = Object.keys(this.api_grab_state_map ?? {});
-for (let i = 0; i < grab_carrier_ids.length; i++)
-    {
-    let carrier_id = grab_carrier_ids[i];
-    let payload_id = String(this.api_grab_state_map[carrier_id] ?? "").trim();
-
-    if (payload_id == normalized_bot_id)
-       {
-       delete this.api_grab_state_map[carrier_id];
-       } // if
-    } // for
-
-this.bots.splice(botindex, 1);
-this.apicall_rebuild_botindex();
-
-const events = [];
-events.push({
-            event: "removebot",
-            botid: normalized_bot_id
-            });
-events.push({
-            event: "console",
-            msg: "Servicebay timeout-recycle: " + normalized_bot_id + " @ (" + pos_x + "," + pos_y + "," + pos_z + ")"
-            });
-this.notify_frontend(events);
-
-return({
-       ok: true,
-       answer: "api_servicebay_autorecycle",
-       recycled: true,
-       reason: "RECYCLED_AT_SERVICEBAY_TIMEOUT",
-       source: String(source ?? "ack_timeout_servicebay"),
-       bot_id: normalized_bot_id,
-       position: {
-                  x: pos_x,
-                  y: pos_y,
-                  z: pos_z
-                  }
-       });
+return(runtime_recycle_bot_force(this, bot_id, source));
 } // apicall_recycle_bot_force()
 
 
@@ -5614,70 +4894,7 @@ return({
 //
 apicall_get_bots( center_x, center_y, center_z, mode, radius )
 {
-let retbots = [];
-
-center_x = Number(center_x);
-center_y = Number(center_y);
-center_z = Number(center_z);
-radius   = Number(radius);
-
-if ( Number.isNaN(center_x) || Number.isNaN(center_y) || Number.isNaN(center_z) || Number.isNaN(radius) )
-   {
-   return({
-          ok: false,
-          answer: "api_get_bots",
-          error: "INVALID_PARAMETERS"
-          });
-   } // if
-
-if ( mode != "cube" )
-   {
-   return({
-          ok: false,
-          answer: "api_get_bots",
-          error: "UNSUPPORTED_MODE",
-          mode: mode
-          });
-   } // if
-
-for (let i=0; i<this.bots.length; i++)
-    {
-    let dx = Math.abs( Number(this.bots[i].x) - center_x );
-    let dy = Math.abs( Number(this.bots[i].y) - center_y );
-    let dz = Math.abs( Number(this.bots[i].z) - center_z );
-
-    if ( dx <= radius && dy <= radius && dz <= radius )
-       {
-       retbots.push({
-                    id: this.bots[i].id,
-                    position: {
-                               x: Number(this.bots[i].x),
-                               y: Number(this.bots[i].y),
-                               z: Number(this.bots[i].z)
-                               },
-                    orientation: {
-                                  x: Number(this.bots[i].vector_x),
-                                  y: Number(this.bots[i].vector_y),
-                                  z: Number(this.bots[i].vector_z)
-                                  },
-                    adress: this.apicall_get_safe_adress(this.bots[i])
-                    });
-       } // if
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_bots",
-       mode: "cube",
-       center: {
-                x: center_x,
-                y: center_y,
-                z: center_z
-                },
-       radius: radius,
-       count: retbots.length,
-       bots: retbots
-       });
+return(runtime_get_bots(this, center_x, center_y, center_z, mode, radius));
 } // apicall_get_bots()
 
 
@@ -5686,48 +4903,7 @@ return({
 //
 apicall_get_bots_by_prefix(prefix = "")
 {
-let normalized_prefix = String(prefix ?? "").trim();
-let retbots = [];
-
-if (normalized_prefix.length < 1)
-   {
-   return({
-          ok: false,
-          answer: "api_get_bots_by_prefix",
-          error: "EMPTY_PREFIX"
-          });
-   } // if
-
-for (let i=0; i<this.bots.length; i++)
-    {
-    let bot_id = String(this.bots[i].id ?? "");
-
-    if (bot_id.startsWith(normalized_prefix))
-       {
-       retbots.push({
-                    id: bot_id,
-                    position: {
-                               x: Number(this.bots[i].x),
-                               y: Number(this.bots[i].y),
-                               z: Number(this.bots[i].z)
-                               },
-                    orientation: {
-                                  x: Number(this.bots[i].vector_x),
-                                  y: Number(this.bots[i].vector_y),
-                                  z: Number(this.bots[i].vector_z)
-                                  },
-                    adress: this.apicall_get_safe_adress(this.bots[i])
-                    });
-       } // if
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_bots_by_prefix",
-       prefix: normalized_prefix,
-       count: retbots.length,
-       bots: retbots
-       });
+return(runtime_get_bots_by_prefix(this, prefix));
 } // apicall_get_bots_by_prefix()
 
 
@@ -5736,35 +4912,7 @@ return({
 //
 apicall_raw_cmd( raw_value )
 {
-if ( typeof raw_value != "string" || raw_value.trim() == "" )
-   {
-   return({
-          ok: false,
-          answer: "api_raw_cmd",
-          error: "EMPTY_RAW_COMMAND"
-          });
-   } // if
-
-if ( this.MASTERBOT_CONNECTED != 1 )
-   {
-   return({
-          ok: false,
-          answer: "api_raw_cmd",
-          error: "MASTERBOT_NOT_CONNECTED"
-          });
-   } // if
-
-let param = this.sign( raw_value.trim() );
-let cmd = JSON.stringify({ cmd: "push", param }) + "\n";
-
-this.client.write(cmd);
-
-return({
-       ok: true,
-       answer: "api_raw_cmd",
-       accepted: true,
-       raw_value: raw_value.trim()
-       });
+return(runtime_raw_cmd(this, raw_value));
 } // apicall_raw_cmd()
 
 
@@ -5773,24 +4921,17 @@ return({
 //
 apicall_poll_masterbot_queue()
 {
-if ( this.MASTERBOT_CONNECTED != 1 )
-   {
-   return({
-          ok: false,
-          answer: "api_poll_masterbot_queue",
-          error: "MASTERBOT_NOT_CONNECTED"
-          });
-   } // if
-
-let cmd = JSON.stringify({ cmd: "pop", param: "" }) + "\n";
-this.client.write(cmd);
-
-return({
-       ok: true,
-       answer: "api_poll_masterbot_queue",
-       accepted: true
-       });
+return(runtime_poll_masterbot_queue(this));
 } // apicall_poll_masterbot_queue()
+
+
+//
+// apicall_search_bot()
+//
+apicall_search_bot(bot_id, level = 1)
+{
+return(runtime_search_bot(this, bot_id, level));
+} // apicall_search_bot()
 
 
 //
@@ -5798,57 +4939,13 @@ return({
 //
 apicall_get_inactive_bots()
 {
-let retbots = [];
-let size = this.detected_inactive_bots.length;
-
-for (let i=0; i<size; i++)
-    {
-    retbots.push(
-                {
-                id: this.detected_inactive_bots[i].id,
-                position: {
-                           x: Number(this.detected_inactive_bots[i].x),
-                           y: Number(this.detected_inactive_bots[i].y),
-                           z: Number(this.detected_inactive_bots[i].z)
-                           },
-                orientation: {
-                              x: Number(this.detected_inactive_bots[i].vx),
-                              y: Number(this.detected_inactive_bots[i].vy),
-                              z: Number(this.detected_inactive_bots[i].vz)
-                              },
-                color: this.detected_inactive_bots[i].col,
-                source_bot_id: this.detected_inactive_bots[i].source_bot_id,
-                source_slot: this.detected_inactive_bots[i].source_slot
-                }
-                );
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_inactive_bots",
-       count: retbots.length,
-       bots: retbots
-       });
+return(runtime_get_inactive_bots(this));
 } // apicall_get_inactive_bots()
 
 
 apicall_get_inactive_bot_by_xyz(x, y, z)
 {
-let size = this.detected_inactive_bots.length;
-
-for (let i=0; i<size; i++)
-    {
-    if (
-        Number(this.detected_inactive_bots[i].x) == Number(x) &&
-        Number(this.detected_inactive_bots[i].y) == Number(y) &&
-        Number(this.detected_inactive_bots[i].z) == Number(z)
-       )
-       {
-       return this.detected_inactive_bots[i];
-       } // if
-    } // for
-
-return null;
+return(runtime_get_inactive_bot_by_xyz(this, x, y, z));
 } // apicall_get_inactive_bot_by_xyz()
 
 
@@ -5857,99 +4954,7 @@ return null;
 //
 apicall_get_neighbors(bot_id)
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-const slotnames = ['F','R','B','L','T','D'];
-let neighbors = {};
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_get_neighbors",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-for (let i=0; i<slotnames.length; i++)
-    {
-    let slotname = slotnames[i];
-    let target_xyz = this.get_next_target_coor(
-                                          this.bots[botindex].x,
-                                          this.bots[botindex].y,
-                                          this.bots[botindex].z,
-                                          this.bots[botindex].vector_x,
-                                          this.bots[botindex].vector_y,
-                                          this.bots[botindex].vector_z,
-                                          slotname
-                                          );
-
-    let target_bot_index = this.get_3d(target_xyz.x, target_xyz.y, target_xyz.z);
-    let inactive_bot = this.apicall_get_inactive_bot_by_xyz(target_xyz.x, target_xyz.y, target_xyz.z);
-
-    neighbors[slotname] = {
-                          position: {
-                                     x: Number(target_xyz.x),
-                                     y: Number(target_xyz.y),
-                                     z: Number(target_xyz.z)
-                                     },
-                          state: "empty"
-                          };
-
-    if (inactive_bot != null)
-       {
-       neighbors[slotname] = {
-                             position: {
-                                        x: Number(target_xyz.x),
-                                        y: Number(target_xyz.y),
-                                        z: Number(target_xyz.z)
-                                        },
-                             state: "inactive",
-                             id: inactive_bot.id,
-                             color: inactive_bot.col,
-                             source_bot_id: inactive_bot.source_bot_id,
-                             source_slot: inactive_bot.source_slot
-                             };
-       } // if
-
-    if (target_bot_index != null)
-       {
-       neighbors[slotname] = {
-                             position: {
-                                        x: Number(target_xyz.x),
-                                        y: Number(target_xyz.y),
-                                        z: Number(target_xyz.z)
-                                        },
-                             state: "active",
-                             id: this.bots[target_bot_index].id,
-                             orientation: {
-                                           x: Number(this.bots[target_bot_index].vector_x),
-                                           y: Number(this.bots[target_bot_index].vector_y),
-                                           z: Number(this.bots[target_bot_index].vector_z)
-                                           },
-                             adress: this.apicall_get_safe_adress(this.bots[target_bot_index])
-                             };
-       } // if
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_neighbors",
-       bot_id: bot_id,
-       center: {
-                position: {
-                           x: Number(this.bots[botindex].x),
-                           y: Number(this.bots[botindex].y),
-                           z: Number(this.bots[botindex].z)
-                           },
-                orientation: {
-                              x: Number(this.bots[botindex].vector_x),
-                              y: Number(this.bots[botindex].vector_y),
-                              z: Number(this.bots[botindex].vector_z)
-                              }
-                },
-       neighbors: neighbors
-       });
+return(runtime_get_neighbors(this, bot_id));
 } // apicall_get_neighbors()
 
 
@@ -5958,271 +4963,19 @@ return({
 //
 apicall_get_grab_positions(x, y, z)
 {
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let target_occupancy = this.apicall_is_occupied(target_x, target_y, target_z);
-let candidates = [];
-let feasible_candidates = 0;
-const side_vectors = [
-                      { side: "PX", dx:  1, dz:  0 },
-                      { side: "NX", dx: -1, dz:  0 },
-                      { side: "PZ", dx:  0, dz:  1 },
-                      { side: "NZ", dx:  0, dz: -1 }
-                      ];
-
-if (target_occupancy.occupied !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_get_grab_positions",
-          error: "TARGET_NOT_OCCUPIED",
-          target: {
-                   x: target_x,
-                   y: target_y,
-                   z: target_z
-                   }
-          });
-   } // if
-
-for (let i=0; i<side_vectors.length; i++)
-    {
-    let side = side_vectors[i];
-    let carrier_x = target_x - Number(side.dx);
-    let carrier_y = target_y;
-    let carrier_z = target_z - Number(side.dz);
-    let required_orientation = {
-                               x: Number(side.dx),
-                               y: 0,
-                               z: Number(side.dz)
-                               };
-    let carrier_cell_forbidden = this.apicall_is_forbidden_cell(carrier_x, carrier_y, carrier_z);
-    let carrier_cell_occupancy = this.apicall_is_occupied(carrier_x, carrier_y, carrier_z);
-    let anchor_down = this.apicall_is_occupied(carrier_x, carrier_y - 1, carrier_z);
-    let anchor_up = this.apicall_is_occupied(carrier_x, carrier_y + 1, carrier_z);
-    let anchor_ok = (anchor_down.occupied === true || anchor_up.occupied === true);
-    let feasible = true;
-    let blocked_reasons = [];
-
-    if (carrier_cell_forbidden === true)
-       {
-       feasible = false;
-       blocked_reasons.push("CARRIER_POS_FORBIDDEN");
-       } // if
-
-    if (carrier_cell_occupancy.occupied === true)
-       {
-       feasible = false;
-       blocked_reasons.push("CARRIER_POS_OCCUPIED");
-       } // if
-
-    if (anchor_ok !== true)
-       {
-       feasible = false;
-       blocked_reasons.push("ANCHOR_MISSING");
-       } // if
-
-    if (feasible === true)
-       {
-       feasible_candidates++;
-       } // if
-
-    candidates.push(
-                    {
-                    side: side.side,
-                    carrier_pos: {
-                                 x: carrier_x,
-                                 y: carrier_y,
-                                 z: carrier_z
-                                 },
-                    required_orientation: required_orientation,
-                    grab_slot: "F",
-                    feasible: feasible,
-                    carrier_cell_forbidden: carrier_cell_forbidden,
-                    carrier_cell_status: carrier_cell_occupancy,
-                    anchor_ok: anchor_ok,
-                    anchor_options: {
-                                     down: anchor_down,
-                                     up: anchor_up
-                                     },
-                    blocked_reasons: blocked_reasons
-                    }
-                    );
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_grab_positions",
-       target: {
-                position: {
-                           x: target_x,
-                           y: target_y,
-                           z: target_z
-                           },
-                state: target_occupancy.state,
-                id: target_occupancy.id ?? null
-                },
-       feasible_count: feasible_candidates,
-       candidates: candidates
-       });
+return(runtime_get_grab_positions(this, x, y, z));
 } // apicall_get_grab_positions()
 
 
 apicall_evaluate_turn_position(x, y, z, excluded_bot_ids = [])
 {
-let pos_x = Number(x);
-let pos_y = Number(y);
-let pos_z = Number(z);
-let excluded_ids = Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [];
-let center_status = this.apicall_is_occupied_excluding_ids(pos_x, pos_y, pos_z, excluded_ids);
-let center_forbidden = this.apicall_is_forbidden_cell(pos_x, pos_y, pos_z);
-let anchor_down = this.apicall_is_occupied_excluding_ids(pos_x, pos_y - 1, pos_z, excluded_ids);
-let anchor_up = this.apicall_is_occupied_excluding_ids(pos_x, pos_y + 1, pos_z, excluded_ids);
-let anchor_ok = (anchor_down.occupied === true || anchor_up.occupied === true);
-let orthogonal = {
-                 xp: { x: pos_x + 1, y: pos_y, z: pos_z },
-                 xm: { x: pos_x - 1, y: pos_y, z: pos_z },
-                 zp: { x: pos_x, y: pos_y, z: pos_z + 1 },
-                 zm: { x: pos_x, y: pos_y, z: pos_z - 1 }
-                 };
-let orthogonal_keys = Object.keys(orthogonal);
-let orthogonal_status = {};
-let free_orthogonal_same_y_count = 0;
-let blocked_orthogonal_same_y = [];
-
-for (let i=0; i<orthogonal_keys.length; i++)
-    {
-    let key = orthogonal_keys[i];
-    let p = orthogonal[key];
-    let status = this.apicall_is_occupied_excluding_ids(p.x, p.y, p.z, excluded_ids);
-    let forbidden = this.apicall_is_forbidden_cell(p.x, p.y, p.z);
-    let free = (status.occupied !== true && forbidden !== true);
-
-    if (free === true)
-       {
-       free_orthogonal_same_y_count++;
-       } // if
-    else
-       {
-       blocked_orthogonal_same_y.push({
-                                      side: key.toUpperCase(),
-                                      position: {
-                                                 x: Number(p.x),
-                                                 y: Number(p.y),
-                                                 z: Number(p.z)
-                                                 },
-                                      forbidden: forbidden,
-                                      state: status.state ?? "unknown",
-                                      id: status.id ?? null
-                                      });
-       } // else
-
-    orthogonal_status[key.toUpperCase()] = {
-                                            position: {
-                                                       x: Number(p.x),
-                                                       y: Number(p.y),
-                                                       z: Number(p.z)
-                                                       },
-                                            free: free,
-                                            forbidden: forbidden,
-                                            state: status.state ?? "unknown",
-                                            id: status.id ?? null
-                                            };
-    } // for
-
-let turnable_same_y = (free_orthogonal_same_y_count >= 4);
-let turnable_strict = (turnable_same_y === true && anchor_ok === true && center_forbidden !== true);
-
-return({
-       position: {
-                  x: pos_x,
-                  y: pos_y,
-                  z: pos_z
-                  },
-       center_status: center_status,
-       center_forbidden: center_forbidden,
-       anchor_ok: anchor_ok,
-       anchor_options: {
-                        down: anchor_down,
-                        up: anchor_up
-                        },
-       free_orthogonal_same_y_count: free_orthogonal_same_y_count,
-       turnable_same_y: turnable_same_y,
-       turnable_strict: turnable_strict,
-       orthogonal: orthogonal_status,
-       blocked_orthogonal_same_y: blocked_orthogonal_same_y
-       });
+return(runtime_evaluate_turn_position(this, x, y, z, excluded_bot_ids));
 } // apicall_evaluate_turn_position()
 
 
 apicall_get_turn_positions(x, y, z, radius = 1, excluded_bot_ids = [])
 {
-let center_x = Number(x);
-let center_y = Number(y);
-let center_z = Number(z);
-let r = Number(radius);
-let candidates = [];
-let turnable_same_y_count = 0;
-let turnable_strict_count = 0;
-
-if (
-    Number.isNaN(center_x) ||
-    Number.isNaN(center_y) ||
-    Number.isNaN(center_z) ||
-    Number.isNaN(r)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_get_turn_positions",
-          error: "INVALID_INPUT"
-          });
-   } // if
-
-r = Math.max(0, Math.min(6, Math.floor(r)));
-
-for (let dx = -r; dx <= r; dx++)
-    {
-    for (let dy = -r; dy <= r; dy++)
-        {
-        for (let dz = -r; dz <= r; dz++)
-            {
-            let eval_ret = this.apicall_evaluate_turn_position(
-                                                            center_x + dx,
-                                                            center_y + dy,
-                                                            center_z + dz,
-                                                            excluded_bot_ids
-                                                            );
-
-            if (eval_ret.turnable_same_y === true)
-               {
-               turnable_same_y_count++;
-               } // if
-
-            if (eval_ret.turnable_strict === true)
-               {
-               turnable_strict_count++;
-               } // if
-
-            candidates.push(eval_ret);
-            } // for
-        } // for
-    } // for
-
-return({
-       ok: true,
-       answer: "api_get_turn_positions",
-       center: {
-                x: center_x,
-                y: center_y,
-                z: center_z
-                },
-       radius: r,
-       count: candidates.length,
-       turnable_same_y_count: turnable_same_y_count,
-       turnable_strict_count: turnable_strict_count,
-       candidates: candidates
-       });
+return(runtime_get_turn_positions(this, x, y, z, radius, excluded_bot_ids));
 } // apicall_get_turn_positions()
 
 
@@ -6231,95 +4984,13 @@ return({
 //
 apicall_is_occupied(x, y, z)
 {
-let target_bot_index = this.get_3d(x, y, z);
-let inactive_bot = this.apicall_get_inactive_bot_by_xyz(x, y, z);
-
-if (target_bot_index != null)
-   {
-   return({
-          ok: true,
-          answer: "api_is_occupied",
-          position: {
-                     x: Number(x),
-                     y: Number(y),
-                     z: Number(z)
-                     },
-          occupied: true,
-          state: "active",
-          id: this.bots[target_bot_index].id,
-          orientation: {
-                        x: Number(this.bots[target_bot_index].vector_x),
-                        y: Number(this.bots[target_bot_index].vector_y),
-                        z: Number(this.bots[target_bot_index].vector_z)
-                        },
-          adress: this.apicall_get_safe_adress(this.bots[target_bot_index])
-          });
-   } // if
-
-if (inactive_bot != null)
-   {
-   return({
-          ok: true,
-          answer: "api_is_occupied",
-          position: {
-                     x: Number(x),
-                     y: Number(y),
-                     z: Number(z)
-                     },
-          occupied: true,
-          state: "inactive",
-          id: inactive_bot.id,
-          color: inactive_bot.col,
-          source_bot_id: inactive_bot.source_bot_id,
-          source_slot: inactive_bot.source_slot
-          });
-   } // if
-
-return({
-       ok: true,
-       answer: "api_is_occupied",
-       position: {
-                  x: Number(x),
-                  y: Number(y),
-                  z: Number(z)
-                  },
-       occupied: false,
-       state: "empty"
-       });
+return(runtime_is_occupied(this, x, y, z));
 } // apicall_is_occupied()
 
 
 apicall_is_occupied_excluding_ids(x, y, z, excluded_bot_ids = [])
 {
-let normalized_excluded_ids = new Set(
-                                      (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
-                                      .map((id) => String(id ?? "").trim())
-                                      .filter((id) => id != "")
-                                      );
-let occupancy = this.apicall_is_occupied(x, y, z);
-
-if (occupancy.occupied !== true)
-   {
-   return(occupancy);
-   } // if
-
-if (normalized_excluded_ids.has(String(occupancy.id ?? "")))
-   {
-   return({
-          ok: true,
-          answer: "api_is_occupied",
-          position: {
-                     x: Number(x),
-                     y: Number(y),
-                     z: Number(z)
-                     },
-          occupied: false,
-          state: "excluded",
-          excluded_id: occupancy.id
-          });
-   } // if
-
-return(occupancy);
+return(runtime_is_occupied_excluding_ids(this, x, y, z, excluded_bot_ids));
 } // apicall_is_occupied_excluding_ids()
 
 
@@ -6328,62 +4999,7 @@ return(occupancy);
 //
 apicall_get_slot_status(bot_id, slot)
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-let normalized_slot = String(slot ?? "").trim().toUpperCase();
-const valid_slots = ['F','R','B','L','T','D'];
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_get_slot_status",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if (!valid_slots.includes(normalized_slot))
-   {
-   return({
-          ok: false,
-          answer: "api_get_slot_status",
-          error: "INVALID_SLOT",
-          bot_id: bot_id,
-          slot: normalized_slot
-          });
-   } // if
-
-let target_xyz = this.get_next_target_coor(
-                                      this.bots[botindex].x,
-                                      this.bots[botindex].y,
-                                      this.bots[botindex].z,
-                                      this.bots[botindex].vector_x,
-                                      this.bots[botindex].vector_y,
-                                      this.bots[botindex].vector_z,
-                                      normalized_slot
-                                      );
-
-let occupancy = this.apicall_is_occupied(target_xyz.x, target_xyz.y, target_xyz.z);
-
-return({
-       ok: true,
-       answer: "api_get_slot_status",
-       bot_id: bot_id,
-       slot: normalized_slot,
-       center: {
-                position: {
-                           x: Number(this.bots[botindex].x),
-                           y: Number(this.bots[botindex].y),
-                           z: Number(this.bots[botindex].z)
-                           },
-                orientation: {
-                              x: Number(this.bots[botindex].vector_x),
-                              y: Number(this.bots[botindex].vector_y),
-                              z: Number(this.bots[botindex].vector_z)
-                              }
-                },
-       target: occupancy
-       });
+return(runtime_get_slot_status(this, bot_id, slot));
 } // apicall_get_slot_status()
 
 
@@ -6392,180 +5008,7 @@ return({
 //
 apicall_probe_move_bot(bot_id, move)
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-let normalized_move = String(move ?? "").trim().toUpperCase();
-const valid_slots = ['F','R','B','L','T','D'];
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if (normalized_move == "")
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "EMPTY_MOVE",
-          bot_id: bot_id
-          });
-   } // if
-
-if (normalized_move.includes(";"))
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "MOVE_SEQUENCES_ARE_NOT_YET_SUPPORTED",
-          bot_id: bot_id,
-          move: normalized_move
-          });
-   } // if
-
-if (/[0-9]+$/g.test(normalized_move))
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "MOVE_REPETITIONS_CANNOT_CURRENTLY_BE_VALIDATED",
-          bot_id: bot_id,
-          move: normalized_move
-          });
-   } // if
-
-let moveparts = normalized_move.split("_");
-
-if (moveparts.length != 3)
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "INVALID_MOVE_FORMAT",
-          bot_id: bot_id,
-          move: normalized_move
-          });
-   } // if
-
-let start_slot = moveparts[0];
-let move_path = moveparts[1];
-let end_slot = moveparts[2];
-
-if (!valid_slots.includes(start_slot) || !valid_slots.includes(end_slot))
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "UNSUPPORTED_MOVE_ANCHOR",
-          bot_id: bot_id,
-          move: normalized_move
-          });
-   } // if
-
-if (!/^[FRBLTD]+$/g.test(move_path))
-   {
-   return({
-          ok: false,
-          answer: "api_probe_move_bot",
-          error: "MOVE_PATH_CANNOT_CURRENTLY_BE_VALIDATED",
-          bot_id: bot_id,
-          move: normalized_move
-          });
-   } // if
-
-let bot = this.bots[botindex];
-let start_status = this.apicall_get_slot_status(bot_id, start_slot);
-let predicted_x = Number(bot.x);
-let predicted_y = Number(bot.y);
-let predicted_z = Number(bot.z);
-
-for (let i=0; i<move_path.length; i++)
-    {
-    let step_slot = move_path.charAt(i);
-    let target_xyz = this.get_next_target_coor(
-                                          predicted_x,
-                                          predicted_y,
-                                          predicted_z,
-                                          Number(bot.vector_x),
-                                          Number(bot.vector_y),
-                                          Number(bot.vector_z),
-                                          step_slot
-                                          );
-
-    predicted_x = Number(target_xyz.x);
-    predicted_y = Number(target_xyz.y);
-    predicted_z = Number(target_xyz.z);
-    } // for
-
-let target_occupancy = this.apicall_is_occupied(predicted_x, predicted_y, predicted_z);
-let end_anchor_xyz = this.get_next_target_coor(
-                                          predicted_x,
-                                          predicted_y,
-                                          predicted_z,
-                                          Number(bot.vector_x),
-                                          Number(bot.vector_y),
-                                          Number(bot.vector_z),
-                                          end_slot
-                                          );
-let end_anchor_occupancy = this.apicall_is_occupied(end_anchor_xyz.x, end_anchor_xyz.y, end_anchor_xyz.z);
-let possible = true;
-let reasons = [];
-
-if (start_status.target.occupied !== true)
-   {
-   possible = false;
-   reasons.push("Start anchor is not occupied.");
-   } // if
-
-if (target_occupancy.occupied === true)
-   {
-   possible = false;
-   reasons.push("Predicted target position is already occupied.");
-   } // if
-
-if (end_anchor_occupancy.occupied !== true)
-   {
-   possible = false;
-   reasons.push("End anchor is not occupied.");
-   } // if
-
-if (reasons.length == 0)
-   {
-   reasons.push("Local occupancy check passed.");
-   } // if
-
-return({
-       ok: true,
-       answer: "api_probe_move_bot",
-       bot_id: bot_id,
-       move: normalized_move,
-       possible: possible,
-       center: {
-                position: {
-                           x: Number(bot.x),
-                           y: Number(bot.y),
-                           z: Number(bot.z)
-                           },
-                orientation: {
-                              x: Number(bot.vector_x),
-                              y: Number(bot.vector_y),
-                              z: Number(bot.vector_z)
-                              }
-                },
-       predicted_target: {
-                          x: predicted_x,
-                          y: predicted_y,
-                          z: predicted_z
-                          },
-       start_anchor: start_status.target,
-       target_status: target_occupancy,
-       end_anchor: end_anchor_occupancy,
-       notes: reasons
-       });
+return(runtime_probe_move_bot(this, bot_id, move));
 } // apicall_probe_move_bot()
 
 
@@ -6574,2107 +5017,109 @@ return({
 //
 apicall_can_reach_position(bot_id, x, y, z)
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-const target_neighbor_offsets = [
-                                { x: 1,  y: 0,  z: 0 },
-                                { x: -1, y: 0,  z: 0 },
-                                { x: 0,  y: 1,  z: 0 },
-                                { x: 0,  y: -1, z: 0 },
-                                { x: 0,  y: 0,  z: 1 },
-                                { x: 0,  y: 0,  z: -1 }
-                                ];
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_can_reach_position",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if ( Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z) )
-   {
-   return({
-          ok: false,
-          answer: "api_can_reach_position",
-          error: "INVALID_TARGET_POSITION",
-          bot_id: bot_id
-          });
-   } // if
-
-let bot = this.bots[botindex];
-let dx = target_x - Number(bot.x);
-let dy = target_y - Number(bot.y);
-let dz = target_z - Number(bot.z);
-let manhattan = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
-let target_status = this.apicall_is_occupied(target_x, target_y, target_z);
-let target_forbidden = this.apicall_is_forbidden_cell(target_x, target_y, target_z);
-let target_local_contacts = 0;
-let reachable = false;
-let reason = "COMPLEX_PATH_SEARCH_NOT_YET_IMPLEMENTED";
-let notes = [];
-
-for (let i=0; i<target_neighbor_offsets.length; i++)
-    {
-    let nx = target_x + target_neighbor_offsets[i].x;
-    let ny = target_y + target_neighbor_offsets[i].y;
-    let nz = target_z + target_neighbor_offsets[i].z;
-    let neighbor_status = this.apicall_is_occupied(nx, ny, nz);
-
-    if (neighbor_status.occupied === true)
-       {
-       target_local_contacts++;
-       } // if
-    } // for
-
-if (target_forbidden === true)
-   {
-   reachable = false;
-   reason = "TARGET_POSITION_IS_FORBIDDEN";
-   notes.push("The requested target coordinate is marked as forbidden.");
-   } // if
-else if (target_status.occupied === true)
-   {
-   reachable = false;
-   reason = "TARGET_POSITION_IS_OCCUPIED";
-   notes.push("The requested target coordinate is already occupied.");
-   } // if
-else if (dx == 0 && dy == 0 && dz == 0)
-   {
-   reachable = true;
-   reason = "ALREADY_AT_TARGET";
-   notes.push("Bot is already located at the requested target position.");
-   } // if
-else if (manhattan == 1)
-   {
-   reachable = true;
-   reason = "DIRECT_NEIGHBOR_TARGET";
-   notes.push("Target is one orthogonal step away.");
-   } // if
-else if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && Math.abs(dz) <= 1 && manhattan <= 2)
-   {
-   reachable = false;
-   reason = "LOCAL_TARGET_REQUIRES_PATH_SEARCH";
-   notes.push("Target is local, but a path search is still required.");
-   } // if
-else
-   {
-   reachable = false;
-   reason = "COMPLEX_PATH_SEARCH_NOT_YET_IMPLEMENTED";
-   notes.push("Current implementation only performs a conservative surface check.");
-   } // else
-
-if (target_local_contacts == 0)
-   {
-   notes.push("Target coordinate currently has no occupied orthogonal neighbors.");
-   } // if
-else
-   {
-   notes.push("Target coordinate has " + target_local_contacts + " occupied orthogonal neighbor(s).");
-   } // else
-
-return({
-       ok: true,
-       answer: "api_can_reach_position",
-       evaluation_mode: "surface-check",
-       bot_id: bot_id,
-       center: {
-                position: {
-                           x: Number(bot.x),
-                           y: Number(bot.y),
-                           z: Number(bot.z)
-                           },
-                orientation: {
-                              x: Number(bot.vector_x),
-                              y: Number(bot.vector_y),
-                              z: Number(bot.vector_z)
-                              }
-                },
-       target: {
-                x: target_x,
-                y: target_y,
-                z: target_z
-                },
-       distance: {
-                  dx: dx,
-                  dy: dy,
-                  dz: dz,
-                  manhattan: manhattan
-                  },
-       target_status: target_status,
-       target_forbidden: target_forbidden,
-       target_local_contacts: target_local_contacts,
-       reachable: reachable,
-       reason: reason,
-       notes: notes
-       });
+return(runtime_can_reach_position(this, bot_id, x, y, z));
 } // apicall_can_reach_position()
 
 
 apicall_create_sparse_grid()
 {
-const store = new Map();
-
-return({
-       set(x, y, z, value = 1) {
-         store.set(`${x},${y},${z}`, value);
-         return(true);
-       }, // set()
-       get(x, y, z) {
-         const key = `${x},${y},${z}`;
-         return store.has(key) ? store.get(key) : null;
-       }, // get()
-       keys() {
-         return Array.from(store.keys());
-       } // keys()
-       });
+return(runtime_create_sparse_grid(this));
 } // apicall_create_sparse_grid()
 
 
 apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids = [])
 {
-let grid = this.apicall_create_sparse_grid();
-let excluded_ids = new Set(
-                          (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
-                          .map((id) => String(id ?? "").trim())
-                          .filter((id) => id != "")
-                          );
-
-for (let i=0; i<this.bots.length; i++)
-    {
-    if (this.bots[i].id == "masterbot") continue;
-    if (this.bots[i].id == bot_id) continue;
-    if (excluded_ids.has(String(this.bots[i].id ?? ""))) continue;
-
-    grid.set(
-             Number(this.bots[i].x),
-             Number(this.bots[i].y),
-             Number(this.bots[i].z),
-             this.bots[i].id
-             );
-    } // for
-
-return(grid);
+return(runtime_build_structure_grid_without_bot(this, bot_id, excluded_bot_ids));
 } // apicall_build_structure_grid_without_bot()
 
 
 apicall_would_split_cluster(bot_id)
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-
-if (normalized_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          error: "BOT_ID_MISSING"
-          });
-   } // if
-
-if (normalized_bot_id == "masterbot")
-   {
-   return({
-          ok: false,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          error: "MASTERBOT_REMOVAL_UNSUPPORTED"
-          });
-   } // if
-
-let target_index = this.get_bot_by_id(normalized_bot_id, this.bots);
-
-if (target_index === null)
-   {
-   return({
-          ok: false,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          error: "BOT_NOT_FOUND"
-          });
-   } // if
-
-let remaining_bots = [];
-let position_map = {};
-let root_bot = null;
-
-for (let i=0; i<this.bots.length; i++)
-    {
-    let bot = this.bots[i];
-
-    if (!bot)
-       {
-       continue;
-       } // if
-
-    if (bot.id == normalized_bot_id)
-       {
-       continue;
-       } // if
-
-    remaining_bots.push(bot);
-    position_map[`${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`] = bot;
-
-    if (bot.id == "masterbot")
-       {
-       root_bot = bot;
-       } // if
-    } // for
-
-if (remaining_bots.length == 0)
-   {
-   return({
-          ok: true,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          removed_bot: this.apicall_get_bot_snapshot(normalized_bot_id),
-          root_bot_id: "masterbot",
-          would_split_cluster: false,
-          remains_connected: true,
-          visited_count: 0,
-          remaining_count: 0,
-          disconnected_count: 0,
-          disconnected_bots: []
-          });
-   } // if
-
-if (root_bot === null)
-   {
-   return({
-          ok: false,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          error: "MASTERBOT_NOT_FOUND"
-          });
-   } // if
-
-const key_for_bot = (bot) => `${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`;
-const neighbor_offsets = [
-                          { x: 1, y: 0, z: 0 },
-                          { x: -1, y: 0, z: 0 },
-                          { x: 0, y: 1, z: 0 },
-                          { x: 0, y: -1, z: 0 },
-                          { x: 0, y: 0, z: 1 },
-                          { x: 0, y: 0, z: -1 }
-                          ];
-
-let visited = new Set();
-let queue = [root_bot];
-visited.add(key_for_bot(root_bot));
-
-while (queue.length > 0)
-      {
-      let current = queue.shift();
-
-      for (let i=0; i<neighbor_offsets.length; i++)
-          {
-          let offset = neighbor_offsets[i];
-          let neighbor_key = `${Number(current.x) + offset.x},${Number(current.y) + offset.y},${Number(current.z) + offset.z}`;
-
-          if (visited.has(neighbor_key))
-             {
-             continue;
-             } // if
-
-          if (!position_map[neighbor_key])
-             {
-             continue;
-             } // if
-
-          visited.add(neighbor_key);
-          queue.push(position_map[neighbor_key]);
-          } // for
-      } // while
-
-let disconnected_bots = [];
-
-for (let i=0; i<remaining_bots.length; i++)
-    {
-    let bot = remaining_bots[i];
-    let bot_key = key_for_bot(bot);
-
-    if (!visited.has(bot_key))
-       {
-       disconnected_bots.push({
-                              id: bot.id,
-                              x: bot.x,
-                              y: bot.y,
-                              z: bot.z,
-                              adress: this.apicall_get_safe_adress(bot)
-                              });
-       } // if
-    } // for
-
-let would_split_cluster = (disconnected_bots.length > 0);
-
-return({
-       ok: true,
-       answer: "api_would_split_cluster",
-       bot_id: normalized_bot_id,
-       removed_bot: this.apicall_get_bot_snapshot(normalized_bot_id),
-       root_bot_id: root_bot.id,
-       would_split_cluster: would_split_cluster,
-       remains_connected: !would_split_cluster,
-       visited_count: visited.size,
-       remaining_count: remaining_bots.length,
-       disconnected_count: disconnected_bots.length,
-       disconnected_bots: disconnected_bots
-       });
+return(runtime_would_split_cluster(this, bot_id));
 } // apicall_would_split_cluster()
 
 
 apicall_build_forbidden_grid()
 {
-let grid = this.apicall_create_sparse_grid();
-let role_forbidden = this.apicall_get_structure_role_list("forbidden");
-
-for (let i=0; i<this.detected_inactive_bots.length; i++)
-    {
-    grid.set(
-             Number(this.detected_inactive_bots[i].x),
-             Number(this.detected_inactive_bots[i].y),
-             Number(this.detected_inactive_bots[i].z),
-             this.detected_inactive_bots[i].id
-             );
-    } // for
-
-for (let i=0; i<role_forbidden.length; i++)
-    {
-    grid.set(
-             Number(role_forbidden[i].x),
-             Number(role_forbidden[i].y),
-             Number(role_forbidden[i].z),
-             "forbidden"
-             );
-    } // for
-
-return(grid);
+return(runtime_build_forbidden_grid(this));
 } // apicall_build_forbidden_grid()
 
 
 apicall_is_forbidden_cell(x, y, z, forbidden_grid = null)
 {
-let grid = forbidden_grid ?? this.apicall_build_forbidden_grid();
-
-if (!grid)
-   {
-   return(false);
-   } // if
-
-return(grid.get(Number(x), Number(y), Number(z)) !== null);
+return(runtime_is_forbidden_cell(this, x, y, z, forbidden_grid));
 } // apicall_is_forbidden_cell()
 
 
 apicall_get_wrapped_cell_for_double_step(from_pos, to_pos)
 {
-if (!from_pos || !to_pos)
-   {
-   return(null);
-   } // if
-
-let dx = Number(to_pos.x) - Number(from_pos.x);
-let dy = Number(to_pos.y) - Number(from_pos.y);
-let dz = Number(to_pos.z) - Number(from_pos.z);
-let non_zero_axes = 0;
-
-if (dx !== 0) non_zero_axes++;
-if (dy !== 0) non_zero_axes++;
-if (dz !== 0) non_zero_axes++;
-
-if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) !== 2)
-   {
-   return(null);
-   } // if
-
-if (non_zero_axes !== 2)
-   {
-   return(null);
-   } // if
-
-if (dy === 0)
-   {
-   return(null);
-   } // if
-
-return({
-       x: Number(from_pos.x) + Number(dx),
-       y: Number(from_pos.y),
-       z: Number(from_pos.z) + Number(dz)
-       });
+return(runtime_get_wrapped_cell_for_double_step(this, from_pos, to_pos));
 } // apicall_get_wrapped_cell_for_double_step()
 
 
 apicall_is_valid_wrapped_double_step(from_pos, to_pos, bots_s)
 {
-if (!bots_s)
-   {
-   return(false);
-   } // if
-
-let wrapped_cell = this.apicall_get_wrapped_cell_for_double_step(from_pos, to_pos);
-
-if (!wrapped_cell)
-   {
-   return(false);
-   } // if
-
-return(
-       bots_s.get(
-                  Number(wrapped_cell.x),
-                  Number(wrapped_cell.y),
-                  Number(wrapped_cell.z)
-                  ) !== null
-       );
+return(runtime_is_valid_wrapped_double_step(this, from_pos, to_pos, bots_s));
 } // apicall_is_valid_wrapped_double_step()
 
 
 apicall_calc_single_path(src, dest, bots_s, bots_f)
 {
-const key = (x, y, z) => `${x},${y},${z}`;
-const visited = new Set();
-const parent = new Map();
-const queue = [];
-let debug_rejections = [];
-
-const is_structure = (x, y, z) => {
-  return bots_s.get(Number(x), Number(y), Number(z)) !== null;
-}; // is_structure()
-
-const is_forbidden = (x, y, z) => {
-  if (!bots_f) return(false);
-  return bots_f.get(Number(x), Number(y), Number(z)) !== null;
-}; // is_forbidden()
-
-const is_empty = (x, y, z) => {
-  return(!is_structure(x, y, z) && !is_forbidden(x, y, z));
-}; // is_empty()
-
-const has_contact = (x, y, z) => {
-  const neighbors6 = [
-                     { dx:  1, dy:  0, dz:  0 },
-                     { dx: -1, dy:  0, dz:  0 },
-                     { dx:  0, dy:  1, dz:  0 },
-                     { dx:  0, dy: -1, dz:  0 },
-                     { dx:  0, dy:  0, dz:  1 },
-                     { dx:  0, dy:  0, dz: -1 }
-                     ];
-
-  for (let i = 0; i < neighbors6.length; i++)
-      {
-      const n = neighbors6[i];
-      if (is_structure(Number(x) + Number(n.dx), Number(y) + Number(n.dy), Number(z) + Number(n.dz)))
-         {
-         return(true);
-         } // if
-      } // for
-
-  return(false);
-}; // has_contact()
-
-const has_axis_lateral_anchor = (target_x, target_y, target_z, axis) => {
-  if (axis === "x")
-     {
-     return(
-            is_structure(target_x, target_y + 1, target_z) ||
-            is_structure(target_x, target_y - 1, target_z) ||
-            is_structure(target_x, target_y, target_z + 1) ||
-            is_structure(target_x, target_y, target_z - 1)
-            );
-     } // if
-
-  if (axis === "y")
-     {
-     return(
-            is_structure(target_x + 1, target_y, target_z) ||
-            is_structure(target_x - 1, target_y, target_z) ||
-            is_structure(target_x, target_y, target_z + 1) ||
-            is_structure(target_x, target_y, target_z - 1)
-            );
-     } // if
-
-  if (axis === "z")
-     {
-     return(
-            is_structure(target_x + 1, target_y, target_z) ||
-            is_structure(target_x - 1, target_y, target_z) ||
-            is_structure(target_x, target_y + 1, target_z) ||
-            is_structure(target_x, target_y - 1, target_z)
-            );
-     } // if
-
-  return(false);
-}; // has_axis_lateral_anchor()
-
-const movement_rules = [
-  {
-    name: "G_F",
-    final: { dx:  1, dy:  0, dz:  0 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x")
-  },
-  {
-    name: "G_B",
-    final: { dx: -1, dy:  0, dz:  0 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x")
-  },
-  {
-    name: "G_R",
-    final: { dx:  0, dy:  0, dz: -1 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z")
-  },
-  {
-    name: "G_L",
-    final: { dx:  0, dy:  0, dz:  1 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z")
-  },
-  {
-    name: "G_T",
-    final: { dx:  0, dy:  1, dz:  0 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y")
-  },
-  {
-    name: "G_D",
-    final: { dx:  0, dy: -1, dz:  0 },
-    intermediate: null,
-    anchor: null,
-    validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y")
-  },
-  {
-    name: "K_TF",
-    final: { dx:  1, dy:  1, dz:  0 },
-    intermediate: { dx:  0, dy:  1, dz:  0 },
-    anchor: { dx:  1, dy:  0, dz:  0 }
-  },
-  {
-    name: "K_TB",
-    final: { dx: -1, dy:  1, dz:  0 },
-    intermediate: { dx:  0, dy:  1, dz:  0 },
-    anchor: { dx: -1, dy:  0, dz:  0 }
-  },
-  {
-    name: "K_DF",
-    final: { dx:  1, dy: -1, dz:  0 },
-    intermediate: { dx:  0, dy: -1, dz:  0 },
-    anchor: { dx:  1, dy:  0, dz:  0 }
-  },
-  {
-    name: "K_DB",
-    final: { dx: -1, dy: -1, dz:  0 },
-    intermediate: { dx:  0, dy: -1, dz:  0 },
-    anchor: { dx: -1, dy:  0, dz:  0 }
-  },
-  {
-    name: "K_TR",
-    final: { dx:  0, dy:  1, dz: -1 },
-    intermediate: { dx:  0, dy:  1, dz:  0 },
-    anchor: { dx:  0, dy:  0, dz: -1 }
-  },
-  {
-    name: "K_TL",
-    final: { dx:  0, dy:  1, dz:  1 },
-    intermediate: { dx:  0, dy:  1, dz:  0 },
-    anchor: { dx:  0, dy:  0, dz:  1 }
-  },
-  {
-    name: "K_DR",
-    final: { dx:  0, dy: -1, dz: -1 },
-    intermediate: { dx:  0, dy: -1, dz:  0 },
-    anchor: { dx:  0, dy:  0, dz: -1 }
-  },
-  {
-    name: "K_DL",
-    final: { dx:  0, dy: -1, dz:  1 },
-    intermediate: { dx:  0, dy: -1, dz:  0 },
-    anchor: { dx:  0, dy:  0, dz:  1 }
-  },
-  {
-    name: "K_FT",
-    final: { dx:  1, dy:  1, dz:  0 },
-    intermediate: { dx:  1, dy:  0, dz:  0 },
-    anchor: { dx:  0, dy:  1, dz:  0 }
-  },
-  {
-    name: "K_FD",
-    final: { dx:  1, dy: -1, dz:  0 },
-    intermediate: { dx:  1, dy:  0, dz:  0 },
-    anchor: { dx:  0, dy: -1, dz:  0 }
-  },
-  {
-    name: "K_BT",
-    final: { dx: -1, dy:  1, dz:  0 },
-    intermediate: { dx: -1, dy:  0, dz:  0 },
-    anchor: { dx:  0, dy:  1, dz:  0 }
-  },
-  {
-    name: "K_BD",
-    final: { dx: -1, dy: -1, dz:  0 },
-    intermediate: { dx: -1, dy:  0, dz:  0 },
-    anchor: { dx:  0, dy: -1, dz:  0 }
-  },
-  {
-    name: "K_LT",
-    final: { dx:  0, dy:  1, dz:  1 },
-    intermediate: { dx:  0, dy:  0, dz:  1 },
-    anchor: { dx:  0, dy:  1, dz:  0 }
-  },
-  {
-    name: "K_LD",
-    final: { dx:  0, dy: -1, dz:  1 },
-    intermediate: { dx:  0, dy:  0, dz:  1 },
-    anchor: { dx:  0, dy: -1, dz:  0 }
-  },
-  {
-    name: "K_RT",
-    final: { dx:  0, dy:  1, dz: -1 },
-    intermediate: { dx:  0, dy:  0, dz: -1 },
-    anchor: { dx:  0, dy:  1, dz:  0 }
-  },
-  {
-    name: "K_RD",
-    final: { dx:  0, dy: -1, dz: -1 },
-    intermediate: { dx:  0, dy:  0, dz: -1 },
-    anchor: { dx:  0, dy: -1, dz:  0 }
-  }
-]; // movement_rules
-
-const getAllowedMoves3D = (startX, startY, startZ) => {
-  const allowed = [];
-
-  for (let i = 0; i < movement_rules.length; i++)
-      {
-      const rule = movement_rules[i];
-      const final_x = Number(startX) + Number(rule.final.dx);
-      const final_y = Number(startY) + Number(rule.final.dy);
-      const final_z = Number(startZ) + Number(rule.final.dz);
-      let rejection_reason = null;
-
-      if (!is_empty(final_x, final_y, final_z))
-         {
-         rejection_reason = (is_forbidden(final_x, final_y, final_z) ? "TARGET_IS_FORBIDDEN" : "TARGET_NOT_EMPTY");
-         } // if
-      else if (!has_contact(final_x, final_y, final_z))
-         {
-         rejection_reason = "NO_SURFACE_CONTACT";
-         } // else if
-
-      if (!rejection_reason && rule.anchor)
-         {
-         const anchor_x = Number(startX) + Number(rule.anchor.dx);
-         const anchor_y = Number(startY) + Number(rule.anchor.dy);
-         const anchor_z = Number(startZ) + Number(rule.anchor.dz);
-
-         if (!is_structure(anchor_x, anchor_y, anchor_z))
-            {
-            rejection_reason = "RULE_ANCHOR_MISSING";
-            } // if
-         } // if
-
-      if (!rejection_reason && rule.intermediate)
-         {
-         const intermediate_x = Number(startX) + Number(rule.intermediate.dx);
-         const intermediate_y = Number(startY) + Number(rule.intermediate.dy);
-         const intermediate_z = Number(startZ) + Number(rule.intermediate.dz);
-
-         if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
-            {
-            rejection_reason = (is_forbidden(intermediate_x, intermediate_y, intermediate_z) ? "INTERMEDIATE_IS_FORBIDDEN" : "INTERMEDIATE_NOT_EMPTY");
-            } // if
-         } // if
-
-      if (!rejection_reason && typeof rule.validator == "function")
-         {
-         if (rule.validator(final_x, final_y, final_z) !== true)
-            {
-            rejection_reason = "AXIS_LATERAL_ANCHOR_MISSING";
-            } // if
-         } // if
-
-      // Für normale Bot-Moves reicht ein gültiger Rule-Anchor aus; ein zusätzlicher Wrapped-Cell-Zwang
-      // würde gültige Schritte wie T_RT_L künstlich blockieren.
-
-      if (rejection_reason)
-         {
-         debug_rejections.push({
-                                stage: "path_rule",
-                                rule: rule.name,
-                                from: {
-                                       x: Number(startX),
-                                       y: Number(startY),
-                                       z: Number(startZ)
-                                       },
-                                to: {
-                                     x: Number(final_x),
-                                     y: Number(final_y),
-                                     z: Number(final_z)
-                                     },
-                                reason: rejection_reason
-                                });
-         continue;
-         } // if
-
-      let path = [];
-
-      if (rule.intermediate)
-         {
-         path.push([
-                    Number(startX) + Number(rule.intermediate.dx),
-                    Number(startY) + Number(rule.intermediate.dy),
-                    Number(startZ) + Number(rule.intermediate.dz)
-                    ]);
-         } // if
-
-      path.push([final_x, final_y, final_z]);
-
-      allowed.push({
-                    typ: rule.name,
-                    path: path
-                    });
-      } // for
-
-  return(allowed);
-}; // getAllowedMoves3D()
-
-if (!has_contact(src.x, src.y, src.z) || !is_empty(src.x, src.y, src.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-if (!has_contact(dest.x, dest.y, dest.z) || !is_empty(dest.x, dest.y, dest.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-queue.push({
-           x: Number(src.x),
-           y: Number(src.y),
-           z: Number(src.z),
-           path: [[Number(src.x), Number(src.y), Number(src.z)]]
-           });
-visited.add(key(src.x, src.y, src.z));
-
-while (queue.length > 0)
-      {
-      const current = queue.shift();
-
-      if (
-          Number(current.x) === Number(dest.x) &&
-          Number(current.y) === Number(dest.y) &&
-         Number(current.z) === Number(dest.z)
-         )
-         {
-         return({
-                path: current.path.map(([x, y, z]) => (
-                                                     {
-                                                     x: Number(x),
-                                                     y: Number(y),
-                                                     z: Number(z)
-                                                     }
-                                                     )),
-                debug_rejections: debug_rejections
-                });
-         } // if
-
-      const allowed = getAllowedMoves3D(current.x, current.y, current.z);
-
-      for (let i = 0; i < allowed.length; i++)
-          {
-          const move = allowed[i];
-          if (!move.path || move.path.length === 0) continue;
-
-          const coords = move.path;
-          let partial_coords = [];
-
-          for (let c = 0; c < coords.length; c++)
-              {
-              const [coordX, coordY, coordZ] = coords[c];
-              partial_coords.push([Number(coordX), Number(coordY), Number(coordZ)]);
-
-              if (
-                  Number(coordX) === Number(dest.x) &&
-                  Number(coordY) === Number(dest.y) &&
-                 Number(coordZ) === Number(dest.z)
-                 )
-                 {
-                 return({
-                        path: [
-                              ...current.path,
-                              ...partial_coords
-                              ].map(([x, y, z]) => (
-                                                     {
-                                                     x: Number(x),
-                                                     y: Number(y),
-                                                     z: Number(z)
-                                                     }
-                                                     )),
-                        debug_rejections: debug_rejections
-                        });
-                 } // if
-              } // for
-
-          const [lastX, lastY, lastZ] = coords[coords.length - 1];
-          const k = key(lastX, lastY, lastZ);
-
-          if (visited.has(k)) continue;
-
-          visited.add(k);
-          parent.set(k, key(current.x, current.y, current.z));
-
-          queue.push({
-                     x: Number(lastX),
-                     y: Number(lastY),
-                     z: Number(lastZ),
-                     path: [
-                           ...current.path,
-                           ...coords.map(([x, y, z]) => [Number(x), Number(y), Number(z)])
-                           ]
-                     });
-          } // for
-      } // while
-
-return({
-       path: null,
-       debug_rejections: debug_rejections
-       });
+return(runtime_calc_single_path(this, src, dest, bots_s, bots_f));
 } // apicall_calc_single_path()
 
 
 apicall_calc_single_path_payload(src, dest, bots_s, bots_f, payload_options = {})
 {
-const key = (x, y, z) => `${x},${y},${z}`;
-const visited = new Set();
-const queue = [];
-let debug_rejections = [];
-const carrier_orientation = {
-                            x: Number(payload_options?.orientation?.x ?? 0),
-                            y: Number(payload_options?.orientation?.y ?? 0),
-                            z: Number(payload_options?.orientation?.z ?? 0)
-                            };
-
-const is_structure = (x, y, z) => {
-  return bots_s.get(Number(x), Number(y), Number(z)) !== null;
-}; // is_structure()
-
-const is_forbidden = (x, y, z) => {
-  if (!bots_f) return(false);
-  return bots_f.get(Number(x), Number(y), Number(z)) !== null;
-}; // is_forbidden()
-
-const is_empty = (x, y, z) => {
-  return(!is_structure(x, y, z) && !is_forbidden(x, y, z));
-}; // is_empty()
-
-const has_contact = (x, y, z) => {
-  const neighbors6 = [
-                     { dx:  1, dy:  0, dz:  0 },
-                     { dx: -1, dy:  0, dz:  0 },
-                     { dx:  0, dy:  1, dz:  0 },
-                     { dx:  0, dy: -1, dz:  0 },
-                     { dx:  0, dy:  0, dz:  1 },
-                     { dx:  0, dy:  0, dz: -1 }
-                     ];
-
-  for (let i = 0; i < neighbors6.length; i++)
-      {
-      const n = neighbors6[i];
-      if (is_structure(Number(x) + Number(n.dx), Number(y) + Number(n.dy), Number(z) + Number(n.dz)))
-         {
-         return(true);
-         } // if
-      } // for
-
-  return(false);
-}; // has_contact()
-
-const has_axis_lateral_anchor = (target_x, target_y, target_z, axis) => {
-  if (axis === "x")
-     {
-     return(
-            is_structure(target_x, target_y + 1, target_z) ||
-            is_structure(target_x, target_y - 1, target_z) ||
-            is_structure(target_x, target_y, target_z + 1) ||
-            is_structure(target_x, target_y, target_z - 1)
-            );
-     } // if
-
-  if (axis === "y")
-     {
-     return(
-            is_structure(target_x + 1, target_y, target_z) ||
-            is_structure(target_x - 1, target_y, target_z) ||
-            is_structure(target_x, target_y, target_z + 1) ||
-            is_structure(target_x, target_y, target_z - 1)
-            );
-     } // if
-
-  if (axis === "z")
-     {
-     return(
-            is_structure(target_x + 1, target_y, target_z) ||
-            is_structure(target_x - 1, target_y, target_z) ||
-            is_structure(target_x, target_y + 1, target_z) ||
-            is_structure(target_x, target_y - 1, target_z)
-            );
-     } // if
-
-  return(false);
-}; // has_axis_lateral_anchor()
-
-const movement_rules = [
-  { name: "G_F", final: { dx:  1, dy:  0, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x") },
-  { name: "G_B", final: { dx: -1, dy:  0, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "x") },
-  { name: "G_R", final: { dx:  0, dy:  0, dz: -1 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z") },
-  { name: "G_L", final: { dx:  0, dy:  0, dz:  1 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "z") },
-  { name: "G_T", final: { dx:  0, dy:  1, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y") },
-  { name: "G_D", final: { dx:  0, dy: -1, dz:  0 }, intermediate: null, anchor: null, validator: (x, y, z) => has_axis_lateral_anchor(x, y, z, "y") },
-  { name: "K_TF", final: { dx:  1, dy:  1, dz:  0 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  1, dy:  0, dz:  0 } },
-  { name: "K_TB", final: { dx: -1, dy:  1, dz:  0 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx: -1, dy:  0, dz:  0 } },
-  { name: "K_DF", final: { dx:  1, dy: -1, dz:  0 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  1, dy:  0, dz:  0 } },
-  { name: "K_DB", final: { dx: -1, dy: -1, dz:  0 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx: -1, dy:  0, dz:  0 } },
-  { name: "K_TR", final: { dx:  0, dy:  1, dz: -1 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  0, dy:  0, dz: -1 } },
-  { name: "K_TL", final: { dx:  0, dy:  1, dz:  1 }, intermediate: { dx:  0, dy:  1, dz:  0 }, anchor: { dx:  0, dy:  0, dz:  1 } },
-  { name: "K_DR", final: { dx:  0, dy: -1, dz: -1 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  0, dy:  0, dz: -1 } },
-  { name: "K_DL", final: { dx:  0, dy: -1, dz:  1 }, intermediate: { dx:  0, dy: -1, dz:  0 }, anchor: { dx:  0, dy:  0, dz:  1 } },
-  { name: "K_FT", final: { dx:  1, dy:  1, dz:  0 }, intermediate: { dx:  1, dy:  0, dz:  0 }, anchor: { dx:  0, dy:  1, dz:  0 } },
-  { name: "K_FD", final: { dx:  1, dy: -1, dz:  0 }, intermediate: { dx:  1, dy:  0, dz:  0 }, anchor: { dx:  0, dy: -1, dz:  0 } },
-  { name: "K_BT", final: { dx: -1, dy:  1, dz:  0 }, intermediate: { dx: -1, dy:  0, dz:  0 }, anchor: { dx:  0, dy:  1, dz:  0 } },
-  { name: "K_BD", final: { dx: -1, dy: -1, dz:  0 }, intermediate: { dx: -1, dy:  0, dz:  0 }, anchor: { dx:  0, dy: -1, dz:  0 } },
-  { name: "K_LT", final: { dx:  0, dy:  1, dz:  1 }, intermediate: { dx:  0, dy:  0, dz:  1 }, anchor: { dx:  0, dy:  1, dz:  0 } },
-  { name: "K_LD", final: { dx:  0, dy: -1, dz:  1 }, intermediate: { dx:  0, dy:  0, dz:  1 }, anchor: { dx:  0, dy: -1, dz:  0 } },
-  { name: "K_RT", final: { dx:  0, dy:  1, dz: -1 }, intermediate: { dx:  0, dy:  0, dz: -1 }, anchor: { dx:  0, dy:  1, dz:  0 } },
-  { name: "K_RD", final: { dx:  0, dy: -1, dz: -1 }, intermediate: { dx:  0, dy:  0, dz: -1 }, anchor: { dx:  0, dy: -1, dz:  0 } }
-]; // movement_rules
-
-const get_payload_position_for_carrier = (carrier_position) => {
-  return this.apicall_get_payload_target_from_carrier_state(
-                                                            {
-                                                            x: Number(carrier_position.x),
-                                                            y: Number(carrier_position.y),
-                                                            z: Number(carrier_position.z)
-                                                            },
-                                                            carrier_orientation
-                                                            );
-}; // get_payload_position_for_carrier()
-
-const has_payload_wrapped_support = (startX, startY, startZ, rule, final_x, final_y, final_z) => {
-  if (!rule || !rule.intermediate)
-     {
-     return(false);
-     } // if
-
-  let anchor_x = Number(startX) + Number(rule.anchor?.dx ?? 0);
-  let anchor_y = Number(startY) + Number(rule.anchor?.dy ?? 0);
-  let anchor_z = Number(startZ) + Number(rule.anchor?.dz ?? 0);
-
-  if (is_structure(anchor_x, anchor_y, anchor_z))
-     {
-     return(true);
-     } // if
-
-  return(
-         this.apicall_is_valid_wrapped_double_step(
-                                                 { x: Number(startX), y: Number(startY), z: Number(startZ) },
-                                                 { x: Number(final_x), y: Number(final_y), z: Number(final_z) },
-                                                 bots_s
-                                                 ) === true
-         );
-}; // has_payload_wrapped_support()
-
-const has_payload_collision_for_path = (carrier_path_positions) => {
-  for (let i = 0; i < carrier_path_positions.length; i++)
-      {
-      let carrier_position = carrier_path_positions[i];
-      let payload_position = get_payload_position_for_carrier(carrier_position);
-
-      if (!payload_position)
-         {
-         return(true);
-         } // if
-
-      if (!is_empty(payload_position.x, payload_position.y, payload_position.z))
-         {
-         return(true);
-         } // if
-      } // for
-
-  return(false);
-}; // has_payload_collision_for_path()
-
-const getAllowedMoves3D = (startX, startY, startZ) => {
-  const allowed = [];
-
-  for (let i = 0; i < movement_rules.length; i++)
-      {
-      const rule = movement_rules[i];
-      const final_x = Number(startX) + Number(rule.final.dx);
-      const final_y = Number(startY) + Number(rule.final.dy);
-      const final_z = Number(startZ) + Number(rule.final.dz);
-      let rejection_reason = null;
-
-      if (!is_empty(final_x, final_y, final_z))
-         {
-         rejection_reason = (is_forbidden(final_x, final_y, final_z) ? "TARGET_IS_FORBIDDEN" : "TARGET_NOT_EMPTY");
-         } // if
-      else if (!has_contact(final_x, final_y, final_z))
-         {
-         rejection_reason = "NO_SURFACE_CONTACT";
-         } // else if
-
-      if (!rejection_reason && rule.anchor)
-         {
-         const anchor_x = Number(startX) + Number(rule.anchor.dx);
-         const anchor_y = Number(startY) + Number(rule.anchor.dy);
-         const anchor_z = Number(startZ) + Number(rule.anchor.dz);
-
-         if (!is_structure(anchor_x, anchor_y, anchor_z))
-            {
-            rejection_reason = "RULE_ANCHOR_MISSING";
-            } // if
-         } // if
-
-      if (!rejection_reason && rule.intermediate)
-         {
-         const intermediate_x = Number(startX) + Number(rule.intermediate.dx);
-         const intermediate_y = Number(startY) + Number(rule.intermediate.dy);
-         const intermediate_z = Number(startZ) + Number(rule.intermediate.dz);
-
-         if (!is_empty(intermediate_x, intermediate_y, intermediate_z))
-            {
-            rejection_reason = (is_forbidden(intermediate_x, intermediate_y, intermediate_z) ? "INTERMEDIATE_IS_FORBIDDEN" : "INTERMEDIATE_NOT_EMPTY");
-            } // if
-         } // if
-
-      if (!rejection_reason && typeof rule.validator == "function")
-         {
-         if (rule.validator(final_x, final_y, final_z) !== true)
-            {
-            rejection_reason = "AXIS_LATERAL_ANCHOR_MISSING";
-            } // if
-         } // if
-
-      if (!rejection_reason && rule.intermediate && Number(rule.final.dy) !== 0 && Number(rule.final.dx) + Number(rule.final.dz) !== 0)
-         {
-         if (has_payload_wrapped_support(startX, startY, startZ, rule, final_x, final_y, final_z) !== true)
-            {
-            rejection_reason = "WRAPPED_CELL_MISSING";
-            } // if
-         } // if
-
-      let path = [];
-      let carrier_positions = [];
-
-      if (!rejection_reason && rule.intermediate)
-         {
-         let intermediate_position = {
-                                     x: Number(startX) + Number(rule.intermediate.dx),
-                                     y: Number(startY) + Number(rule.intermediate.dy),
-                                     z: Number(startZ) + Number(rule.intermediate.dz)
-                                     };
-         path.push([intermediate_position.x, intermediate_position.y, intermediate_position.z]);
-         carrier_positions.push(intermediate_position);
-         } // if
-
-      path.push([final_x, final_y, final_z]);
-      carrier_positions.push({ x: final_x, y: final_y, z: final_z });
-
-      if (!rejection_reason && has_payload_collision_for_path(carrier_positions))
-         {
-         let payload_collision_is_forbidden = false;
-
-         for (let p = 0; p < carrier_positions.length; p++)
-             {
-             let payload_position = get_payload_position_for_carrier(carrier_positions[p]);
-
-             if (!payload_position)
-                {
-                continue;
-                } // if
-
-             if (is_forbidden(payload_position.x, payload_position.y, payload_position.z))
-                {
-                payload_collision_is_forbidden = true;
-                break;
-                } // if
-             } // for
-
-         rejection_reason = (payload_collision_is_forbidden ? "PAYLOAD_TARGET_IS_FORBIDDEN" : "PAYLOAD_COLLISION");
-         } // if
-
-      if (rejection_reason)
-         {
-         debug_rejections.push({
-                                stage: "path_rule_payload",
-                                rule: rule.name,
-                                from: {
-                                       x: Number(startX),
-                                       y: Number(startY),
-                                       z: Number(startZ)
-                                       },
-                                to: {
-                                     x: Number(final_x),
-                                     y: Number(final_y),
-                                     z: Number(final_z)
-                                     },
-                                reason: rejection_reason
-                                });
-         continue;
-         } // if
-
-      allowed.push({
-                    typ: rule.name,
-                    path: path
-                    });
-      } // for
-
-  return(allowed);
-}; // getAllowedMoves3D()
-
-if (!has_contact(src.x, src.y, src.z) || !is_empty(src.x, src.y, src.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-if (!has_contact(dest.x, dest.y, dest.z) || !is_empty(dest.x, dest.y, dest.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-let payload_src = get_payload_position_for_carrier(src);
-let payload_dest = get_payload_position_for_carrier(dest);
-
-if (!payload_src || !payload_dest)
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-if (!is_empty(payload_src.x, payload_src.y, payload_src.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-if (!is_empty(payload_dest.x, payload_dest.y, payload_dest.z))
-   {
-   return({
-          path: null,
-          debug_rejections: debug_rejections
-          });
-   } // if
-
-queue.push({
-           x: Number(src.x),
-           y: Number(src.y),
-           z: Number(src.z),
-           path: [[Number(src.x), Number(src.y), Number(src.z)]]
-           });
-visited.add(key(src.x, src.y, src.z));
-
-while (queue.length > 0)
-      {
-      const current = queue.shift();
-
-      if (
-          Number(current.x) === Number(dest.x) &&
-          Number(current.y) === Number(dest.y) &&
-         Number(current.z) === Number(dest.z)
-         )
-         {
-         return({
-                path: current.path.map(([x, y, z]) => (
-                                                     {
-                                                     x: Number(x),
-                                                     y: Number(y),
-                                                     z: Number(z)
-                                                     }
-                                                     )),
-                debug_rejections: debug_rejections
-                });
-         } // if
-
-      const allowed = getAllowedMoves3D(current.x, current.y, current.z);
-
-      for (let i = 0; i < allowed.length; i++)
-          {
-          const move = allowed[i];
-          if (!move.path || move.path.length === 0) continue;
-
-          const coords = move.path;
-          let partial_coords = [];
-
-          for (let c = 0; c < coords.length; c++)
-              {
-              const [coordX, coordY, coordZ] = coords[c];
-              partial_coords.push([Number(coordX), Number(coordY), Number(coordZ)]);
-
-              if (
-                  Number(coordX) === Number(dest.x) &&
-                  Number(coordY) === Number(dest.y) &&
-                  Number(coordZ) === Number(dest.z)
-                 )
-                 {
-                 return({
-                        path: [
-                              ...current.path,
-                              ...partial_coords
-                              ].map(([x, y, z]) => (
-                                                     {
-                                                     x: Number(x),
-                                                     y: Number(y),
-                                                     z: Number(z)
-                                                     }
-                                                     )),
-                        debug_rejections: debug_rejections
-                        });
-                 } // if
-              } // for
-
-          const [lastX, lastY, lastZ] = coords[coords.length - 1];
-          const k = key(lastX, lastY, lastZ);
-
-          if (visited.has(k)) continue;
-
-          visited.add(k);
-
-          queue.push({
-                     x: Number(lastX),
-                     y: Number(lastY),
-                     z: Number(lastZ),
-                     path: [
-                           ...current.path,
-                           ...coords.map(([x, y, z]) => [Number(x), Number(y), Number(z)])
-                           ]
-                     });
-          } // for
-      } // while
-
-return({
-       path: null,
-       debug_rejections: debug_rejections
-       });
+return(runtime_calc_single_path_payload(this, src, dest, bots_s, bots_f, payload_options));
 } // apicall_calc_single_path_payload()
 
 
 apicall_find_path_for_bot(bot_id, x, y, z, show = false, planning_options = {})
 {
-let botindex = this.get_bot_by_id(bot_id, this.bots);
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let show_path = (show === true || show === "true" || show === "show" || show === 1 || show === "1");
-let excluded_bot_ids = Array.isArray(planning_options?.excluded_bot_ids) ? planning_options.excluded_bot_ids : [];
-
-if (botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_find_path_for_bot",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if ( Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z) )
-   {
-   return({
-          ok: false,
-          answer: "api_find_path_for_bot",
-          error: "INVALID_TARGET_POSITION",
-          bot_id: bot_id
-          });
-   } // if
-
-let bot = this.bots[botindex];
-let bots_s = this.apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids);
-let bots_f = this.apicall_build_forbidden_grid();
-let carried_payload_bot_id = String(planning_options?.carried_payload_bot_id ?? "").trim();
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-let src = {
-          x: Number(bot.x),
-          y: Number(bot.y),
-          z: Number(bot.z)
-          };
-let dest = {
-           x: target_x,
-           y: target_y,
-           z: target_z
-           };
-let path_result = null;
-let path = null;
-let path_debug_rejections = [];
-let src_is_forbidden = this.apicall_is_forbidden_cell(src.x, src.y, src.z, bots_f);
-let dest_is_forbidden = this.apicall_is_forbidden_cell(dest.x, dest.y, dest.z, bots_f);
-
-if (src_is_forbidden === true)
-   {
-   return({
-          ok: true,
-          answer: "api_find_path_for_bot",
-          bot_id: bot_id,
-          target: dest,
-          path_found: false,
-          reason: "BOT_POSITION_IS_FORBIDDEN",
-          show_requested: show_path,
-          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
-          path_debug_rejections: path_debug_rejections,
-          path: []
-          });
-   } // if
-
-if (dest_is_forbidden === true)
-   {
-   return({
-          ok: true,
-          answer: "api_find_path_for_bot",
-          bot_id: bot_id,
-          target: dest,
-          path_found: false,
-          reason: "TARGET_POSITION_IS_FORBIDDEN",
-          show_requested: show_path,
-          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
-          path_debug_rejections: path_debug_rejections,
-          path: []
-          });
-   } // if
-
-if (carried_payload_bot_id != "")
-   {
-   let payload_target = this.apicall_get_payload_target_from_carrier_state(
-                                                                   dest,
-                                                                   bot_snapshot?.orientation ?? null
-                                                                   );
-
-   if (payload_target && this.apicall_is_forbidden_cell(payload_target.x, payload_target.y, payload_target.z, bots_f))
-      {
-      return({
-             ok: true,
-             answer: "api_find_path_for_bot",
-             bot_id: bot_id,
-             target: dest,
-             payload_target: {
-                              x: Number(payload_target.x),
-                              y: Number(payload_target.y),
-                              z: Number(payload_target.z)
-                              },
-             path_found: false,
-             reason: "PAYLOAD_TARGET_POSITION_IS_FORBIDDEN",
-             show_requested: show_path,
-             carried_payload_bot_id: carried_payload_bot_id,
-             path_debug_rejections: path_debug_rejections,
-             path: []
-             });
-      } // if
-   } // if
-
-if (carried_payload_bot_id != "")
-   {
-   path_result = this.apicall_calc_single_path_payload(
-                                                      src,
-                                                      dest,
-                                                      bots_s,
-                                                      bots_f,
-                                                      {
-                                                      carrier_bot_id: bot_id,
-                                                      payload_bot_id: carried_payload_bot_id,
-                                                      orientation: bot_snapshot?.orientation ?? null
-                                                      }
-                                                      );
-   } // if
-else
-   {
-   path_result = this.apicall_calc_single_path(src, dest, bots_s, bots_f);
-   } // else
-
-if (Array.isArray(path_result))
-   {
-   path = path_result;
-   } // if
-else if (path_result && typeof path_result == "object")
-   {
-   path = Array.isArray(path_result.path) ? path_result.path : null;
-   path_debug_rejections = Array.isArray(path_result.debug_rejections) ? path_result.debug_rejections : [];
-   } // else if
-
-if (!path)
-   {
-   return({
-          ok: true,
-          answer: "api_find_path_for_bot",
-          bot_id: bot_id,
-          target: dest,
-          path_found: false,
-          reason: "NO_SURFACE_PATH_FOUND",
-          show_requested: show_path,
-          carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
-          path_debug_rejections: path_debug_rejections,
-          path: []
-          });
-   } // if
-
-let path_visualized = false;
-let marker_count = 0;
-
-if (show_path)
-   {
-   for (let i = 0; i < path.length; i++)
-       {
-       let marker_ret = this.apicall_gui_set_marker(path[i].x, path[i].y, path[i].z, 0.3, "green");
-
-       if (marker_ret.accepted === true)
-          {
-          marker_count++;
-          } // if
-
-       if (marker_ret.frontend_attached === true)
-          {
-          path_visualized = true;
-          } // if
-       } // for
-   } // if
-
-return({
-       ok: true,
-       answer: "api_find_path_for_bot",
-       bot_id: bot_id,
-       target: dest,
-       path_found: true,
-       reason: "PATH_FOUND",
-       show_requested: show_path,
-       carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
-       excluded_bot_ids: excluded_bot_ids,
-       path_debug_rejections: path_debug_rejections,
-       path_visualized: path_visualized,
-       marker_count: marker_count,
-       path_length: path.length,
-       path: path
-       });
+return(runtime_find_path_for_bot(this, bot_id, x, y, z, show, planning_options));
 } // apicall_find_path_for_bot()
 
 
 apicall_find_path_for_bot_payload(bot_id, payload_bot_id, x, y, z, show = false)
 {
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-
-if (normalized_payload_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_find_path_for_bot_payload",
-          error: "PAYLOAD_BOT_ID_MISSING",
-          bot_id: bot_id
-          });
-   } // if
-
-let payload_snapshot = this.apicall_get_bot_snapshot(normalized_payload_bot_id);
-
-if (!payload_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_find_path_for_bot_payload",
-          error: "PAYLOAD_BOT_NOT_FOUND",
-          bot_id: bot_id,
-          payload_bot_id: normalized_payload_bot_id
-          });
-   } // if
-
-let ret = this.apicall_find_path_for_bot(
-                                        bot_id,
-                                        x,
-                                        y,
-                                        z,
-                                        show,
-                                        {
-                                        excluded_bot_ids: [normalized_payload_bot_id],
-                                        carried_payload_bot_id: normalized_payload_bot_id
-                                        }
-                                        );
-
-return({
-       ...ret,
-       answer: "api_find_path_for_bot_payload",
-       payload_bot_id: normalized_payload_bot_id
-       });
+return(runtime_find_path_for_bot_payload(this, bot_id, payload_bot_id, x, y, z, show));
 } // apicall_find_path_for_bot_payload()
 
 
 apicall_build_active_bots_tmp(include_masterbot = false, excluded_bot_ids = [])
 {
-let bots_tmp = [];
-let excluded_ids = new Set(
-                          (Array.isArray(excluded_bot_ids) ? excluded_bot_ids : [])
-                          .map((id) => String(id ?? "").trim())
-                          .filter((id) => id != "")
-                          );
-
-for (let i = 0; i < this.bots.length; i++)
-    {
-    let bot = this.bots[i];
-
-    if (!bot)
-       {
-       continue;
-       } // if
-
-    if (bot.id == "masterbot" && include_masterbot !== true)
-       {
-       continue;
-       } // if
-
-    if (excluded_ids.has(String(bot.id ?? "")))
-       {
-       continue;
-       } // if
-
-    bots_tmp.push({
-                   id: bot.id,
-                   x: Number(bot.x),
-                   y: Number(bot.y),
-                   z: Number(bot.z),
-                   vector_x: Number(bot.vector_x),
-                   vector_y: Number(bot.vector_y),
-                   vector_z: Number(bot.vector_z),
-                   adress: bot.adress,
-                   color: bot.color
-                   });
-    } // for
-
-return(bots_tmp);
+return(runtime_build_active_bots_tmp(this, include_masterbot, excluded_bot_ids));
 } // apicall_build_active_bots_tmp()
 
 
 apicall_build_botindex_map_for_bots(bots_tmp)
 {
-let botindex_map = {};
-
-if (!Array.isArray(bots_tmp))
-   {
-   return(botindex_map);
-   } // if
-
-for (let i = 0; i < bots_tmp.length; i++)
-    {
-    let bot = bots_tmp[i];
-
-    if (!bot)
-       {
-       continue;
-       } // if
-
-    let key = this.getKey_3d(Number(bot.x), Number(bot.y), Number(bot.z));
-    botindex_map[key] = i;
-    } // for
-
-return(botindex_map);
+return(runtime_build_botindex_map_for_bots(this, bots_tmp));
 } // apicall_build_botindex_map_for_bots()
 
 
 apicall_get_inverse_address_for_bots(firstindex_xyz, addr, bots_tmp, botindex_map = null)
 {
-let ret = "";
-let normalized_addr = String(addr ?? "").trim();
-let index_map = botindex_map ?? this.apicall_build_botindex_map_for_bots(bots_tmp);
-
-if (normalized_addr == "")
-   {
-   return(ret);
-   } // if
-
-if (!Array.isArray(bots_tmp) || bots_tmp.length == 0)
-   {
-   return(ret);
-   } // if
-
-if (index_map[firstindex_xyz] === undefined)
-   {
-   return(ret);
-   } // if
-
-let pathindexarray = [];
-pathindexarray[0] = firstindex_xyz;
-
-let size = normalized_addr.length;
-for (let i = 0; i < size; i++)
-    {
-    let slot = normalized_addr[i];
-    let keyindex = index_map[pathindexarray[i]];
-
-    if (keyindex === undefined)
-       {
-       return("");
-       } // if
-
-    let vx = Number(bots_tmp[keyindex].vector_x);
-    let vy = Number(bots_tmp[keyindex].vector_y);
-    let vz = Number(bots_tmp[keyindex].vector_z);
-    let rel_vector = this.get_cell_relation_vector_byslot(slot, vx, vy, vz);
-
-    let cb_x = Number(bots_tmp[keyindex].x) + Number(rel_vector.x);
-    let cb_y = Number(bots_tmp[keyindex].y) + Number(rel_vector.y);
-    let cb_z = Number(bots_tmp[keyindex].z) + Number(rel_vector.z);
-
-    let nextindex_xyz = this.getKey_3d(cb_x, cb_y, cb_z);
-    pathindexarray[i + 1] = nextindex_xyz;
-    } // for
-
-size = pathindexarray.length;
-
-for (let i = (size - 1); i > 0; i--)
-    {
-    let index1 = index_map[pathindexarray[i]];
-    let index2 = index_map[pathindexarray[i - 1]];
-
-    if (index1 === undefined || index2 === undefined)
-       {
-       return("");
-       } // if
-
-    let tx = Number(bots_tmp[index2].x) - Number(bots_tmp[index1].x);
-    let ty = Number(bots_tmp[index2].y) - Number(bots_tmp[index1].y);
-    let tz = Number(bots_tmp[index2].z) - Number(bots_tmp[index1].z);
-
-    let slot2 = this.get_cell_slot_byvector(
-                                           tx,
-                                           ty,
-                                           tz,
-                                           Number(bots_tmp[index1].vector_x),
-                                           Number(bots_tmp[index1].vector_y),
-                                           Number(bots_tmp[index1].vector_z)
-                                           );
-
-    if (!slot2)
-       {
-       return("");
-       } // if
-
-    ret += slot2;
-    } // for
-
-return(ret);
+return(runtime_get_inverse_address_for_bots(this, firstindex_xyz, addr, bots_tmp, botindex_map));
 } // apicall_get_inverse_address_for_bots()
 
 
 apicall_derive_target_address_from_neighbours(target_pos, bots_tmp)
 {
-let ret = "";
-
-if (!target_pos || !Array.isArray(bots_tmp) || bots_tmp.length == 0)
-   {
-   return(ret);
-   } // if
-
-let neighbours = this.get_valid_neighbours(
-                                          {
-                                           x: Number(target_pos.x),
-                                           y: Number(target_pos.y),
-                                           z: Number(target_pos.z)
-                                           },
-                                          null,
-                                          bots_tmp
-                                          );
-
-for (let i = 0; i < neighbours.length; i++)
-    {
-    let nbot = neighbours[i];
-    let neighbour_addr = String(nbot.adress ?? "").trim();
-
-    if (neighbour_addr == "")
-       {
-       continue;
-       } // if
-
-    let dx = Number(target_pos.x) - Number(nbot.x);
-    let dy = Number(target_pos.y) - Number(nbot.y);
-    let dz = Number(target_pos.z) - Number(nbot.z);
-
-    let slot = this.get_cell_slot_byvector(
-                                          dx,
-                                          dy,
-                                          dz,
-                                          Number(nbot.vector_x),
-                                          Number(nbot.vector_y),
-                                          Number(nbot.vector_z)
-                                          );
-
-    if (!slot)
-       {
-       continue;
-       } // if
-
-    ret = neighbour_addr + slot;
-    return(ret);
-    } // for
-
-return(ret);
+return(runtime_derive_target_address_from_neighbours(this, target_pos, bots_tmp));
 } // apicall_derive_target_address_from_neighbours()
 
 
 apicall_derive_ack_returnaddr_from_neighbours(target_bot, bots_tmp)
 {
-let ret = "";
-
-if (!target_bot || !Array.isArray(bots_tmp) || bots_tmp.length == 0)
-   {
-   return(ret);
-   } // if
-
-let neighbours = this.get_valid_neighbours(
-                                          {
-                                           x: Number(target_bot.x),
-                                           y: Number(target_bot.y),
-                                           z: Number(target_bot.z)
-                                           },
-                                          null,
-                                          bots_tmp
-                                          );
-let botindex_map = this.apicall_build_botindex_map_for_bots(bots_tmp);
-let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
-
-for (let i = 0; i < neighbours.length; i++)
-    {
-    let nbot = neighbours[i];
-    let neighbour_addr = String(nbot.adress ?? "").trim();
-
-    if (neighbour_addr == "")
-       {
-       continue;
-       } // if
-
-    let entry_slot = this.get_cell_slot_byvector(
-                                               Number(nbot.x) - Number(target_bot.x),
-                                               Number(nbot.y) - Number(target_bot.y),
-                                               Number(nbot.z) - Number(target_bot.z),
-                                               Number(target_bot.vector_x),
-                                               Number(target_bot.vector_y),
-                                               Number(target_bot.vector_z)
-                                               );
-
-    if (!entry_slot)
-       {
-       continue;
-       } // if
-
-    let neighbour_retaddr = this.apicall_get_inverse_address_for_bots(
-                                                                  masterbot_key,
-                                                                  neighbour_addr,
-                                                                  bots_tmp,
-                                                                  botindex_map
-                                                                  );
-
-    if (neighbour_retaddr == "")
-       {
-       let live_inverse = this.get_inverse_address(masterbot_key, neighbour_addr);
-
-       if (typeof live_inverse == "string" && live_inverse.trim() != "")
-          {
-          neighbour_retaddr = live_inverse.replace(/^S/i, "");
-          } // if
-       } // if
-
-    if (neighbour_retaddr == "")
-       {
-       continue;
-       } // if
-
-    ret = entry_slot + neighbour_retaddr;
-    return(ret);
-    } // for
-
-return(ret);
+return(runtime_derive_ack_returnaddr_from_neighbours(this, target_bot, bots_tmp));
 } // apicall_derive_ack_returnaddr_from_neighbours()
 
 
 apicall_diagnose_ack_route(bot_id, x, y, z, vx = null, vy = null, vz = null)
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let target_vx = (vx === null || vx === undefined || vx === "") ? null : Number(vx);
-let target_vy = (vy === null || vy === undefined || vy === "") ? null : Number(vy);
-let target_vz = (vz === null || vz === undefined || vz === "") ? null : Number(vz);
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(normalized_bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(normalized_bot_id);
-let target_orientation = null;
-let bots_tmp_ack = [];
-let ack_botindex = null;
-let ack_target_addr = "";
-let ack_retaddr = "";
-let ack_target_neighbors_debug = [];
-let ack_target_neighbors_live_debug = [];
-let ack_stl_debug = null;
-let botindex_map_ack = null;
-let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_bot_id);
-let excluded_bot_ids = [];
-let tmp_unreachable_bots = [];
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_ack_route",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: normalized_bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_ack_route",
-          error: "BOT_NOT_FOUND",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-if (Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z))
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_ack_route",
-          error: "INVALID_TARGET_POSITION",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-if (String(carried_payload_bot_id ?? "").trim() != "")
-   {
-   excluded_bot_ids.push(String(carried_payload_bot_id));
-   } // if
-
-if (target_vx !== null || target_vy !== null || target_vz !== null)
-   {
-   if (
-      Number.isNaN(target_vx) ||
-      Number.isNaN(target_vy) ||
-      Number.isNaN(target_vz)
-      )
-      {
-      return({
-             ok: false,
-             answer: "api_diagnose_ack_route",
-             error: "INVALID_TARGET_ORIENTATION",
-             bot_id: normalized_bot_id
-             });
-      } // if
-
-   target_orientation = {
-                        x: Number(target_vx),
-                        y: Number(target_vy),
-                        z: Number(target_vz)
-                        };
-   } else
-     {
-     target_orientation = {
-                          x: Number(bot_snapshot.orientation.x),
-                          y: Number(bot_snapshot.orientation.y),
-                          z: Number(bot_snapshot.orientation.z)
-                          };
-     } // else
-
-bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
-ack_botindex = this.get_bot_by_id(normalized_bot_id, bots_tmp_ack);
-
-if (ack_botindex == null)
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_ack_route",
-          error: "BOT_NOT_FOUND_IN_TMP",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-bots_tmp_ack[ack_botindex].x = target_x;
-bots_tmp_ack[ack_botindex].y = target_y;
-bots_tmp_ack[ack_botindex].z = target_z;
-bots_tmp_ack[ack_botindex].vector_x = Number(target_orientation.x);
-bots_tmp_ack[ack_botindex].vector_y = Number(target_orientation.y);
-bots_tmp_ack[ack_botindex].vector_z = Number(target_orientation.z);
-
-for (let i = 0; i < bots_tmp_ack.length; i++)
-    {
-    if (bots_tmp_ack[i].id == "masterbot")
-       {
-       continue;
-       } // if
-
-    bots_tmp_ack[i].adress = this.get_mb_returnaddr(
-                                                {x: this.mb.x, y: this.mb.y, z: this.mb.z},
-                                                {
-                                                x: Number(bots_tmp_ack[i].x),
-                                                y: Number(bots_tmp_ack[i].y),
-                                                z: Number(bots_tmp_ack[i].z)
-                                                },
-                                                bots_tmp_ack,
-                                                []
-                                                );
-
-    if (String(bots_tmp_ack[i].adress ?? "").trim() == "")
-       {
-       tmp_unreachable_bots.push({
-                                 id: bots_tmp_ack[i].id,
-                                 x: Number(bots_tmp_ack[i].x),
-                                 y: Number(bots_tmp_ack[i].y),
-                                 z: Number(bots_tmp_ack[i].z)
-                                 });
-       } // if
-    } // for
-
-ack_target_neighbors_debug = this.get_valid_neighbours(
-                                                      {x: target_x, y: target_y, z: target_z},
-                                                      null,
-                                                      bots_tmp_ack
-                                                      ).map((bot) => ({
-                                                                     id: bot.id,
-                                                                     x: Number(bot.x),
-                                                                     y: Number(bot.y),
-                                                                     z: Number(bot.z),
-                                                                     adress: String(bot.adress ?? "")
-                                                                     })); // for
-
-ack_target_addr = String(bots_tmp_ack[ack_botindex].adress ?? "").trim();
-
-if (ack_target_addr == "")
-   {
-   ack_target_addr = this.apicall_derive_target_address_from_neighbours(
-                                                                     {x: target_x, y: target_y, z: target_z},
-                                                                     bots_tmp_ack
-                                                                     );
-   } // if
-
-if (ack_target_addr == "")
-   {
-   ack_target_neighbors_live_debug = this.get_valid_neighbours(
-                                                             {x: target_x, y: target_y, z: target_z},
-                                                             null,
-                                                             this.bots
-                                                             ).map((bot) => ({
-                                                                            id: bot.id,
-                                                                            x: Number(bot.x),
-                                                                            y: Number(bot.y),
-                                                                            z: Number(bot.z),
-                                                                            adress: String(bot.adress ?? "")
-                                                                            })); // for
-
-   ack_target_addr = this.apicall_derive_target_address_from_neighbours(
-                                                                     {x: target_x, y: target_y, z: target_z},
-                                                                     this.bots
-                                                                     );
-   } // if
-
-botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
-
-if (ack_target_neighbors_debug.length > 0)
-   {
-   let preferred_neighbour = ack_target_neighbors_debug[0];
-   let stl_key = this.getKey_3d(
-                              Number(preferred_neighbour.x),
-                              Number(preferred_neighbour.y),
-                              Number(preferred_neighbour.z)
-                              );
-   let stl_index = botindex_map_ack[stl_key];
-
-   ack_stl_debug = {
-                    neighbour: {
-                               x: Number(preferred_neighbour.x),
-                               y: Number(preferred_neighbour.y),
-                               z: Number(preferred_neighbour.z)
-                               },
-                    stl_id: preferred_neighbour.id,
-                    stl_addr: String(preferred_neighbour.adress ?? "")
-                    };
-
-   if (stl_index !== undefined)
-      {
-      let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
-      let stl_retaddr = this.apicall_get_inverse_address_for_bots(
-                                                             masterbot_key,
-                                                             String(bots_tmp_ack[stl_index].adress ?? ""),
-                                                             bots_tmp_ack,
-                                                             botindex_map_ack
-                                                             );
-
-      ack_stl_debug.stl_retaddr = stl_retaddr;
-      } // if
-   } // if
-
-ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
-                                                                 {
-                                                                 x: Number(target_x),
-                                                                 y: Number(target_y),
-                                                                 z: Number(target_z),
-                                                                 vector_x: Number(target_orientation.x),
-                                                                 vector_y: Number(target_orientation.y),
-                                                                 vector_z: Number(target_orientation.z)
-                                                                 },
-                                                                 bots_tmp_ack
-                                                                 );
-
-if (ack_retaddr == "" && ack_target_addr != "")
-   {
-   let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
-   ack_retaddr = this.apicall_get_inverse_address_for_bots(
-                                                           masterbot_key,
-                                                           ack_target_addr,
-                                                           bots_tmp_ack,
-                                                           botindex_map_ack
-                                                           );
-   } // if
-
-return({
-       ok: true,
-       answer: "api_diagnose_ack_route",
-       bot_id: normalized_bot_id,
-       safe_mode: Number(this.safe_mode),
-       current_state: bot_snapshot,
-       target: {
-                x: Number(target_x),
-                y: Number(target_y),
-                z: Number(target_z)
-                },
-       target_orientation: target_orientation,
-       carried_payload_bot_id: carried_payload_bot_id,
-       excluded_bot_ids: excluded_bot_ids,
-       ack_target_addr: ack_target_addr,
-       ack_retaddr: ack_retaddr,
-       ack_target_neighbors_debug: ack_target_neighbors_debug,
-       ack_target_neighbors_live_debug: ack_target_neighbors_live_debug,
-       ack_stl_debug: ack_stl_debug,
-       tmp_unreachable_count: tmp_unreachable_bots.length,
-       tmp_unreachable_bots: tmp_unreachable_bots
-       });
+return(runtime_diagnose_ack_route(this, bot_id, x, y, z, vx, vy, vz));
 } // apicall_diagnose_ack_route()
 
 
@@ -8695,3252 +5140,193 @@ return([
 
 apicall_rotate_orientation(vx, vy, vz, direction)
 {
-let ret = null;
-let normalized_direction = String(direction ?? "").trim().toUpperCase();
-let x = Number(vx);
-let y = Number(vy);
-let z = Number(vz);
-
-if (normalized_direction == "R")
-   {
-   if (x ==  1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z: -1 };
-   if (x ==  0 && y == 0 && z == -1) ret = { x: -1, y: 0, z:  0 };
-   if (x == -1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z:  1 };
-   if (x ==  0 && y == 0 && z ==  1) ret = { x:  1, y: 0, z:  0 };
-   } // if
-
-if (normalized_direction == "L")
-   {
-   if (x ==  1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z:  1 };
-   if (x ==  0 && y == 0 && z == -1) ret = { x:  1, y: 0, z:  0 };
-   if (x == -1 && y == 0 && z ==  0) ret = { x:  0, y: 0, z: -1 };
-   if (x ==  0 && y == 0 && z ==  1) ret = { x: -1, y: 0, z:  0 };
-   } // if
-
-return(ret);
+return(runtime_rotate_orientation(this, vx, vy, vz, direction));
 } // apicall_rotate_orientation()
 
 
 apicall_rotate_bot(bot_id, direction)
 {
-let normalized_direction = String(direction ?? "").trim().toUpperCase();
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if (normalized_direction != "L" && normalized_direction != "R")
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot",
-          error: "INVALID_DIRECTION",
-          bot_id: bot_id,
-          direction: normalized_direction
-          });
-   } // if
-
-let target_orientation = this.apicall_rotate_orientation(
-                                                       Number(bot_snapshot.orientation.x),
-                                                       Number(bot_snapshot.orientation.y),
-                                                       Number(bot_snapshot.orientation.z),
-                                                       normalized_direction
-                                                       );
-
-if (!target_orientation)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot",
-          error: "ROTATION_NOT_SUPPORTED_FOR_ORIENTATION",
-          bot_id: bot_id,
-          direction: normalized_direction,
-          current_state: bot_snapshot
-          });
-   } // if
-
-let planned_spin_cmd = "D_S" + normalized_direction + "_D";
-let ack_target_addr = String(bot_snapshot.adress ?? "").trim();
-let ack_retaddr = "";
-let payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
-let ack_excluded_bot_ids = [];
-let ack_id = null;
-let planned_raw_cmd = null;
-let raw_ret = null;
-
-if (String(payload_bot_id ?? "").trim() != "")
-   {
-   ack_excluded_bot_ids.push(String(payload_bot_id));
-   } // if
-
-ack_retaddr = this.apicall_build_stationary_ack_returnaddr(
-                                                           bot_snapshot,
-                                                           target_orientation,
-                                                           ack_excluded_bot_ids
-                                                           );
-
-if (ack_retaddr != "")
-   {
-   ack_id = this.apicall_generate_ack_id(bot_id);
-   planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd + ";ALIFE;" + ack_id + "#" + ack_retaddr;
-   } else
-     {
-     planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd;
-     } // else
-
-if (planned_raw_cmd)
-   {
-   if (ack_id !== null)
-      {
-      this.apicall_register_ack(
-                               ack_id,
-                               {
-                               bot_id: bot_id,
-                               mode: "spin",
-                               to: {
-                                   x: Number(bot_snapshot.position.x),
-                                   y: Number(bot_snapshot.position.y),
-                                   z: Number(bot_snapshot.position.z)
-                                   },
-                               orientation: target_orientation,
-                               planned_raw_cmd: planned_raw_cmd,
-                               retaddr: ack_retaddr,
-                               status: "pending"
-                               }
-                               );
-      } // if
-
-   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
-   this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
-   this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
-
-   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
-      {
-      this.apicall_mark_ack_received(ack_id, "send_failed");
-      } // if
-   } // if
-
-return({
-       ok: true,
-       answer: "api_rotate_bot",
-       bot_id: bot_id,
-       direction: normalized_direction,
-       executable: (planned_raw_cmd !== null),
-       executed: (raw_ret?.accepted ?? false) === true,
-       current_state: bot_snapshot,
-       target_orientation: target_orientation,
-       ack_target_addr: ack_target_addr,
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_spin_cmd: planned_spin_cmd,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret
-       });
+return(runtime_rotate_bot(this, bot_id, direction));
 } // apicall_rotate_bot()
 
 
 apicall_execute_rotation_plan(bot_id, rotation_plan, target_orientation = null)
 {
-let normalized_bot_id = String(bot_id ?? "").trim();
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(normalized_bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(normalized_bot_id);
-let normalized_plan = Array.isArray(rotation_plan) ? rotation_plan.map((entry) => String(entry ?? "").trim().toUpperCase()).filter((entry) => entry != "") : [];
-let payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_bot_id);
-let ack_excluded_bot_ids = [];
-let planned_spin_cmds = [];
-let planned_spin_cmd = "";
-let ack_retaddr = "";
-let ack_id = null;
-let planned_raw_cmd = null;
-let raw_ret = null;
-
-if (String(payload_bot_id ?? "").trim() != "")
-   {
-   ack_excluded_bot_ids.push(String(payload_bot_id));
-   } // if
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_execute_rotation_plan",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: normalized_bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_execute_rotation_plan",
-          error: "BOT_NOT_FOUND",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-if (!Array.isArray(rotation_plan) || normalized_plan.length == 0)
-   {
-   return({
-          ok: false,
-          answer: "api_execute_rotation_plan",
-          error: "ROTATION_PLAN_EMPTY",
-          bot_id: normalized_bot_id
-          });
-   } // if
-
-for (let i = 0; i < normalized_plan.length; i++)
-    {
-    if (normalized_plan[i] != "L" && normalized_plan[i] != "R")
-       {
-       return({
-              ok: false,
-              answer: "api_execute_rotation_plan",
-              error: "INVALID_ROTATION_STEP",
-              bot_id: normalized_bot_id,
-              invalid_step: normalized_plan[i],
-              rotation_plan: normalized_plan
-              });
-       } // if
-
-    planned_spin_cmds.push("D_S" + normalized_plan[i] + "_D");
-    } // for
-
-planned_spin_cmd = planned_spin_cmds.join(";");
-ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, target_orientation, ack_excluded_bot_ids);
-
-if (ack_retaddr != "")
-   {
-   ack_id = this.apicall_generate_ack_id(normalized_bot_id);
-   planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd + ";ALIFE;" + ack_id + "#" + ack_retaddr;
-   } else
-     {
-     planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_spin_cmd;
-     } // else
-
-if (planned_raw_cmd)
-   {
-   if (ack_id !== null)
-      {
-      this.apicall_register_ack(
-                               ack_id,
-                               {
-                               bot_id: normalized_bot_id,
-                               mode: "spin",
-                               to: {
-                                   x: Number(bot_snapshot.position.x),
-                                   y: Number(bot_snapshot.position.y),
-                                   z: Number(bot_snapshot.position.z)
-                                   },
-                               orientation: target_orientation,
-                               planned_raw_cmd: planned_raw_cmd,
-                               retaddr: ack_retaddr,
-                               status: "pending"
-                               }
-                               );
-      } // if
-
-   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
-   this.append_api_raw_cmd_log(planned_raw_cmd, normalized_bot_id, raw_ret.accepted ?? false);
-   this.append_api_bot_history(normalized_bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
-
-   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
-      {
-      this.apicall_mark_ack_received(ack_id, "send_failed");
-      } // if
-   } // if
-
-return({
-       ok: true,
-       answer: "api_execute_rotation_plan",
-       bot_id: normalized_bot_id,
-       executable: (planned_raw_cmd !== null),
-       executed: (raw_ret?.accepted ?? false) === true,
-       current_state: bot_snapshot,
-       target_orientation: target_orientation,
-       rotation_plan: normalized_plan,
-       planned_spin_cmds: planned_spin_cmds,
-       planned_spin_cmd: planned_spin_cmd,
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret
-       });
+return(runtime_execute_rotation_plan(this, bot_id, rotation_plan, target_orientation));
 } // apicall_execute_rotation_plan()
 
 
 apicall_rotate_bot_to(bot_id, x, y, z)
 {
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-let allowed_vectors = [
-                      { x:  1, y: 0, z:  0 },
-                      { x: -1, y: 0, z:  0 },
-                      { x:  0, y: 0, z:  1 },
-                      { x:  0, y: 0, z: -1 }
-                      ];
-let matched_target = null;
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot_to",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot_to",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_x) ||
-   Number.isNaN(target_y) ||
-   Number.isNaN(target_z)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot_to",
-          error: "INVALID_TARGET_ORIENTATION",
-          bot_id: bot_id
-          });
-   } // if
-
-for (let i = 0; i < allowed_vectors.length; i++)
-    {
-    if (
-       Number(allowed_vectors[i].x) === target_x &&
-       Number(allowed_vectors[i].y) === target_y &&
-       Number(allowed_vectors[i].z) === target_z
-       )
-       {
-       matched_target = {
-                        x: Number(allowed_vectors[i].x),
-                        y: Number(allowed_vectors[i].y),
-                        z: Number(allowed_vectors[i].z)
-                        };
-       break;
-       } // if
-    } // for
-
-if (!matched_target)
-   {
-   return({
-          ok: false,
-          answer: "api_rotate_bot_to",
-          error: "TARGET_ORIENTATION_NOT_SUPPORTED",
-          bot_id: bot_id,
-          target_orientation: { x: target_x, y: target_y, z: target_z }
-          });
-   } // if
-
-let current_orientation = {
-                          x: Number(bot_snapshot.orientation.x),
-                          y: Number(bot_snapshot.orientation.y),
-                          z: Number(bot_snapshot.orientation.z)
-                          };
-let rotate_right_once = this.apicall_rotate_orientation(
-                                                       current_orientation.x,
-                                                       current_orientation.y,
-                                                       current_orientation.z,
-                                                       "R"
-                                                       );
-let rotate_left_once = this.apicall_rotate_orientation(
-                                                      current_orientation.x,
-                                                      current_orientation.y,
-                                                      current_orientation.z,
-                                                      "L"
-                                                      );
-if (
-   Number(current_orientation.x) === matched_target.x &&
-   Number(current_orientation.y) === matched_target.y &&
-   Number(current_orientation.z) === matched_target.z
-   )
-   {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: true,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: [],
-          reason: "ALREADY_ALIGNED",
-          ack_received: true
-          });
-   } // if
-
-let rotate_right_twice = this.apicall_rotate_orientation(
-                                                    Number(rotate_right_once?.x ?? NaN),
-                                                    Number(rotate_right_once?.y ?? NaN),
-                                                    Number(rotate_right_once?.z ?? NaN),
-                                                    "R"
-                                                    );
-
-if (
-   rotate_right_once &&
-   Number(rotate_right_once.x) === matched_target.x &&
-   Number(rotate_right_once.y) === matched_target.y &&
-   Number(rotate_right_once.z) === matched_target.z
-   )
-   {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["R"],
-          reason: "ROTATION_PLAN_READY"
-          });
-   } // if
-
-if (
-   rotate_left_once &&
-   Number(rotate_left_once.x) === matched_target.x &&
-   Number(rotate_left_once.y) === matched_target.y &&
-   Number(rotate_left_once.z) === matched_target.z
-   )
-   {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["L"],
-          reason: "ROTATION_PLAN_READY"
-          });
-   } // if
-
-if (
-   rotate_right_twice &&
-   Number(rotate_right_twice.x) === matched_target.x &&
-   Number(rotate_right_twice.y) === matched_target.y &&
-   Number(rotate_right_twice.z) === matched_target.z
-   )
-   {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["R", "R"],
-          reason: "ROTATION_PLAN_READY"
-          });
-   } // if
-
-return({
-       ok: false,
-       answer: "api_rotate_bot_to",
-       error: "NO_VALID_ROTATION_PLAN",
-       bot_id: bot_id,
-       current_state: bot_snapshot,
-       target_orientation: matched_target
-       });
+return(runtime_rotate_bot_to(this, bot_id, x, y, z));
 } // apicall_rotate_bot_to()
 
 
 apicall_build_stationary_ack_returnaddr(bot_snapshot, target_orientation = null, excluded_bot_ids = [])
 {
-let ack_retaddr = "";
-let bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
-let ack_botindex = this.get_bot_by_id(bot_snapshot.id, bots_tmp_ack);
-
-if (ack_botindex == null)
-   {
-   return(ack_retaddr);
-   } // if
-
-if (target_orientation)
-   {
-   bots_tmp_ack[ack_botindex].vector_x = Number(target_orientation.x);
-   bots_tmp_ack[ack_botindex].vector_y = Number(target_orientation.y);
-   bots_tmp_ack[ack_botindex].vector_z = Number(target_orientation.z);
-   } // if
-
-ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
-                                                             {
-                                                             x: Number(bot_snapshot.position.x),
-                                                             y: Number(bot_snapshot.position.y),
-                                                             z: Number(bot_snapshot.position.z),
-                                                             vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
-                                                             vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
-                                                             vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
-                                                             },
-                                                             bots_tmp_ack
-                                                             );
-
-if (ack_retaddr == "")
-   {
-   ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
-                                                                    {
-                                                                    x: Number(bot_snapshot.position.x),
-                                                                    y: Number(bot_snapshot.position.y),
-                                                                    z: Number(bot_snapshot.position.z),
-                                                                    vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
-                                                                    vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
-                                                                    vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
-                                                                    },
-                                                                    bots_tmp_ack
-                                                                    );
-   } // if
-
-return(ack_retaddr);
+return(runtime_build_stationary_ack_returnaddr(this, bot_snapshot, target_orientation, excluded_bot_ids));
 } // apicall_build_stationary_ack_returnaddr()
 
 
 apicall_grab_bot(bot_id)
 {
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-let planned_raw_cmd = null;
-let raw_ret = null;
-let ack_id = null;
-let ack_retaddr = "";
-let payload_bot_id = null;
-let front_rel_vector = null;
-let front_target = null;
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_grab_bot",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_grab_bot",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, null);
-front_rel_vector = this.get_cell_relation_vector_byslot(
-                                                    "F",
-                                                    Number(bot_snapshot.orientation.x),
-                                                    Number(bot_snapshot.orientation.y),
-                                                    Number(bot_snapshot.orientation.z)
-                                                    );
-if (front_rel_vector)
-   {
-   front_target = {
-                  x: Number(bot_snapshot.position.x) + Number(front_rel_vector.x),
-                  y: Number(bot_snapshot.position.y) + Number(front_rel_vector.y),
-                  z: Number(bot_snapshot.position.z) + Number(front_rel_vector.z)
-                  };
-   } // if
-payload_bot_id = this.apicall_get_front_neighbor_bot_id(bot_snapshot);
-
-if (ack_retaddr != "")
-   {
-   ack_id = this.apicall_generate_ack_id(bot_id);
-   planned_raw_cmd = bot_snapshot.adress + "#MOVE#GF;ALIFE;" + ack_id + "#" + ack_retaddr;
-   } else
-     {
-     planned_raw_cmd = bot_snapshot.adress + "#MOVE#GF";
-     } // else
-
-if (ack_id !== null)
-   {
-   this.apicall_register_ack(
-                            ack_id,
-                            {
-                            bot_id: bot_id,
-                            mode: "grab",
-                            payload_bot_id: payload_bot_id,
-                            to: {
-                                x: Number(bot_snapshot.position.x),
-                                y: Number(bot_snapshot.position.y),
-                                z: Number(bot_snapshot.position.z)
-                                },
-                            orientation: {
-                                          x: Number(bot_snapshot.orientation.x),
-                                          y: Number(bot_snapshot.orientation.y),
-                                          z: Number(bot_snapshot.orientation.z)
-                                          },
-                            planned_raw_cmd: planned_raw_cmd,
-                            retaddr: ack_retaddr,
-                            status: "pending"
-                            }
-                            );
-   } // if
-
-raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
-this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
-this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
-
-if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
-   {
-   this.apicall_mark_ack_received(ack_id, "send_failed");
-   } // if
-
-return({
-       ok: true,
-       answer: "api_grab_bot",
-       bot_id: bot_id,
-       executable: true,
-       executed: (raw_ret?.accepted ?? false) === true,
-       current_state: bot_snapshot,
-       payload_bot_id: payload_bot_id,
-       front_debug: {
-                     rel_vector: front_rel_vector,
-                     target: front_target
-                     },
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret
-       });
+return(runtime_grab_bot(this, bot_id));
 } // apicall_grab_bot()
 
 
 apicall_release_bot(bot_id)
 {
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-let planned_raw_cmd = null;
-let raw_ret = null;
-let ack_id = null;
-let ack_retaddr = "";
-let payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_release_bot",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_release_bot",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-ack_retaddr = this.apicall_build_stationary_ack_returnaddr(bot_snapshot, null);
-
-if (ack_retaddr != "")
-   {
-   ack_id = this.apicall_generate_ack_id(bot_id);
-   planned_raw_cmd = bot_snapshot.adress + "#MOVE#G;ALIFE;" + ack_id + "#" + ack_retaddr;
-   } else
-     {
-     planned_raw_cmd = bot_snapshot.adress + "#MOVE#G";
-     } // else
-
-if (ack_id !== null)
-   {
-   this.apicall_register_ack(
-                            ack_id,
-                            {
-                            bot_id: bot_id,
-                            mode: "release",
-                            payload_bot_id: payload_bot_id,
-                            to: {
-                                x: Number(bot_snapshot.position.x),
-                                y: Number(bot_snapshot.position.y),
-                                z: Number(bot_snapshot.position.z)
-                                },
-                            orientation: {
-                                          x: Number(bot_snapshot.orientation.x),
-                                          y: Number(bot_snapshot.orientation.y),
-                                          z: Number(bot_snapshot.orientation.z)
-                                          },
-                            planned_raw_cmd: planned_raw_cmd,
-                            retaddr: ack_retaddr,
-                            status: "pending"
-                            }
-                            );
-   } // if
-
-raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
-this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
-this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
-
-if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
-   {
-   this.apicall_mark_ack_received(ack_id, "send_failed");
-   } // if
-
-return({
-       ok: true,
-       answer: "api_release_bot",
-       bot_id: bot_id,
-       executable: true,
-       executed: (raw_ret?.accepted ?? false) === true,
-       current_state: bot_snapshot,
-       payload_bot_id: payload_bot_id,
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret
-       });
+return(runtime_release_bot(this, bot_id));
 } // apicall_release_bot()
 
 
 async apicall_move_payload_to(carrier_bot_id, payload_bot_id, x, y, z, release_after = false)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let normalized_payload_bot_id = String(payload_bot_id ?? "").trim();
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let should_release_after = (
-                           release_after === true ||
-                           release_after === "true" ||
-                           release_after === "1" ||
-                           release_after === 1 ||
-                           release_after === "release"
-                           );
-let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
-let payload_snapshot = this.apicall_get_bot_snapshot(normalized_payload_bot_id);
-let current_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
-let current_front_payload_bot_id = null;
-let grab_ret = null;
-let move_ret = null;
-let release_ret = null;
-let steps = [];
-
-if (normalized_carrier_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "CARRIER_BOT_ID_MISSING"
-          });
-   } // if
-
-if (normalized_payload_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "PAYLOAD_BOT_ID_MISSING",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-if (!carrier_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "CARRIER_BOT_NOT_FOUND",
-          carrier_bot_id: normalized_carrier_bot_id,
-          payload_bot_id: normalized_payload_bot_id
-          });
-   } // if
-
-if (!payload_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "PAYLOAD_BOT_NOT_FOUND",
-          carrier_bot_id: normalized_carrier_bot_id,
-          payload_bot_id: normalized_payload_bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_x) ||
-   Number.isNaN(target_y) ||
-   Number.isNaN(target_z)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "INVALID_TARGET_POSITION",
-          carrier_bot_id: normalized_carrier_bot_id,
-          payload_bot_id: normalized_payload_bot_id
-          });
-   } // if
-
-if (current_payload_bot_id && String(current_payload_bot_id) != normalized_payload_bot_id)
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "CARRIER_ALREADY_CARRYING_OTHER_PAYLOAD",
-          carrier_bot_id: normalized_carrier_bot_id,
-          payload_bot_id: normalized_payload_bot_id,
-          current_payload_bot_id: String(current_payload_bot_id)
-          });
-   } // if
-
-if (!current_payload_bot_id)
-   {
-   current_front_payload_bot_id = this.apicall_get_front_neighbor_bot_id(carrier_snapshot);
-
-   if (String(current_front_payload_bot_id ?? "") != normalized_payload_bot_id)
-      {
-      return({
-             ok: false,
-             answer: "api_move_payload_to",
-             error: "PAYLOAD_NOT_DIRECTLY_IN_FRONT",
-             carrier_bot_id: normalized_carrier_bot_id,
-             payload_bot_id: normalized_payload_bot_id,
-             current_front_payload_bot_id: current_front_payload_bot_id
-             });
-      } // if
-
-   grab_ret = this.apicall_grab_bot(normalized_carrier_bot_id);
-   grab_ret = await this.apicall_attach_ack_wait_and_recovery(grab_ret);
-   steps.push({
-              step: "grab_bot",
-              ok: grab_ret?.ok === true,
-              ack_received: grab_ret?.ack_received ?? false,
-              payload_bot_id: grab_ret?.payload_bot_id ?? null,
-              planned_raw_cmd: grab_ret?.planned_raw_cmd ?? null
-              });
-
-   if (grab_ret?.ok !== true)
-      {
-      return({
-             ok: false,
-             answer: "api_move_payload_to",
-             error: "GRAB_FAILED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             payload_bot_id: normalized_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             steps: steps,
-             grab_result: grab_ret
-             });
-      } // if
-
-   if (
-      (grab_ret?.ack_received ?? false) !== true ||
-      String(this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id) ?? "") != normalized_payload_bot_id
-      )
-      {
-      return({
-             ok: false,
-             answer: "api_move_payload_to",
-             error: "GRAB_NOT_CONFIRMED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             payload_bot_id: normalized_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             steps: steps,
-             grab_result: grab_ret,
-             current_payload_bot_id: this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id) ?? null
-             });
-      } // if
-   } // if
-
-move_ret = this.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
-move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
-steps.push({
-           step: "move_bot_to",
-           ok: move_ret?.ok === true,
-           ack_received: move_ret?.ack_received ?? false,
-           executable: move_ret?.executable ?? false,
-           executed: move_ret?.executed ?? false,
-           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
-           });
-
-if (
-   move_ret?.ok !== true ||
-   move_ret?.path_found !== true ||
-   move_ret?.executable !== true ||
-   move_ret?.executed !== true ||
-   (move_ret?.ack_received ?? false) !== true
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_move_payload_to",
-          error: "PAYLOAD_MOVE_FAILED",
-          carrier_bot_id: normalized_carrier_bot_id,
-          payload_bot_id: normalized_payload_bot_id,
-          target: { x: target_x, y: target_y, z: target_z },
-          release_after: should_release_after,
-          steps: steps,
-          grab_result: grab_ret,
-          move_result: move_ret
-          });
-   } // if
-
-if (should_release_after)
-   {
-   release_ret = this.apicall_release_bot(normalized_carrier_bot_id);
-   release_ret = await this.apicall_attach_ack_wait_and_recovery(release_ret);
-   steps.push({
-              step: "release_bot",
-              ok: release_ret?.ok === true,
-              ack_received: release_ret?.ack_received ?? false,
-              payload_bot_id: release_ret?.payload_bot_id ?? null,
-              planned_raw_cmd: release_ret?.planned_raw_cmd ?? null
-              });
-
-   if (
-      release_ret?.ok !== true ||
-      (release_ret?.ack_received ?? false) !== true
-      )
-      {
-      return({
-             ok: false,
-             answer: "api_move_payload_to",
-             error: "RELEASE_FAILED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             payload_bot_id: normalized_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             release_after: should_release_after,
-             steps: steps,
-             grab_result: grab_ret,
-             move_result: move_ret,
-             release_result: release_ret
-             });
-      } // if
-   } // if
-
-return({
-       ok: true,
-       answer: "api_move_payload_to",
-       carrier_bot_id: normalized_carrier_bot_id,
-       payload_bot_id: normalized_payload_bot_id,
-       target: { x: target_x, y: target_y, z: target_z },
-       release_after: should_release_after,
-       already_carrying_payload: (current_payload_bot_id !== null),
-       steps: steps,
-       grab_result: grab_ret,
-       move_result: move_ret,
-       release_result: release_ret
-       });
+return(await runtime_move_payload_to(this, carrier_bot_id, payload_bot_id, x, y, z, release_after));
 } // apicall_move_payload_to()
 
 
 async apicall_move_carrier_to(carrier_bot_id, x, y, z, vx, vy, vz, release_after = false)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let target_vx = Number(vx);
-let target_vy = Number(vy);
-let target_vz = Number(vz);
-let should_release_after = (
-                           release_after === true ||
-                           release_after === "true" ||
-                           release_after === "1" ||
-                           release_after === 1 ||
-                           release_after === "release"
-                           );
-let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
-let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
-let orientation_any = false;
-let move_ret = null;
-let rotate_ret = null;
-let release_ret = null;
-let steps = [];
-let allowed_orientations = [
-                           { x:  1, y: 0, z:  0 },
-                           { x: -1, y: 0, z:  0 },
-                           { x:  0, y: 0, z:  1 },
-                           { x:  0, y: 0, z: -1 }
-                           ];
-let orientation_supported = false;
-
-if (normalized_carrier_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_move_carrier_to",
-          error: "CARRIER_BOT_ID_MISSING"
-          });
-   } // if
-
-if (!carrier_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_move_carrier_to",
-          error: "CARRIER_BOT_NOT_FOUND",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_x) ||
-   Number.isNaN(target_y) ||
-   Number.isNaN(target_z)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_move_carrier_to",
-          error: "INVALID_TARGET_POSITION",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_vx) ||
-   Number.isNaN(target_vy) ||
-   Number.isNaN(target_vz)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_move_carrier_to",
-          error: "INVALID_TARGET_ORIENTATION",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-orientation_any = (
-                  Number(target_vx) === 0 &&
-                  Number(target_vy) === 0 &&
-                  Number(target_vz) === 0
-                  );
-
-if (!orientation_any)
-   {
-   for (let i = 0; i < allowed_orientations.length; i++)
-       {
-       if (
-          Number(allowed_orientations[i].x) === Number(target_vx) &&
-          Number(allowed_orientations[i].y) === Number(target_vy) &&
-          Number(allowed_orientations[i].z) === Number(target_vz)
-          )
-          {
-          orientation_supported = true;
-          break;
-          } // if
-       } // for
-
-   if (!orientation_supported)
-      {
-      return({
-             ok: false,
-             answer: "api_move_carrier_to",
-             error: "TARGET_ORIENTATION_NOT_SUPPORTED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             target_orientation: { x: target_vx, y: target_vy, z: target_vz }
-             });
-      } // if
-   } // if
-
-move_ret = this.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
-move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
-steps.push({
-           step: "move_bot_to",
-           ok: move_ret?.ok === true,
-           ack_received: move_ret?.ack_received ?? false,
-           executable: move_ret?.executable ?? false,
-           executed: move_ret?.executed ?? false,
-           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
-           });
-
-if (
-   move_ret?.ok !== true ||
-   move_ret?.path_found !== true ||
-   move_ret?.executable !== true ||
-   move_ret?.executed !== true ||
-   (move_ret?.ack_received ?? false) !== true
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_move_carrier_to",
-          error: "CARRIER_MOVE_FAILED",
-          carrier_bot_id: normalized_carrier_bot_id,
-          carried_payload_bot_id: carried_payload_bot_id,
-          target: { x: target_x, y: target_y, z: target_z },
-          target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-          orientation_any: orientation_any,
-          release_after: should_release_after,
-          steps: steps,
-          move_result: move_ret
-          });
-   } // if
-
-if (!orientation_any)
-   {
-   rotate_ret = this.apicall_rotate_bot_to(normalized_carrier_bot_id, target_vx, target_vy, target_vz);
-
-   if (rotate_ret?.ok === true && Array.isArray(rotate_ret.rotation_plan) && rotate_ret.rotation_plan.length > 0)
-      {
-      let execute_ret = this.apicall_execute_rotation_plan(
-                                                         normalized_carrier_bot_id,
-                                                         rotate_ret.rotation_plan,
-                                                         rotate_ret.target_orientation ?? null
-                                                         );
-      execute_ret = await this.apicall_attach_ack_wait_and_recovery(execute_ret);
-
-      rotate_ret = {
-                   ...rotate_ret,
-                   ack_id: execute_ret?.ack_id ?? null,
-                   ack_retaddr: execute_ret?.ack_retaddr ?? "",
-                   planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null,
-                   raw_cmd_result: execute_ret?.raw_cmd_result ?? null,
-                   ack_wait: execute_ret?.ack_wait ?? null,
-                   ack_received: execute_ret?.ack_received ?? false,
-                   execution_steps: [
-                                     {
-                                     rotation_plan: rotate_ret.rotation_plan,
-                                     ack_id: execute_ret?.ack_id ?? null,
-                                     ack_received: execute_ret?.ack_received ?? false,
-                                     planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null
-                                     }
-                                     ],
-                   executed: (execute_ret?.ack_received ?? false) === true
-                   };
-
-      if ((execute_ret?.ack_received ?? false) !== true)
-         {
-         rotate_ret.ok = false;
-         rotate_ret.error = "ROTATION_PLAN_FAILED";
-         rotate_ret.failed_step = 1;
-         rotate_ret.failed_direction = (rotate_ret.rotation_plan[0] ?? null);
-         rotate_ret.last_step_result = execute_ret;
-         } // if
-      } // if
-
-   steps.push({
-              step: "rotate_bot_to",
-              ok: rotate_ret?.ok === true,
-              executed: rotate_ret?.executed ?? false,
-              rotation_plan: rotate_ret?.rotation_plan ?? [],
-              failed_step: rotate_ret?.failed_step ?? null,
-              failed_direction: rotate_ret?.failed_direction ?? null
-              });
-
-   if (rotate_ret?.ok !== true || rotate_ret?.executed !== true)
-      {
-      return({
-             ok: false,
-             answer: "api_move_carrier_to",
-             error: "CARRIER_ROTATION_FAILED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             carried_payload_bot_id: carried_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-             orientation_any: orientation_any,
-             release_after: should_release_after,
-             steps: steps,
-             move_result: move_ret,
-             rotate_result: rotate_ret
-             });
-      } // if
-   } // if
-
-if (should_release_after && carried_payload_bot_id)
-   {
-   release_ret = this.apicall_release_bot(normalized_carrier_bot_id);
-   release_ret = await this.apicall_attach_ack_wait_and_recovery(release_ret);
-   steps.push({
-              step: "release_bot",
-              ok: release_ret?.ok === true,
-              ack_received: release_ret?.ack_received ?? false,
-              payload_bot_id: release_ret?.payload_bot_id ?? null,
-              planned_raw_cmd: release_ret?.planned_raw_cmd ?? null
-              });
-
-   if (
-      release_ret?.ok !== true ||
-      (release_ret?.ack_received ?? false) !== true
-      )
-      {
-      return({
-             ok: false,
-             answer: "api_move_carrier_to",
-             error: "RELEASE_FAILED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             carried_payload_bot_id: carried_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-             orientation_any: orientation_any,
-             release_after: should_release_after,
-             steps: steps,
-             move_result: move_ret,
-             rotate_result: rotate_ret,
-             release_result: release_ret
-             });
-      } // if
-   } // if
-
-return({
-       ok: true,
-       answer: "api_move_carrier_to",
-       carrier_bot_id: normalized_carrier_bot_id,
-       carried_payload_bot_id: carried_payload_bot_id,
-       target: { x: target_x, y: target_y, z: target_z },
-       target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-       orientation_any: orientation_any,
-       release_after: should_release_after,
-       steps: steps,
-       move_result: move_ret,
-       rotate_result: rotate_ret,
-       release_result: release_ret
-       });
+return(await runtime_move_carrier_to(this, carrier_bot_id, x, y, z, vx, vy, vz, release_after));
 } // apicall_move_carrier_to()
 
 
 apicall_diagnose_move_carrier_to(carrier_bot_id, x, y, z, vx, vy, vz, release_after = false)
 {
-let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let target_vx = Number(vx);
-let target_vy = Number(vy);
-let target_vz = Number(vz);
-let should_release_after = (
-                           release_after === true ||
-                           release_after === "true" ||
-                           release_after === "1" ||
-                           release_after === 1 ||
-                           release_after === "release"
-                           );
-let carrier_snapshot = this.apicall_get_bot_snapshot(normalized_carrier_bot_id);
-let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(normalized_carrier_bot_id);
-let orientation_any = false;
-let move_ret = null;
-let rotate_ret = null;
-let release_ret = null;
-let steps = [];
-let allowed_orientations = [
-                           { x:  1, y: 0, z:  0 },
-                           { x: -1, y: 0, z:  0 },
-                           { x:  0, y: 0, z:  1 },
-                           { x:  0, y: 0, z: -1 }
-                           ];
-let orientation_supported = false;
-
-if (normalized_carrier_bot_id == "")
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_move_carrier_to",
-          error: "CARRIER_BOT_ID_MISSING"
-          });
-   } // if
-
-if (!carrier_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_move_carrier_to",
-          error: "CARRIER_BOT_NOT_FOUND",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_x) ||
-   Number.isNaN(target_y) ||
-   Number.isNaN(target_z)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_move_carrier_to",
-          error: "INVALID_TARGET_POSITION",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-if (
-   Number.isNaN(target_vx) ||
-   Number.isNaN(target_vy) ||
-   Number.isNaN(target_vz)
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_move_carrier_to",
-          error: "INVALID_TARGET_ORIENTATION",
-          carrier_bot_id: normalized_carrier_bot_id
-          });
-   } // if
-
-orientation_any = (
-                  Number(target_vx) === 0 &&
-                  Number(target_vy) === 0 &&
-                  Number(target_vz) === 0
-                  );
-
-if (!orientation_any)
-   {
-   for (let i = 0; i < allowed_orientations.length; i++)
-       {
-       if (
-          Number(allowed_orientations[i].x) === Number(target_vx) &&
-          Number(allowed_orientations[i].y) === Number(target_vy) &&
-          Number(allowed_orientations[i].z) === Number(target_vz)
-          )
-          {
-          orientation_supported = true;
-          break;
-          } // if
-       } // for
-
-   if (!orientation_supported)
-      {
-      return({
-             ok: false,
-             answer: "api_diagnose_move_carrier_to",
-             error: "TARGET_ORIENTATION_NOT_SUPPORTED",
-             carrier_bot_id: normalized_carrier_bot_id,
-             target_orientation: { x: target_vx, y: target_vy, z: target_vz }
-             });
-      } // if
-   } // if
-
-move_ret = this.apicall_diagnose_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
-steps.push({
-           step: "move_bot_to",
-           ok: move_ret?.ok === true,
-           path_found: move_ret?.path_found ?? false,
-           executable: move_ret?.executable ?? false,
-           planned_raw_cmd: move_ret?.planned_raw_cmd ?? null
-           });
-
-if (
-   move_ret?.ok !== true ||
-   move_ret?.path_found !== true ||
-   move_ret?.executable !== true
-   )
-   {
-   return({
-          ok: false,
-          answer: "api_diagnose_move_carrier_to",
-          error: "CARRIER_MOVE_NOT_PLANNABLE",
-          carrier_bot_id: normalized_carrier_bot_id,
-          carried_payload_bot_id: carried_payload_bot_id,
-          target: { x: target_x, y: target_y, z: target_z },
-          target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-          orientation_any: orientation_any,
-          release_after: should_release_after,
-          executable: false,
-          executed: false,
-          steps: steps,
-          move_result: move_ret,
-          rotate_result: null,
-          release_result: null
-          });
-   } // if
-
-if (!orientation_any)
-   {
-   rotate_ret = this.apicall_rotate_bot_to(normalized_carrier_bot_id, target_vx, target_vy, target_vz);
-
-   steps.push({
-              step: "rotate_bot_to",
-              ok: rotate_ret?.ok === true,
-              executable: rotate_ret?.ok === true,
-              executed: false,
-              rotation_plan: rotate_ret?.rotation_plan ?? [],
-              target_orientation: rotate_ret?.target_orientation ?? null
-              });
-
-   if (rotate_ret?.ok !== true)
-      {
-      return({
-             ok: false,
-             answer: "api_diagnose_move_carrier_to",
-             error: "CARRIER_ROTATION_NOT_PLANNABLE",
-             carrier_bot_id: normalized_carrier_bot_id,
-             carried_payload_bot_id: carried_payload_bot_id,
-             target: { x: target_x, y: target_y, z: target_z },
-             target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-             orientation_any: orientation_any,
-             release_after: should_release_after,
-             executable: false,
-             executed: false,
-             steps: steps,
-             move_result: move_ret,
-             rotate_result: rotate_ret,
-             release_result: null
-             });
-      } // if
-   } // if
-
-if (should_release_after && carried_payload_bot_id)
-   {
-   release_ret = {
-                 ok: true,
-                 answer: "api_release_bot",
-                 executable: true,
-                 executed: false,
-                 bot_id: normalized_carrier_bot_id,
-                 payload_bot_id: carried_payload_bot_id,
-                 note: "release_planned_only"
-                 };
-
-   steps.push({
-              step: "release_bot",
-              ok: true,
-              executable: true,
-              executed: false,
-              payload_bot_id: carried_payload_bot_id
-              });
-   } // if
-
-return({
-       ok: true,
-       answer: "api_diagnose_move_carrier_to",
-       carrier_bot_id: normalized_carrier_bot_id,
-       carried_payload_bot_id: carried_payload_bot_id,
-       target: { x: target_x, y: target_y, z: target_z },
-       target_orientation: { x: target_vx, y: target_vy, z: target_vz },
-       orientation_any: orientation_any,
-       release_after: should_release_after,
-       executable: true,
-       executed: false,
-       steps: steps,
-       move_result: move_ret,
-       rotate_result: rotate_ret,
-       release_result: release_ret
-       });
+return(runtime_diagnose_move_carrier_to(this, carrier_bot_id, x, y, z, vx, vy, vz, release_after));
 } // apicall_diagnose_move_carrier_to()
 
 
 apicall_get_normalized_crater_id(crater_id = "")
 {
-let normalized_crater_id = String(crater_id ?? "").trim();
-
-if (normalized_crater_id == "")
-   {
-   normalized_crater_id = String(this.api_crater_default_id ?? "crater_default");
-   } // if
-
-return(normalized_crater_id);
+return(runtime_get_normalized_crater_id(this, crater_id));
 } // apicall_get_normalized_crater_id()
 
 
 apicall_has_running_crater_session()
 {
-let crater_ids = Object.keys(this.api_crater_runs ?? {});
-
-for (let i = 0; i < crater_ids.length; i++)
-    {
-    let crater_id = crater_ids[i];
-    let session = this.api_crater_runs[crater_id];
-
-    if (session?.status?.running === true)
-       {
-       return(true);
-       } // if
-    } // for
-
-return(false);
+return(runtime_has_running_crater_session(this));
 } // apicall_has_running_crater_session()
 
 
 apicall_ensure_crater_session(crater_id = "")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
-
-if (!this.api_crater_runs[normalized_crater_id])
-   {
-   let now_iso = new Date().toISOString();
-   this.api_crater_runs[normalized_crater_id] = {
-                                                crater_id: normalized_crater_id,
-                                                request: null,
-                                                last_dig_plan: null,
-                                                last_fill_plan: null,
-                                                last_dig_result: null,
-                                                last_fill_result: null,
-                                                status: {
-                                                         crater_id: normalized_crater_id,
-                                                         mode: null,
-                                                         running: false,
-                                                         phase: "idle",
-                                                         progress: 0,
-                                                         success: null,
-                                                         started_at: null,
-                                                         finished_at: null,
-                                                         last_update: now_iso,
-                                                         message: "",
-                                                         session_id: null,
-                                                         total_steps: 0,
-                                                         completed_steps: 0,
-                                                         current_step: null,
-                                                         last_result: null,
-                                                         last_error: null,
-                                                         failed_step: null
-                                                         }
-                                                };
-   } // if
-
-return(this.api_crater_runs[normalized_crater_id]);
+return(runtime_ensure_crater_session(this, crater_id));
 } // apicall_ensure_crater_session()
 
 
 apicall_update_crater_status(patch = {}, crater_id = "")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id || this.crater_active_id);
-let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
-let now_iso = new Date().toISOString();
-
-crater_session.status = {
-                        ...crater_session.status,
-                        ...(patch ?? {}),
-                        crater_id: normalized_crater_id,
-                        last_update: now_iso
-                        };
-
-this.crater_active_id = normalized_crater_id;
-this.crater_status = crater_session.status;
-
-return(crater_session.status);
+return(runtime_update_crater_status(this, patch, crater_id));
 } // apicall_update_crater_status()
 
 
 apicall_get_crater_status(crater_id = "")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id || this.crater_active_id);
-let crater_session = this.api_crater_runs[normalized_crater_id];
-
-if (!crater_session)
-   {
-   return({
-          ok: true,
-          answer: "api_crater_check_progress",
-          crater_id: normalized_crater_id,
-          mode: null,
-          running: false,
-          phase: "idle",
-          progress: 0,
-          success: null,
-          started_at: null,
-          finished_at: null,
-          session_id: null,
-          total_steps: 0,
-          completed_steps: 0,
-          current_step: null,
-          message: "",
-          last_result: null,
-          last_error: null,
-          failed_step: null,
-          has_dig_plan: false,
-          has_fill_plan: false
-          });
-   } // if
-
-let status = crater_session.status ?? {};
-
-return({
-       ok: true,
-       answer: "api_crater_check_progress",
-       crater_id: normalized_crater_id,
-       mode: status.mode ?? null,
-       running: Boolean(status.running),
-       phase: status.phase ?? "idle",
-       progress: Number(status.progress ?? 0),
-       success: status.success ?? null,
-       started_at: status.started_at ?? null,
-       finished_at: status.finished_at ?? null,
-       session_id: status.session_id ?? null,
-       total_steps: Number(status.total_steps ?? 0),
-       completed_steps: Number(status.completed_steps ?? 0),
-       current_step: status.current_step ?? null,
-       message: status.message ?? "",
-       last_result: status.last_result ?? null,
-       last_error: status.last_error ?? null,
-       failed_step: status.failed_step ?? null,
-       has_dig_plan: !!crater_session.last_dig_plan,
-       has_fill_plan: !!crater_session.last_fill_plan
-       });
+return(runtime_get_crater_status(this, crater_id));
 } // apicall_get_crater_status()
 
 
 apicall_list_craters()
 {
-let crater_ids = Object.keys(this.api_crater_runs ?? {}).sort();
-let crater_list = [];
-
-for (let i = 0; i < crater_ids.length; i++)
-    {
-    let crater_id = crater_ids[i];
-    let crater_session = this.api_crater_runs[crater_id] ?? {};
-    let status = crater_session.status ?? {};
-
-    crater_list.push(
-                    {
-                    crater_id: crater_id,
-                    mode: status.mode ?? null,
-                    running: Boolean(status.running),
-                    phase: status.phase ?? "idle",
-                    progress: Number(status.progress ?? 0),
-                    success: status.success ?? null,
-                    started_at: status.started_at ?? null,
-                    finished_at: status.finished_at ?? null,
-                    total_steps: Number(status.total_steps ?? 0),
-                    completed_steps: Number(status.completed_steps ?? 0),
-                    has_dig_plan: !!crater_session.last_dig_plan,
-                    has_fill_plan: !!crater_session.last_fill_plan
-                    }
-                    );
-    } // for
-
-return({
-       ok: true,
-       answer: "api_crater_list",
-       count: crater_list.length,
-       active_crater_id: this.crater_active_id ?? null,
-       craters: crater_list
-       });
+return(runtime_list_craters(this));
 } // apicall_list_craters()
 
 
 apicall_build_fill_plan_from_crater(crater_id = "")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
-let crater_session = this.api_crater_runs[normalized_crater_id];
-
-if (!crater_session)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_fill",
-          error: "CRATER_NOT_FOUND",
-          crater_id: normalized_crater_id
-          });
-   } // if
-
-let dig_pair_order = Array.isArray(crater_session?.last_dig_plan?.pair_order) ? crater_session.last_dig_plan.pair_order : [];
-if (dig_pair_order.length == 0)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_fill",
-          error: "CRATER_FILL_SOURCE_MISSING",
-          crater_id: normalized_crater_id
-          });
-   } // if
-
-let fill_pair_order = [];
-
-for (let i = dig_pair_order.length - 1; i >= 0; i--)
-    {
-    let dig_pair = dig_pair_order[i] ?? {};
-    let remove_bot = dig_pair.remove_bot ?? {};
-    let crater_target = dig_pair.crater_target ?? {};
-
-    fill_pair_order.push(
-                        {
-                        step: fill_pair_order.length + 1,
-                        remove_bot: {
-                                    id: String(remove_bot.id ?? "").trim(),
-                                    x: Number(crater_target.x),
-                                    y: Number(crater_target.y),
-                                    z: Number(crater_target.z)
-                                    },
-                        crater_target: {
-                                        x: Number(remove_bot.x),
-                                        y: Number(remove_bot.y),
-                                        z: Number(remove_bot.z)
-                                        },
-                        reason: "reverse_pair_order"
-                        }
-                        );
-    } // for
-
-let precheck_steps = [];
-let blocked_steps = [];
-
-for (let i = 0; i < fill_pair_order.length; i++)
-    {
-    let fill_step = fill_pair_order[i];
-    let bot_id = String(fill_step?.remove_bot?.id ?? "").trim();
-    let expected_from = {
-                        x: Number(fill_step?.remove_bot?.x),
-                        y: Number(fill_step?.remove_bot?.y),
-                        z: Number(fill_step?.remove_bot?.z)
-                        };
-    let target_restore = {
-                         x: Number(fill_step?.crater_target?.x),
-                         y: Number(fill_step?.crater_target?.y),
-                         z: Number(fill_step?.crater_target?.z)
-                         };
-    let bot_state = this.apicall_get_bot_by_id(bot_id);
-    let at_expected_position = false;
-    let diagnose_ret = null;
-    let executable = false;
-    let blocked_reason = "";
-
-    if (bot_state?.ok === true)
-       {
-       at_expected_position = (
-                               Number(bot_state?.position?.x) === expected_from.x &&
-                               Number(bot_state?.position?.y) === expected_from.y &&
-                               Number(bot_state?.position?.z) === expected_from.z
-                               );
-
-       diagnose_ret = this.apicall_diagnose_move_bot_to(
-                                                        bot_id,
-                                                        target_restore.x,
-                                                        target_restore.y,
-                                                        target_restore.z
-                                                        );
-       executable = (diagnose_ret?.ok === true && diagnose_ret?.executable === true && diagnose_ret?.path_found === true);
-       } // if
-    else
-       {
-       blocked_reason = "BOT_NOT_FOUND";
-       } // else
-
-    if (blocked_reason == "" && executable !== true)
-       {
-       blocked_reason = diagnose_ret?.final_diagnostic_reason ?? diagnose_ret?.reason ?? diagnose_ret?.error ?? "FILL_STEP_NOT_EXECUTABLE";
-       } // if
-
-    let precheck_entry = {
-                         step: Number(fill_step?.step ?? (i + 1)),
-                         bot_id: bot_id,
-                         expected_from: expected_from,
-                         target_restore: target_restore,
-                         bot_found: (bot_state?.ok === true),
-                         at_expected_position: at_expected_position,
-                         executable: executable,
-                         blocked_reason: (blocked_reason == "" ? null : blocked_reason)
-                         };
-
-    precheck_steps.push(precheck_entry);
-
-    if (precheck_entry.executable !== true)
-       {
-       blocked_steps.push(precheck_entry);
-       } // if
-    } // for
-
-return({
-       ok: true,
-       answer: "api_crater_fill_plan",
-       crater_id: normalized_crater_id,
-       fillable: (blocked_steps.length == 0),
-       total_steps: fill_pair_order.length,
-       pair_order: fill_pair_order,
-       precheck_steps: precheck_steps,
-       blocked_steps: blocked_steps
-       });
+return(runtime_build_fill_plan_from_crater(this, crater_id));
 } // apicall_build_fill_plan_from_crater()
 
 
 async apicall_run_crater_plan(session_id, crater_id, request, plan, run_mode = "dig")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
-let pair_order = Array.isArray(plan?.pair_order) ? plan.pair_order : [];
-let total_steps = pair_order.length;
-let completed_steps = 0;
-let step_results = [];
-let retry_max_attempts = 2;
-let phase_running = (run_mode == "fill" ? "fill_running" : "running");
-let phase_finished = (run_mode == "fill" ? "fill_finished" : "finished");
-let phase_failed = (run_mode == "fill" ? "fill_failed" : "failed");
-
-this.apicall_update_crater_status(
-                                 {
-                                 mode: run_mode,
-                                 phase: phase_running,
-                                 progress: (total_steps === 0 ? 100 : 0),
-                                 total_steps: total_steps,
-                                 completed_steps: 0,
-                                 current_step: null,
-                                 message: (run_mode == "fill" ? "Crater fill execution started." : "Crater execution started."),
-                                 last_error: null,
-                                 failed_step: null
-                                 },
-                                 normalized_crater_id
-                                 );
-
-for (let i = 0; i < total_steps; i++)
-    {
-    let crater_session = this.api_crater_runs[normalized_crater_id];
-    if (Number(crater_session?.status?.session_id) !== Number(session_id))
-       {
-       return({
-              ok: false,
-              error: "CRATER_SESSION_SUPERSEDED",
-              step_results: step_results
-              });
-       } // if
-
-    let pair_entry = pair_order[i] ?? {};
-    let remove_bot = pair_entry.remove_bot ?? {};
-    let crater_target = pair_entry.crater_target ?? {};
-    let bot_id = String(remove_bot.id ?? "").trim();
-    let target_x = Number(crater_target.x);
-    let target_y = Number(crater_target.y);
-    let target_z = Number(crater_target.z);
-    let step_result = {
-                      step: Number(pair_entry.step ?? (i + 1)),
-                      bot_id: bot_id,
-                      target: {
-                               x: target_x,
-                               y: target_y,
-                               z: target_z
-                               },
-                      attempts: 0
-                      };
-
-    this.apicall_update_crater_status(
-                                     {
-                                     current_step: step_result,
-                                     phase: phase_running,
-                                     message: (run_mode == "fill" ? "Executing crater fill step " : "Executing crater pair step ") + String(i + 1) + " of " + String(total_steps) + "."
-                                     },
-                                     normalized_crater_id
-                                     );
-
-    if (
-        bot_id == "" ||
-        Number.isNaN(target_x) ||
-        Number.isNaN(target_y) ||
-        Number.isNaN(target_z)
-       )
-       {
-       step_result.ok = false;
-       step_result.error = "INVALID_PAIR_ORDER_STEP";
-       step_results.push(step_result);
-
-       this.apicall_update_crater_status(
-                                        {
-                                        running: false,
-                                        phase: phase_failed,
-                                        success: false,
-                                        finished_at: new Date().toISOString(),
-                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
-                                        completed_steps: completed_steps,
-                                        last_result: step_result,
-                                        last_error: step_result.error,
-                                        failed_step: step_result,
-                                        message: (run_mode == "fill" ? "Crater fill failed: invalid pair_order entry." : "Crater execution failed: invalid pair_order entry.")
-                                        },
-                                        normalized_crater_id
-                                        );
-       return({
-              ok: false,
-              error: "INVALID_PAIR_ORDER_STEP",
-              step_results: step_results
-              });
-       } // if
-
-    let bot_state_ret = this.apicall_get_bot_by_id(bot_id);
-    if (bot_state_ret?.ok !== true)
-       {
-       step_result.ok = false;
-       step_result.error = "PAIR_BOT_NOT_FOUND";
-       step_result.bot_state = bot_state_ret;
-       step_results.push(step_result);
-
-       this.apicall_update_crater_status(
-                                        {
-                                        running: false,
-                                        phase: phase_failed,
-                                        success: false,
-                                        finished_at: new Date().toISOString(),
-                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
-                                        completed_steps: completed_steps,
-                                        last_result: step_result,
-                                        last_error: step_result.error,
-                                        failed_step: step_result,
-                                        message: (run_mode == "fill" ? "Crater fill failed: bot not found." : "Crater execution failed: remove bot not found.")
-                                        },
-                                        normalized_crater_id
-                                        );
-       return({
-              ok: false,
-              error: "PAIR_BOT_NOT_FOUND",
-              step_results: step_results
-              });
-       } // if
-
-    let move_ret = null;
-    let move_ok = false;
-    let last_error = "MOVE_FAILED";
-
-    for (let attempt = 1; attempt <= retry_max_attempts; attempt++)
-        {
-        step_result.attempts = attempt;
-        move_ret = this.apicall_move_bot_to(bot_id, target_x, target_y, target_z, true);
-
-        if (move_ret?.ok === true && move_ret?.ack_id)
-           {
-           move_ret = await this.apicall_attach_ack_wait_and_recovery(move_ret);
-           } // if
-
-        if (move_ret?.ok === true && move_ret?.executed === true && (move_ret?.ack_id ? move_ret?.ack_received === true : true))
-           {
-           move_ok = true;
-           break;
-           } // if
-
-        let position_probe = this.apicall_get_bot_by_id(bot_id);
-        if (
-            position_probe?.ok === true &&
-            Number(position_probe?.position?.x) === target_x &&
-            Number(position_probe?.position?.y) === target_y &&
-            Number(position_probe?.position?.z) === target_z
-           )
-           {
-           move_ok = true;
-           step_result.recovered_by_position_probe = true;
-           break;
-           } // if
-
-        last_error = move_ret?.error ?? (move_ret?.ack_id ? "MOVE_ACK_FAILED" : "MOVE_NOT_EXECUTED");
-
-        if (attempt < retry_max_attempts)
-           {
-           this.apicall_update_crater_status(
-                                            {
-                                            message: (run_mode == "fill" ? "Crater fill retry " : "Crater step retry ") + String(attempt + 1) + "/" + String(retry_max_attempts) + " for bot " + bot_id + "."
-                                            },
-                                            normalized_crater_id
-                                            );
-           await this.apicall_sleep(350);
-           } // if
-        } // for
-
-    if (move_ok !== true)
-       {
-       step_result.ok = false;
-       step_result.error = "MOVE_EXECUTION_FAILED_AFTER_RETRY";
-       step_result.last_error = last_error;
-       step_result.move_result = move_ret;
-       step_results.push(step_result);
-
-       this.apicall_update_crater_status(
-                                        {
-                                        running: false,
-                                        phase: phase_failed,
-                                        success: false,
-                                        finished_at: new Date().toISOString(),
-                                        progress: (total_steps > 0 ? Math.round((completed_steps / total_steps) * 100) : 0),
-                                        completed_steps: completed_steps,
-                                        last_result: step_result,
-                                        last_error: step_result.error,
-                                        failed_step: step_result,
-                                        message: (run_mode == "fill" ? "Crater fill failed during move execution." : "Crater execution failed during move execution.")
-                                        },
-                                        normalized_crater_id
-                                        );
-       return({
-              ok: false,
-              error: step_result.error,
-              step_results: step_results
-              });
-       } // if
-
-    completed_steps++;
-    step_result.ok = true;
-    step_result.move_result = {
-                              answer: move_ret?.answer ?? "",
-                              ack_id: move_ret?.ack_id ?? null,
-                              ack_received: move_ret?.ack_received ?? null
-                              };
-    step_results.push(step_result);
-
-    this.apicall_update_crater_status(
-                                     {
-                                     completed_steps: completed_steps,
-                                     progress: Math.round((completed_steps / total_steps) * 100),
-                                     last_result: step_result,
-                                     message: (run_mode == "fill" ? "Crater fill step " : "Crater step ") + String(completed_steps) + "/" + String(total_steps) + " completed."
-                                     },
-                                     normalized_crater_id
-                                     );
-    } // for
-
-this.apicall_update_crater_status(
-                                 {
-                                 running: false,
-                                 phase: phase_finished,
-                                 success: true,
-                                 finished_at: new Date().toISOString(),
-                                 progress: 100,
-                                 completed_steps: completed_steps,
-                                 current_step: null,
-                                 message: (run_mode == "fill" ? "Crater fill finished successfully." : "Crater execution finished successfully."),
-                                 failed_step: null
-                                 },
-                                 normalized_crater_id
-                                 );
-
-let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
-if (run_mode == "fill")
-   {
-   crater_session.last_fill_result = {
-                                    ok: true,
-                                    step_results: step_results
-                                    };
-   } // if
-else
-   {
-   crater_session.last_dig_result = {
-                                   ok: true,
-                                   step_results: step_results
-                                   };
-   } // else
-
-return({
-       ok: true,
-       step_results: step_results
-       });
+return(await runtime_run_crater_plan(this, session_id, crater_id, request, plan, run_mode));
 } // apicall_run_crater_plan()
 
 
 apicall_crater_start(decodedobject = {})
 {
-if (this.apicall_has_running_crater_session() === true)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_start",
-          accepted: false,
-          error: "CRATER_ALREADY_RUNNING",
-          crater_status: this.apicall_get_crater_status()
-          });
-   } // if
-
-let crater_id = this.apicall_get_normalized_crater_id(decodedobject.crater_id);
-let request = {
-              tx: Number(decodedobject.tx),
-              ty: Number(decodedobject.ty),
-              tz: Number(decodedobject.tz),
-              vx: Number(decodedobject.vx),
-              vy: Number(decodedobject.vy),
-              vz: Number(decodedobject.vz),
-              sx: Number(decodedobject.sx),
-              sy: Number(decodedobject.sy),
-              sz: Number(decodedobject.sz),
-              mode: "plan",
-              max_depth: (decodedobject.max_depth !== undefined ? decodedobject.max_depth : null)
-              };
-let plan_ret = this.apicall_calc_crater_stub(request);
-let pair_order = Array.isArray(plan_ret?.plan?.pair_order) ? plan_ret.plan.pair_order : [];
-let session_id = (++this.api_crater_counter);
-let now_iso = new Date().toISOString();
-let crater_session = this.apicall_ensure_crater_session(crater_id);
-
-if (plan_ret?.ok !== true || !plan_ret?.plan)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_start",
-          accepted: false,
-          crater_id: crater_id,
-          error: plan_ret?.error ?? "CRATER_PLAN_FAILED",
-          planning: plan_ret
-          });
-   } // if
-
-crater_session.request = request;
-crater_session.last_dig_plan = plan_ret.plan;
-
-this.apicall_update_crater_status(
-                                 {
-                                 mode: "dig",
-                                 running: true,
-                                 phase: "planned",
-                                 progress: (pair_order.length === 0 ? 100 : 0),
-                                 success: null,
-                                 started_at: now_iso,
-                                 finished_at: null,
-                                 session_id: session_id,
-                                 request: request,
-                                 total_steps: pair_order.length,
-                                 completed_steps: 0,
-                                 current_step: null,
-                                 last_result: null,
-                                 last_error: null,
-                                 failed_step: null,
-                                 message: (pair_order.length === 0 ? "Crater plan has no executable pair_order steps." : "Crater plan accepted; execution queued.")
-                                 },
-                                 crater_id
-                                 );
-
-setTimeout(
-           async () => {
-             await this.apicall_run_crater_plan(session_id, crater_id, request, plan_ret.plan, "dig");
-           },
-           0
-           );
-
-return({
-       ok: true,
-       answer: "api_crater_start",
-       accepted: true,
-       crater_id: crater_id,
-       session_id: session_id,
-       request: request,
-       planning: {
-                 excavation_count: Number(plan_ret?.plan?.stats?.excavation_count ?? 0),
-                 crater_count: Number(plan_ret?.plan?.stats?.crater_count ?? 0),
-                 pair_count: Number(plan_ret?.plan?.stats?.pair_count ?? pair_order.length)
-                 },
-       total_steps: pair_order.length,
-       crater_status: this.apicall_get_crater_status(crater_id)
-       });
+return(runtime_crater_start(this, decodedobject));
 } // apicall_crater_start()
 
 
 apicall_crater_fill(crater_id = "", mode = "execute")
 {
-let normalized_crater_id = this.apicall_get_normalized_crater_id(crater_id);
-let normalized_mode = String(mode ?? "execute").trim().toLowerCase();
-
-if (this.apicall_has_running_crater_session() === true)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_fill",
-          crater_id: normalized_crater_id,
-          accepted: false,
-          error: "CRATER_ALREADY_RUNNING"
-          });
-   } // if
-
-let fill_plan_ret = this.apicall_build_fill_plan_from_crater(normalized_crater_id);
-if (fill_plan_ret?.ok !== true)
-   {
-   return(fill_plan_ret);
-   } // if
-
-let crater_session = this.apicall_ensure_crater_session(normalized_crater_id);
-crater_session.last_fill_plan = {
-                                pair_order: fill_plan_ret.pair_order,
-                                precheck_steps: fill_plan_ret.precheck_steps,
-                                blocked_steps: fill_plan_ret.blocked_steps
-                                };
-
-if (normalized_mode == "plan" || normalized_mode == "check" || normalized_mode == "dry")
-   {
-   return({
-          ok: true,
-          answer: "api_crater_fill",
-          crater_id: normalized_crater_id,
-          mode: "plan",
-          accepted: false,
-          fillable: fill_plan_ret.fillable,
-          total_steps: fill_plan_ret.total_steps,
-          precheck_steps: fill_plan_ret.precheck_steps,
-          blocked_steps: fill_plan_ret.blocked_steps
-          });
-   } // if
-
-if (fill_plan_ret.fillable !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_crater_fill",
-          crater_id: normalized_crater_id,
-          accepted: false,
-          error: "FILL_NOT_POSSIBLE",
-          total_steps: fill_plan_ret.total_steps,
-          blocked_steps: fill_plan_ret.blocked_steps
-          });
-   } // if
-
-let session_id = (++this.api_crater_counter);
-let now_iso = new Date().toISOString();
-let fill_request = {
-                   crater_id: normalized_crater_id,
-                   mode: "fill"
-                   };
-
-this.apicall_update_crater_status(
-                                 {
-                                 mode: "fill",
-                                 running: true,
-                                 phase: "fill_planned",
-                                 progress: (fill_plan_ret.total_steps === 0 ? 100 : 0),
-                                 success: null,
-                                 started_at: now_iso,
-                                 finished_at: null,
-                                 session_id: session_id,
-                                 request: fill_request,
-                                 total_steps: fill_plan_ret.total_steps,
-                                 completed_steps: 0,
-                                 current_step: null,
-                                 last_result: null,
-                                 last_error: null,
-                                 failed_step: null,
-                                 message: (fill_plan_ret.total_steps === 0 ? "Crater fill has no executable steps." : "Crater fill accepted; execution queued.")
-                                 },
-                                 normalized_crater_id
-                                 );
-
-setTimeout(
-           async () => {
-             await this.apicall_run_crater_plan(
-                                               session_id,
-                                               normalized_crater_id,
-                                               fill_request,
-                                               { pair_order: fill_plan_ret.pair_order },
-                                               "fill"
-                                               );
-           },
-           0
-           );
-
-return({
-       ok: true,
-       answer: "api_crater_fill",
-       crater_id: normalized_crater_id,
-       accepted: true,
-       mode: "execute",
-       session_id: session_id,
-       fillable: true,
-       total_steps: fill_plan_ret.total_steps,
-       crater_status: this.apicall_get_crater_status(normalized_crater_id)
-       });
+return(runtime_crater_fill(this, crater_id, mode));
 } // apicall_crater_fill()
 
 
 apicall_calc_crater_stub(decodedobject = {})
 {
-let context = {
-              botcontroller: this,
-              world: {
-                     bots: this.bots,
-                     botindex: this.botindex
-                     }
-              };
-
-return( CalcCraterHelper.calcCrater(decodedobject, context) );
+return(runtime_calc_crater_stub(this, decodedobject));
 } // apicall_calc_crater_stub()
 
 
 apicall_suggest_simple_move(bot_id, x, y, z)
 {
-let path_ret = this.apicall_find_path_for_bot(bot_id, x, y, z, false);
-let move_library = this.apicall_get_simple_move_library();
-let tested_candidates = [];
-let matching_candidates = [];
-
-if (path_ret.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_suggest_simple_move",
-          error: path_ret.error ?? "PATH_PRECHECK_FAILED",
-          bot_id: bot_id
-          });
-   } // if
-
-if (path_ret.path_found !== true)
-   {
-   return({
-          ok: true,
-          answer: "api_suggest_simple_move",
-          bot_id: bot_id,
-          target: path_ret.target,
-          suggested: false,
-          reason: path_ret.reason ?? "NO_SURFACE_PATH_FOUND",
-          path_found: false,
-          path: path_ret.path ?? []
-          });
-   } // if
-
-if (!Array.isArray(path_ret.path) || path_ret.path.length < 2)
-   {
-   return({
-          ok: true,
-          answer: "api_suggest_simple_move",
-          bot_id: bot_id,
-          target: path_ret.target,
-          suggested: false,
-          reason: "ALREADY_AT_TARGET",
-          path_found: true,
-          path: path_ret.path ?? []
-          });
-   } // if
-
-for (let i = 0; i < move_library.length; i++)
-    {
-    let move_candidate = move_library[i];
-    let probe_ret = this.apicall_probe_move_bot(bot_id, move_candidate);
-    let candidate_info = {
-                         move: move_candidate,
-                         ok: probe_ret.ok === true,
-                         possible: probe_ret.possible === true
-                         };
-
-    if (probe_ret.predicted_target)
-       {
-       candidate_info.predicted_target = probe_ret.predicted_target;
-       } // if
-
-    tested_candidates.push(candidate_info);
-
-    if (probe_ret.ok === true && probe_ret.possible === true && probe_ret.predicted_target)
-       {
-       for (let p = 1; p < path_ret.path.length; p++)
-           {
-           let pathnode = path_ret.path[p];
-
-           if ( Number(probe_ret.predicted_target.x) === Number(pathnode.x) &&
-                Number(probe_ret.predicted_target.y) === Number(pathnode.y) &&
-                Number(probe_ret.predicted_target.z) === Number(pathnode.z) )
-              {
-              matching_candidates.push({
-                                       move: move_candidate,
-                                       path_index: p,
-                                       predicted_target: probe_ret.predicted_target,
-                                       notes: probe_ret.notes ?? []
-                                       });
-              break;
-              } // if
-           } // for
-       } // if
-    } // for
-
-if (matching_candidates.length == 0)
-   {
-   return({
-          ok: true,
-          answer: "api_suggest_simple_move",
-          bot_id: bot_id,
-          target: path_ret.target,
-          suggested: false,
-          reason: "NO_SIMPLE_MOVE_CANDIDATE_FOR_PATH_HEAD",
-          path_found: true,
-          path: path_ret.path,
-          tested_candidates: tested_candidates
-          });
-   } // if
-
-matching_candidates.sort((a, b) => b.path_index - a.path_index);
-
-return({
-       ok: true,
-       answer: "api_suggest_simple_move",
-       bot_id: bot_id,
-       target: path_ret.target,
-       suggested: true,
-       reason: "SIMPLE_MOVE_FOUND",
-       path_found: true,
-       path: path_ret.path,
-       move_candidate: matching_candidates[0].move,
-       predicted_target: matching_candidates[0].predicted_target,
-       matched_path_index: matching_candidates[0].path_index,
-       matching_candidates: matching_candidates,
-       tested_candidates: tested_candidates
-       });
+return(runtime_suggest_simple_move(this, bot_id, x, y, z));
 } // apicall_suggest_simple_move()
 
 
 apicall_move_bot_to(bot_id, x, y, z, execute_move = true)
 {
-let target_x = Number(x);
-let target_y = Number(y);
-let target_z = Number(z);
-let safe_prepare_ret = this.apicall_apply_safe_mode_for_bot(bot_id);
-let bot_snapshot = this.apicall_get_bot_snapshot(bot_id);
-let carried_payload_bot_id = this.apicall_get_carried_payload_bot_id(bot_id);
-let excluded_bot_ids = [];
-let should_execute_move = (execute_move === true);
-
-if (safe_prepare_ret?.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: "api_move_bot_to",
-          error: safe_prepare_ret?.recalibration?.error ?? "SAFE_MODE_PREPARE_FAILED",
-          bot_id: bot_id,
-          safe_mode: Number(this.safe_mode)
-          });
-   } // if
-
-if (!bot_snapshot)
-   {
-   return({
-          ok: false,
-          answer: "api_move_bot_to",
-          error: "BOT_NOT_FOUND",
-          bot_id: bot_id
-          });
-   } // if
-
-if (Number.isNaN(target_x) || Number.isNaN(target_y) || Number.isNaN(target_z))
-   {
-   return({
-          ok: false,
-          answer: "api_move_bot_to",
-          error: "INVALID_TARGET_POSITION",
-          bot_id: bot_id
-          });
-   } // if
-
-if (carried_payload_bot_id)
-   {
-   excluded_bot_ids.push(String(carried_payload_bot_id));
-   } // if
-
-let path_ret = this.apicall_find_path_for_bot(
-                                             bot_id,
-                                             target_x,
-                                             target_y,
-                                             target_z,
-                                             false,
-                                             {
-                                             excluded_bot_ids: excluded_bot_ids,
-                                             carried_payload_bot_id: carried_payload_bot_id
-                                             }
-                                             );
-
-if (path_ret.ok !== true)
-   {
-   return({
-          ok: false,
-          answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
-          error: path_ret.error ?? "PATH_PRECHECK_FAILED",
-          bot_id: bot_id
-          });
-   } // if
-
-if (path_ret.path_found !== true)
-   {
-   return({
-          ok: true,
-          answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
-          bot_id: bot_id,
-          execution_mode: "plan-only",
-          target: {
-                   x: target_x,
-                   y: target_y,
-                   z: target_z
-                   },
-          executable: false,
-          executed: false,
-          reason: path_ret.reason ?? "NO_SURFACE_PATH_FOUND",
-          current_state: bot_snapshot,
-          carried_payload_bot_id: carried_payload_bot_id,
-          planning_excluded_bot_ids: excluded_bot_ids,
-          path_found: false,
-          path_length: 0,
-          planned_moves: [],
-          planned_primitives: [],
-          planned_movecmds_legacy: "",
-          planned_raw_cmd: null,
-          path: []
-          });
-   } // if
-
-let bots_tmp_translate = this.apicall_build_active_bots_tmp(false, excluded_bot_ids);
-let planned_moves = this.apicall_translate_path_to_primitive_paths(
-                                                             path_ret.path ?? [],
-                                                             Number(bot_snapshot.orientation.x),
-                                                             Number(bot_snapshot.orientation.y),
-                                                             Number(bot_snapshot.orientation.z),
-                                                             bots_tmp_translate
-                                                             );
-let planned_primitives = this.apicall_add_anchors_to_primitive_paths(
-                                                                   planned_moves,
-                                                                   Number(bot_snapshot.orientation.x),
-                                                                   Number(bot_snapshot.orientation.y),
-                                                                   Number(bot_snapshot.orientation.z),
-                                                                   excluded_bot_ids
-                                                                   );
-let bots_tmp = this.apicall_build_active_bots_tmp(false, excluded_bot_ids);
-let legacy_move_ret = this.calc_move_cmds(
-                                         path_ret.path ?? [],
-                                         Number(bot_snapshot.orientation.x),
-                                         Number(bot_snapshot.orientation.y),
-                                         Number(bot_snapshot.orientation.z),
-                                         bots_tmp
-                                         );
-let planned_movecmds_legacy = legacy_move_ret?.movecmds ?? "";
-let planned_raw_cmd = null;
-let raw_ret = null;
-let ack_id = null;
-let ack_retaddr = "";
-let ack_target_addr = "";
-let ack_target_neighbors_debug = [];
-let ack_target_neighbors_live_debug = [];
-let ack_stl_debug = null;
-let move_diagnostic_summary = null;
-let turn_positions_on_path = [];
-
-if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
-   {
-   let bots_tmp_ack = this.apicall_build_active_bots_tmp(true, excluded_bot_ids);
-   let ack_botindex = this.get_bot_by_id(bot_id, bots_tmp_ack);
-
-   if (ack_botindex != null)
-      {
-      bots_tmp_ack[ack_botindex].x = target_x;
-      bots_tmp_ack[ack_botindex].y = target_y;
-      bots_tmp_ack[ack_botindex].z = target_z;
-
-      for (let b = 0; b < bots_tmp_ack.length; b++)
-          {
-          let cleanedBlockedBots = [];
-
-          if (bots_tmp_ack[b].id == "masterbot")
-             {
-             continue;
-             } // if
-
-          bots_tmp_ack[b].adress = this.get_mb_returnaddr(
-                                                      {x: this.mb.x, y: this.mb.y, z: this.mb.z},
-                                                      {x: bots_tmp_ack[b].x, y: bots_tmp_ack[b].y, z: bots_tmp_ack[b].z},
-                                                      bots_tmp_ack,
-                                                      cleanedBlockedBots
-                                                      );
-          } // for
-
-      let ack_target_neighbors = this.get_valid_neighbours(
-                                                          {x: target_x, y: target_y, z: target_z},
-                                                          null,
-                                                          bots_tmp_ack
-                                                          );
-      ack_target_neighbors_debug = ack_target_neighbors.map((bot) => ({
-                                                                     id: bot.id,
-                                                                     x: Number(bot.x),
-                                                                     y: Number(bot.y),
-                                                                     z: Number(bot.z),
-                                                                     adress: bot.adress ?? ""
-                                                                     }));
-
-      ack_target_addr = String(bots_tmp_ack[ack_botindex].adress ?? "").trim();
-      if (ack_target_addr == "")
-         {
-         ack_target_addr = this.apicall_derive_target_address_from_neighbours(
-                                                                           {x: target_x, y: target_y, z: target_z},
-                                                                           bots_tmp_ack
-                                                                           );
-         } // if
-
-      if (ack_target_addr == "")
-         {
-         let ack_target_neighbors_live = this.get_valid_neighbours(
-                                                                  {x: target_x, y: target_y, z: target_z},
-                                                                  null,
-                                                                  this.bots
-                                                                  );
-         ack_target_neighbors_live_debug = ack_target_neighbors_live.map((bot) => ({
-                                                                               id: bot.id,
-                                                                               x: Number(bot.x),
-                                                                               y: Number(bot.y),
-                                                                               z: Number(bot.z),
-                                                                               adress: bot.adress ?? ""
-                                                                               }));
-
-         ack_target_addr = this.apicall_derive_target_address_from_neighbours(
-                                                                           {x: target_x, y: target_y, z: target_z},
-                                                                           this.bots
-                                                                           );
-         } // if
-
-      if (
-          legacy_move_ret &&
-          typeof legacy_move_ret.final_lastanchor == "string" &&
-          legacy_move_ret.final_lastanchor != "" &&
-          legacy_move_ret.final_lastanchorneighbour &&
-          legacy_move_ret.final_lastanchorneighbour.x !== undefined
-         )
-         {
-         let stl_key = this.getKey_3d(
-                                    Number(legacy_move_ret.final_lastanchorneighbour.x),
-                                    Number(legacy_move_ret.final_lastanchorneighbour.y),
-                                    Number(legacy_move_ret.final_lastanchorneighbour.z)
-                                    );
-         let botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
-         let stl_index = botindex_map_ack[stl_key];
-
-         ack_stl_debug = {
-                          entry_slot: legacy_move_ret.final_lastanchor,
-                          neighbour: legacy_move_ret.final_lastanchorneighbour
-                          };
-
-         if (stl_index !== undefined)
-            {
-            let stl_addr = String(bots_tmp_ack[stl_index].adress ?? "").trim();
-            let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
-
-            ack_stl_debug.stl_id = bots_tmp_ack[stl_index].id ?? "";
-            ack_stl_debug.stl_addr = stl_addr;
-
-            if (stl_addr == "")
-               {
-               let live_stl_index = this.get_bot_by_id(String(bots_tmp_ack[stl_index].id ?? ""), this.bots);
-
-               if (live_stl_index !== null)
-                  {
-                  stl_addr = String(this.bots[live_stl_index].adress ?? "").trim();
-                  ack_stl_debug.stl_addr_live = stl_addr;
-                  } // if
-               } // if
-
-            if (stl_addr != "")
-               {
-               let stl_retaddr = this.apicall_get_inverse_address_for_bots(
-                                                                          masterbot_key,
-                                                                          stl_addr,
-                                                                          bots_tmp_ack,
-                                                                          botindex_map_ack
-                                                                          );
-
-               ack_stl_debug.stl_retaddr = stl_retaddr;
-
-               if (stl_retaddr != "")
-                  {
-                  ack_retaddr = String(legacy_move_ret.final_lastanchor) + String(stl_retaddr);
-                  } // if
-               } // if
-            } // if
-         } // if
-
-      if (ack_retaddr == "")
-         {
-         ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(
-                                                                      bots_tmp_ack[ack_botindex],
-                                                                      bots_tmp_ack
-                                                                      );
-         } // if
-
-      if (ack_retaddr == "")
-         {
-         ack_retaddr = this.get_mb_returnaddr(
-                                             {x: target_x, y: target_y, z: target_z},
-                                             {x: this.mb.x, y: this.mb.y, z: this.mb.z},
-                                             bots_tmp_ack,
-                                             []
-                                             );
-         } // if
-
-      if (ack_retaddr == "" && ack_target_addr != "")
-         {
-         let botindex_map_ack = this.apicall_build_botindex_map_for_bots(bots_tmp_ack);
-         let masterbot_key = this.getKey_3d(Number(this.mb.x), Number(this.mb.y), Number(this.mb.z));
-
-         ack_retaddr = this.apicall_get_inverse_address_for_bots(
-                                                              masterbot_key,
-                                                              ack_target_addr,
-                                                              bots_tmp_ack,
-                                                              botindex_map_ack
-                                                              );
-         } // if
-      } // if
-   } // if
-
-if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
-   {
-   if (ack_retaddr != "")
-      {
-      ack_id = this.apicall_generate_ack_id(bot_id);
-      planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_movecmds_legacy.trim() + ";ALIFE;" + ack_id + "#" + ack_retaddr;
-      } else
-        {
-        planned_raw_cmd = bot_snapshot.adress + "#MOVE#" + planned_movecmds_legacy.trim();
-        } // else
-   } else
-     {
-     planned_raw_cmd = this.apicall_build_raw_move_cmd(bot_snapshot.adress, planned_primitives);
-     } // else
-
-if (should_execute_move === true && planned_raw_cmd)
-   {
-   if (ack_id !== null)
-      {
-      this.apicall_register_ack(
-                               ack_id,
-                               {
-                               bot_id: bot_id,
-                               to: { x: target_x, y: target_y, z: target_z },
-                               planned_raw_cmd: planned_raw_cmd,
-                               retaddr: ack_retaddr,
-                               status: "pending"
-                               }
-                               );
-      } // if
-
-   raw_ret = this.apicall_raw_cmd(planned_raw_cmd);
-   this.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
-   this.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
-
-   if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
-      {
-      this.apicall_mark_ack_received(ack_id, "send_failed");
-      } // if
-   } // if
-
-move_diagnostic_summary = this.apicall_build_move_diagnostic_summary(
-                                                                   planned_primitives,
-                                                                   planned_movecmds_legacy,
-                                                                   planned_raw_cmd,
-                                                                   path_ret.path_debug_rejections ?? []
-                                                                   );
-
-if (Array.isArray(path_ret.path))
-   {
-   for (let i=0; i<path_ret.path.length; i++)
-       {
-       let p = path_ret.path[i];
-       let turn_eval = this.apicall_evaluate_turn_position(
-                                                        Number(p.x),
-                                                        Number(p.y),
-                                                        Number(p.z),
-                                                        excluded_bot_ids
-                                                        );
-
-       if (turn_eval.turnable_same_y === true)
-          {
-          turn_positions_on_path.push({
-                                      path_index: i,
-                                      ...turn_eval
-                                      });
-          } // if
-       } // for
-   } // if
-
-return({
-       ok: true,
-       answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
-       bot_id: bot_id,
-       execution_mode: (should_execute_move ? "batched-raw-cmd" : "diagnostic-plan"),
-       target: {
-                x: target_x,
-                y: target_y,
-                z: target_z
-                },
-       executable: (planned_raw_cmd !== null),
-       executed: (should_execute_move ? ((raw_ret?.accepted ?? false) === true) : false),
-       reason: "PATH_READY_FOR_MOVE_TRANSLATION",
-       current_state: bot_snapshot,
-       carried_payload_bot_id: carried_payload_bot_id,
-       planning_excluded_bot_ids: excluded_bot_ids,
-       turn_positions_on_path: turn_positions_on_path,
-       path_found: path_ret.path_found === true,
-       path_length: path_ret.path_length ?? ((path_ret.path ?? []).length),
-       path: path_ret.path ?? [],
-       planned_moves: planned_moves,
-       planned_primitives: planned_primitives,
-       path_debug_rejections: path_ret.path_debug_rejections ?? [],
-       invalid_primitive_count: move_diagnostic_summary?.invalid_primitive_count ?? 0,
-       invalid_primitive_indices: move_diagnostic_summary?.invalid_primitive_indices ?? [],
-       path_debug_rejection_count: move_diagnostic_summary?.path_debug_rejection_count ?? 0,
-       path_debug_rejection_reasons: move_diagnostic_summary?.path_debug_rejection_reasons ?? [],
-       legacy_translation_status: move_diagnostic_summary?.legacy_translation_status ?? "not_attempted",
-       legacy_translation_warning: move_diagnostic_summary?.legacy_translation_warning ?? "",
-       final_diagnostic_reason: move_diagnostic_summary?.final_diagnostic_reason ?? "MOVE_TRANSLATION_FAILED",
-       planned_movecmds_legacy: planned_movecmds_legacy,
-       ack_target_addr: ack_target_addr,
-       ack_target_neighbors_debug: ack_target_neighbors_debug,
-       ack_target_neighbors_live_debug: ack_target_neighbors_live_debug,
-       ack_stl_debug: ack_stl_debug,
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret,
-       notes: [
-               "Primitive middle paths are already derived from the coordinate path.",
-               "Anchors are now selected for each primitive where possible.",
-               "A complete MOVE raw command is preferably built via the legacy calc_move_cmds() translator.",
-               "API move commands now append ALIFE with an API-specific acknowledgement id when a return address is available.",
-               (should_execute_move ? "The command is executed immediately in this version if all primitives are valid." : "Diagnostic mode stops before raw command execution and only returns the planned translation.")
-               ]
-       });
+return(runtime_move_bot_to(this, bot_id, x, y, z, execute_move));
 } // apicall_move_bot_to()
 
 
 apicall_diagnose_move_bot_to(bot_id, x, y, z)
 {
-return(this.apicall_move_bot_to(bot_id, x, y, z, false));
+return(runtime_diagnose_move_bot_to(this, bot_id, x, y, z));
 } // apicall_diagnose_move_bot_to()
 
 
 apicall_build_move_diagnostic_summary(planned_primitives, planned_movecmds_legacy, planned_raw_cmd, path_debug_rejections = [])
 {
-let invalid_primitive_indices = [];
-let invalid_primitive_count = 0;
-let path_debug_rejection_count = 0;
-let path_debug_rejection_reasons = [];
-let legacy_translation_status = "not_attempted";
-let legacy_translation_warning = "";
-let final_diagnostic_reason = "MOVE_READY";
-
-if (Array.isArray(planned_primitives))
-   {
-   for (let i = 0; i < planned_primitives.length; i++)
-       {
-       if (planned_primitives[i].valid !== true)
-          {
-          invalid_primitive_indices.push(i);
-          invalid_primitive_count++;
-          } // if
-       } // for
-   } // if
-
-if (Array.isArray(path_debug_rejections))
-   {
-   path_debug_rejection_count = path_debug_rejections.length;
-   path_debug_rejection_reasons = [...new Set(
-                                          path_debug_rejections
-                                          .map((entry) => String(entry?.reason ?? "").trim())
-                                          .filter((reason) => reason != "")
-                                          )];
-   } // if
-
-if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
-   {
-   if (invalid_primitive_count > 0)
-      {
-      legacy_translation_status = "warning_invalid_primitives_but_legacy_present";
-      legacy_translation_warning = "Legacy translation produced a MOVE string although one or more anchored primitives are invalid.";
-      final_diagnostic_reason = "LEGACY_TRANSLATION_CONFLICT";
-      } // if
-   else
-      {
-      legacy_translation_status = "legacy_ready";
-      final_diagnostic_reason = "MOVE_READY";
-      } // else
-   } // if
-else if (invalid_primitive_count > 0)
-   {
-   legacy_translation_status = "legacy_not_available_due_to_invalid_primitives";
-   final_diagnostic_reason = "ANCHOR_FAILURE";
-   } // else if
-else if (typeof planned_raw_cmd == "string" && planned_raw_cmd.trim() != "")
-   {
-   legacy_translation_status = "raw_fallback_ready";
-   final_diagnostic_reason = "MOVE_READY";
-   } // else if
-else
-   {
-   legacy_translation_status = "no_move_translation";
-   final_diagnostic_reason = "MOVE_TRANSLATION_FAILED";
-   } // else
-
-return({
-       invalid_primitive_count: invalid_primitive_count,
-       invalid_primitive_indices: invalid_primitive_indices,
-       path_debug_rejection_count: path_debug_rejection_count,
-       path_debug_rejection_reasons: path_debug_rejection_reasons,
-       legacy_translation_status: legacy_translation_status,
-       legacy_translation_warning: legacy_translation_warning,
-       final_diagnostic_reason: final_diagnostic_reason
-       });
+return(runtime_build_move_diagnostic_summary(this, planned_primitives, planned_movecmds_legacy, planned_raw_cmd, path_debug_rejections));
 } // apicall_build_move_diagnostic_summary()
 
 
 apicall_get_valid_double_primitives()
 {
-return([
-        "TF", "FT", "FD", "DF",
-        "DB", "BD", "BT", "TB",
-        "TL", "LT", "LD", "DL",
-        "DR", "RD", "RT", "TR"
-        ]);
+return(runtime_get_valid_double_primitives(this));
 } // apicall_get_valid_double_primitives()
 
 
 apicall_is_valid_double_primitive(slot1, slot2)
 {
-if (typeof slot1 != "string" || typeof slot2 != "string")
-   {
-   return(false);
-   } // if
-
-let pair = slot1 + slot2;
-let valid_pairs = this.apicall_get_valid_double_primitives();
-
-return(valid_pairs.includes(pair));
+return(runtime_is_valid_double_primitive(this, slot1, slot2));
 } // apicall_is_valid_double_primitive()
 
 
 apicall_translate_path_to_primitive_paths(path, vx, vy, vz, bots_tmp = null)
 {
-let planned_moves = [];
-let raw_slots = [];
-
-if (!Array.isArray(path) || path.length < 2)
-   {
-   return(planned_moves);
-   } // if
-
-for (let i = 0; i < path.length - 1; i++)
-    {
-    let current_node = path[i];
-    let next_node = path[i + 1];
-    let dx1 = Number(next_node.x) - Number(current_node.x);
-    let dy1 = Number(next_node.y) - Number(current_node.y);
-    let dz1 = Number(next_node.z) - Number(current_node.z);
-    let slot1 = this.get_cell_slot_byvector(dx1, dy1, dz1, vx, vy, vz);
-    if (slot1 != "")
-       {
-       raw_slots.push(slot1);
-       } // if
-    } // for
-
-if (!Array.isArray(bots_tmp) || bots_tmp.length === 0)
-   {
-   let raw_index = 0;
-
-   for (let i = 0; i < path.length - 1 && raw_index < raw_slots.length; i++, raw_index++)
-       {
-       planned_moves.push({
-                          from: {
-                                 x: Number(path[i].x),
-                                 y: Number(path[i].y),
-                                 z: Number(path[i].z)
-                                 },
-                          to: {
-                               x: Number(path[i + 1].x),
-                               y: Number(path[i + 1].y),
-                               z: Number(path[i + 1].z)
-                               },
-                          primitive_path: raw_slots[raw_index]
-                          });
-       } // for
-
-   return(planned_moves);
-   } // if
-
-let bot_x = Number(path[0].x);
-let bot_y = Number(path[0].y);
-let bot_z = Number(path[0].z);
-let path_cursor = 0;
-
-for (let i = 0; i < raw_slots.length; i++)
-    {
-    let from_pos = {
-                   x: Number(path[path_cursor].x),
-                   y: Number(path[path_cursor].y),
-                   z: Number(path[path_cursor].z)
-                   };
-    let primitive_path = raw_slots[i];
-    let step_count = 1;
-    let teststruct = this.test_virtual_botmove(
-                                          { x: bot_x, y: bot_y, z: bot_z },
-                                          primitive_path,
-                                          bots_tmp
-                                          );
-
-    if (teststruct?.check !== true && i + 1 < raw_slots.length)
-       {
-       let candidate_double = raw_slots[i] + raw_slots[i + 1];
-
-       if (this.apicall_is_valid_double_primitive(raw_slots[i], raw_slots[i + 1]) === true)
-          {
-          let double_teststruct = this.test_virtual_botmove(
-                                                       { x: bot_x, y: bot_y, z: bot_z },
-                                                       candidate_double,
-                                                       bots_tmp
-                                                       );
-
-          if (double_teststruct?.check === true)
-             {
-             primitive_path = candidate_double;
-             step_count = 2;
-             teststruct = double_teststruct;
-             } // if
-          } // if
-       } // if
-
-    let to_pos = null;
-
-    if (teststruct?.check === true && teststruct?.lastpos != null)
-       {
-       to_pos = {
-                x: Number(teststruct.lastpos.x),
-                y: Number(teststruct.lastpos.y),
-                z: Number(teststruct.lastpos.z)
-                };
-
-       let botindex = this.get_botindex_by_xyz({ x: bot_x, y: bot_y, z: bot_z }, bots_tmp);
-
-       if (botindex != null)
-          {
-          bots_tmp[botindex].x = Number(teststruct.lastpos.x);
-          bots_tmp[botindex].y = Number(teststruct.lastpos.y);
-          bots_tmp[botindex].z = Number(teststruct.lastpos.z);
-          } // if
-
-       bot_x = Number(teststruct.lastpos.x);
-       bot_y = Number(teststruct.lastpos.y);
-       bot_z = Number(teststruct.lastpos.z);
-       } else
-         {
-         let fallback_index = Math.min(path.length - 1, path_cursor + step_count);
-         to_pos = {
-                  x: Number(path[fallback_index].x),
-                  y: Number(path[fallback_index].y),
-                  z: Number(path[fallback_index].z)
-                  };
-         bot_x = Number(to_pos.x);
-         bot_y = Number(to_pos.y);
-         bot_z = Number(to_pos.z);
-         } // else
-
-    planned_moves.push({
-                       from: from_pos,
-                       to: to_pos,
-                       primitive_path: primitive_path
-                       });
-
-    path_cursor += step_count;
-    i += (step_count - 1);
-    } // for
-
-return(planned_moves);
+return(runtime_translate_path_to_primitive_paths(this, path, vx, vy, vz, bots_tmp));
 } // apicall_translate_path_to_primitive_paths()
 
 
 apicall_select_anchor_slot(x, y, z, vx, vy, vz, excluded_slots = [], excluded_bot_ids = [])
 {
-const slotnames = ['D', 'R', 'L', 'B', 'F', 'T'];
-
-for (let i = 0; i < slotnames.length; i++)
-    {
-    let slot = slotnames[i];
-
-    if (excluded_slots.includes(slot))
-       {
-       continue;
-       } // if
-
-    let target_xyz = this.get_next_target_coor(x, y, z, vx, vy, vz, slot);
-    let occupancy = this.apicall_is_occupied_excluding_ids(
-                                                          target_xyz.x,
-                                                          target_xyz.y,
-                                                          target_xyz.z,
-                                                          excluded_bot_ids
-                                                          );
-
-    if (occupancy.occupied === true)
-       {
-       return({
-              slot: slot,
-              occupancy: occupancy
-              });
-       } // if
-    } // for
-
-return(null);
+return(runtime_select_anchor_slot(this, x, y, z, vx, vy, vz, excluded_slots, excluded_bot_ids));
 } // apicall_select_anchor_slot()
 
 
 apicall_collect_anchor_candidates(x, y, z, vx, vy, vz, excluded_slots = [], excluded_bot_ids = [])
 {
-const slotnames = ['D', 'R', 'L', 'B', 'F', 'T'];
-let candidates = [];
-
-for (let i = 0; i < slotnames.length; i++)
-    {
-    let slot = slotnames[i];
-
-    if (excluded_slots.includes(slot))
-       {
-       continue;
-       } // if
-
-    let target_xyz = this.get_next_target_coor(x, y, z, vx, vy, vz, slot);
-    let occupancy = this.apicall_is_occupied_excluding_ids(
-                                                          target_xyz.x,
-                                                          target_xyz.y,
-                                                          target_xyz.z,
-                                                          excluded_bot_ids
-                                                          );
-
-    candidates.push({
-                     slot: slot,
-                     position: {
-                                x: Number(target_xyz.x),
-                                y: Number(target_xyz.y),
-                                z: Number(target_xyz.z)
-                                },
-                     occupied: (occupancy.occupied === true),
-                     state: occupancy.state ?? (occupancy.occupied === true ? "active" : "empty"),
-                     id: occupancy.id ?? null
-                     });
-    } // for
-
-return(candidates);
+return(runtime_collect_anchor_candidates(this, x, y, z, vx, vy, vz, excluded_slots, excluded_bot_ids));
 } // apicall_collect_anchor_candidates()
 
 
 apicall_add_anchors_to_primitive_paths(planned_moves, vx, vy, vz, excluded_bot_ids = [])
 {
-let planned_primitives = [];
-
-if (!Array.isArray(planned_moves))
-   {
-   return(planned_primitives);
-   } // if
-
-for (let i = 0; i < planned_moves.length; i++)
-    {
-    let primitive = planned_moves[i];
-    let excluded_start_slots = [];
-    let excluded_end_slots = [];
-
-    if (typeof primitive.primitive_path === "string" && primitive.primitive_path.length > 0)
-       {
-       excluded_start_slots.push(primitive.primitive_path.charAt(0));
-       excluded_end_slots.push(primitive.primitive_path.charAt(primitive.primitive_path.length - 1));
-       } // if
-
-    let start_anchor = this.apicall_select_anchor_slot(
-                                                       primitive.from.x,
-                                                       primitive.from.y,
-                                                       primitive.from.z,
-                                                       vx,
-                                                       vy,
-                                                       vz,
-                                                       excluded_start_slots,
-                                                       excluded_bot_ids
-                                                       );
-    let start_anchor_candidates = this.apicall_collect_anchor_candidates(
-                                                                       primitive.from.x,
-                                                                       primitive.from.y,
-                                                                       primitive.from.z,
-                                                                       vx,
-                                                                       vy,
-                                                                       vz,
-                                                                       excluded_start_slots,
-                                                                       excluded_bot_ids
-                                                                       );
-    let end_anchor = this.apicall_select_anchor_slot(
-                                                     primitive.to.x,
-                                                     primitive.to.y,
-                                                     primitive.to.z,
-                                                     vx,
-                                                     vy,
-                                                     vz,
-                                                     excluded_end_slots,
-                                                     excluded_bot_ids
-                                                     );
-    let end_anchor_candidates = this.apicall_collect_anchor_candidates(
-                                                                     primitive.to.x,
-                                                                     primitive.to.y,
-                                                                     primitive.to.z,
-                                                                     vx,
-                                                                     vy,
-                                                                     vz,
-                                                                     excluded_end_slots,
-                                                                     excluded_bot_ids
-                                                                     );
-    let primitive_with_anchor = null;
-    let rejection_reasons = [];
-
-    if (start_anchor && end_anchor)
-       {
-       primitive_with_anchor = start_anchor.slot + "_" + primitive.primitive_path + "_" + end_anchor.slot;
-       } // if
-
-    if (!start_anchor)
-       {
-       rejection_reasons.push("NO_VALID_START_ANCHOR");
-       } // if
-
-    if (!end_anchor)
-       {
-       rejection_reasons.push("NO_VALID_END_ANCHOR");
-       } // if
-
-    planned_primitives.push({
-                            from: primitive.from,
-                            to: primitive.to,
-                            primitive_path: primitive.primitive_path,
-                            excluded_start_slots: excluded_start_slots,
-                            excluded_end_slots: excluded_end_slots,
-                            start_anchor_candidates: start_anchor_candidates,
-                            end_anchor_candidates: end_anchor_candidates,
-                            start_anchor: start_anchor ? start_anchor.slot : null,
-                            end_anchor: end_anchor ? end_anchor.slot : null,
-                            primitive_with_anchor: primitive_with_anchor,
-                            valid: (primitive_with_anchor !== null),
-                            rejection_reasons: rejection_reasons
-                            });
-    } // for
-
-return(planned_primitives);
+return(runtime_add_anchors_to_primitive_paths(this, planned_moves, vx, vy, vz, excluded_bot_ids));
 } // apicall_add_anchors_to_primitive_paths()
 
 
 apicall_build_raw_move_cmd(address, planned_primitives)
 {
-let normalized_address = String(address ?? "").trim();
-let primitive_strings = [];
-
-if (normalized_address == "")
-   {
-   return(null);
-   } // if
-
-if (!Array.isArray(planned_primitives) || planned_primitives.length == 0)
-   {
-   return(null);
-   } // if
-
-for (let i = 0; i < planned_primitives.length; i++)
-    {
-    let entry = planned_primitives[i];
-
-    if (entry.valid !== true || typeof entry.primitive_with_anchor !== "string" || entry.primitive_with_anchor.trim() == "")
-       {
-       return(null);
-       } // if
-
-    primitive_strings.push(entry.primitive_with_anchor.trim());
-    } // for
-
-return(normalized_address + "#MOVE#" + primitive_strings.join(";"));
+return(runtime_build_raw_move_cmd(this, address, planned_primitives));
 } // apicall_build_raw_move_cmd()
 
 
@@ -12169,7 +5555,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
       } else
         {
         // will register
-        bot_class_mini_obj.setvalues( msgarray.botid, target_x,target_y,target_z,  target_vectorx,target_vectory,target_vectorz,  target_color, target_addr); 
+        bot_class_mini_obj.setvalues( msgarray.botid, (msgarray.rid ?? ""), target_x,target_y,target_z,  target_vectorx,target_vectory,target_vectorz,  target_color, target_addr); 
         this.register_bot( bot_class_mini_obj );
    
         this.scanwaitingcounter = 0;
@@ -12295,6 +5681,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
          if (api_ack_entry)
             {
             const events = [];
+            let ack_applied = false;
 
             let tmpbotid = this.get_bot_by_id( api_ack_entry.bot_id, this.bots );
 
@@ -12401,6 +5788,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              );
 
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  ack_applied = true;
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
                                              "api_ack",
@@ -12508,6 +5896,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                           );
 
                this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+               ack_applied = true;
                this.append_api_bot_history(
                                           api_ack_entry.bot_id,
                                           "api_ack",
@@ -12548,6 +5937,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              );
 
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  ack_applied = true;
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
                                              "api_ack",
@@ -12617,6 +6007,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              );
 
                   this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  ack_applied = true;
                   this.append_api_bot_history(
                                              api_ack_entry.bot_id,
                                              "api_ack",
@@ -12629,6 +6020,11 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              release_recycle_result: release_recycle_ret
                                              }
                                              );
+                  } // if
+
+               if (ack_applied === true)
+                  {
+                  this.apicall_gui_refresh();
                   } // if
                } // if
             } else
@@ -12693,6 +6089,46 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RCHECK )
          } // if
       } // if compact
    } // CMD_RCHECK
+
+if ( msgarray.cmd == cmd_parser_class_obj.CMD_RNBH )
+   {
+   let rnbh_bot_id = String(msgarray.botid ?? "").trim();
+   let nbh_neighbors = msgarray.nbh_neighbors ?? {};
+
+   if (rnbh_bot_id != "")
+      {
+      this.scan_radio_completed_ids[rnbh_bot_id] = true;
+      this.scan_radio_neighbors_by_bot[rnbh_bot_id] = nbh_neighbors;
+
+      if (this.scan_waiting_radio[rnbh_bot_id] === undefined)
+         {
+         this.scan_waiting_radio[rnbh_bot_id] = {
+                                                bot_id: rnbh_bot_id,
+                                                rid: this.get_direct_radio_rid_by_id(rnbh_bot_id),
+                                                status: 1,
+                                                requested_ts: Number(new Date().getTime())
+                                                };
+         } // if
+
+      this.scan_waiting_radio[rnbh_bot_id].status = 1;
+      this.scan_waiting_radio[rnbh_bot_id].received_ts = Number(new Date().getTime());
+      } // if
+
+   if (this.scan_status_radio == 1)
+      {
+      if (this.scan_radio_mode == "full")
+         {
+         this.scan_radio_register_seed_from_rnbh(msgarray);
+         this.scan_radio_register_or_update_bot_from_rnbh(msgarray);
+         this.scan_radio_enqueue_neighbor_ids(rnbh_bot_id, nbh_neighbors);
+         } // if
+      else
+         {
+         this.scan_radio_register_or_update_bot_from_rnbh(msgarray);
+         } // else
+      this.scanwaitingcounter_radio = 0;
+      } // if
+   } // CMD_RNBH
 
    
  if ( msgarray.cmd == "XRRC" )
@@ -12914,6 +6350,8 @@ if (this.masterbot_first_scan == 1)
 //
 scan_step_lvl2()
 {
+const communication_mode = String(this.config.communication_mode ?? "mesh_opcode").trim().toLowerCase();
+
 if (this.scan_targets_lvl2_index < this.scan_targets_lvl2.length)
    {
    let target_bot_id = this.scan_targets_lvl2[this.scan_targets_lvl2_index];
@@ -12922,8 +6360,28 @@ if (this.scan_targets_lvl2_index < this.scan_targets_lvl2.length)
    if (target_bot_index != null)
       {
       let firstindex = this.getKey_3d(this.mb['x'], this.mb['y'], this.mb['z']);
-      let target_addr = this.bots[target_bot_index].adress;
+      let target_addr = String(this.bots[target_bot_index].adress ?? "").trim();
       let retaddr = this.get_inverse_address(firstindex, target_addr);
+
+      if (communication_mode == "direct_radio")
+         {
+         target_addr = String(this.get_direct_radio_rid_by_id(target_bot_id) ?? "").trim();
+         retaddr = String(this.get_direct_radio_master_rid() ?? "").trim();
+         } // if
+
+      if (target_addr == "")
+         {
+         this.scan_waiting_check[target_bot_id] = {
+                                                   botid: target_bot_id,
+                                                   status: 1,
+                                                   addr: "",
+                                                   error: "TARGET_ADDRESS_MISSING"
+                                                   };
+         this.scan_targets_lvl2_index++;
+         this.scanwaitingcounter_lvl2 = 0;
+         return;
+         } // if
+
       let cmd = target_addr + "#CHECK#.#" + retaddr;
 
       this.scan_waiting_check[target_bot_id] = {
@@ -12953,6 +6411,73 @@ if (this.scanwaitingcounter_lvl2 > this.max_scanwaitingcounter)
    this.notify_frontend_console("Scan Level 2 complete");
    } // if
 } // scan_step_lvl2()
+
+
+//
+// scan_step_radio()
+//
+scan_step_radio()
+{
+this.scanwaitingcounter_radio++;
+
+if (this.scan_radio_pending_ids.length > 0)
+   {
+   let next_bot_id = String(this.scan_radio_pending_ids.shift() ?? "").trim();
+
+   if (next_bot_id != "")
+      {
+      this.scan_radio_dispatch_nbh_by_id(next_bot_id);
+      } // if
+   } // if
+
+const waiting_ids = Object.keys(this.scan_waiting_radio);
+let open_waiting = 0;
+
+for (let i = 0; i < waiting_ids.length; i++)
+    {
+    if (Number(this.scan_waiting_radio[waiting_ids[i]]?.status ?? 0) == 0)
+       {
+       open_waiting++;
+       } // if
+    } // for
+
+if (
+   this.scan_radio_pending_ids.length == 0 &&
+   open_waiting == 0 &&
+   (
+    this.scan_radio_mode == "search" ||
+    this.scan_radio_seed_registered === true
+   )
+   )
+   {
+   this.scan_status_radio = 0;
+   this.scanwaitingcounter_radio = 0;
+   if (this.scan_radio_mode == "search")
+      {
+      this.notify_frontend_console("Search Bot Radio complete");
+      this.apicall_gui_refresh();
+      } // if
+   else
+      {
+      this.notify_frontend_console("Scan Radio complete");
+      } // else
+   } // if
+
+if (this.scanwaitingcounter_radio > this.max_scanwaitingcounter)
+   {
+   this.scan_status_radio = 0;
+   this.scanwaitingcounter_radio = 0;
+   if (this.scan_radio_mode == "search")
+      {
+      this.notify_frontend_console("Search Bot Radio timeout");
+      this.apicall_gui_refresh();
+      } // if
+   else
+      {
+      this.notify_frontend_console("Scan Radio timeout");
+      } // else
+   } // if
+} // scan_step_radio()
 
 
 
@@ -13137,6 +6662,16 @@ const slotnames = ['f','r','b','l','t','d'];
         this.client.write(cmd_pop);
         } /// if (scan_status_lvl2 == 1)
 
+     if (this.scan_status_radio == 1)
+        {
+        this.scan_step_radio();
+
+        let param = "";
+        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
+
+        this.client.write(cmd_pop);
+        } /// if (scan_status_radio == 1)
+
      
      
      if ( this.self_assembly_obj.assembly_status == 1 )
@@ -13194,6 +6729,15 @@ attachGUIWebSocket(ws_gui) {
 
 
 start_api_service() {
+    if (this.api_service === undefined) {
+        return this.start_api_service_internal();
+    } // if
+
+    return this.api_service.start_api_service();
+} // start_api_service()
+
+
+start_api_service_internal() {
     if (this.ENABLE_API != "true") {
         console.log("[BotController API] API disabled by config.");
         return;
@@ -13218,7 +6762,7 @@ start_api_service() {
                     continue;
                 } // if
 
-                await this.handleAPIMessage(message, socket);
+                await this.handleAPIMessage_internal(message, socket);
             } // for
         });
 
@@ -13234,7 +6778,7 @@ start_api_service() {
     this.api_server.on('error', (err) => {
         console.error("[BotController API] Server error:", err.message);
     });
-} // start_api_service()
+} // start_api_service_internal()
 
 
 handleGUIMessage(message) {
@@ -13328,6 +6872,14 @@ handleGUIMessage(message) {
         //
         if (decodedobject.cmd === 'structurescan_lvl2') {
             this.start_scan_lvl2(1);
+            return;
+        }
+
+        //
+        // STRUCTURESCAN Radio
+        //
+        if (decodedobject.cmd === 'structurescan_radio') {
+            this.start_scan_radio(1);
             return;
         }
 
@@ -13511,19 +7063,24 @@ handleGUIMessage(message) {
 
 
 async handleAPIMessage(message, socket) {
+    if (this.api_service === undefined) {
+        return await this.handleAPIMessage_internal(message, socket);
+    } // if
+
+    return await this.api_service.handleAPIMessage(message, socket);
+} // handleAPIMessage()
+
+
+async handleAPIMessage_internal(message, socket) {
     let answer = null;
 
     try {
         const decodedobject = JSON.parse(message);
 
         if (decodedobject.cmd === 'describe') {
+            const describe_head = build_api_describe_head(this);
             answer = JSON.stringify({
-                ok: true,
-                answer: "api_description",
-                api_name: "SP-CellBots BotController API",
-                version: this.version,
-                transport: "json-over-tcp",
-                mode: "atomic-request",
+                ...describe_head,
                 commands: [
                     {
                         cmd: "describe",
@@ -13808,6 +7365,28 @@ async handleAPIMessage(message, socket) {
                             accepted: "boolean"
                         },
                         description: "Starts Scan Level 2 for inactive-bot diagnostics."
+                    },
+                    {
+                        cmd: "structurescan_radio",
+                        params: {},
+                        returns: {
+                            answer: "api_structurescan_radio_started",
+                            accepted: "boolean"
+                        },
+                        description: "Starts Scan Radio skeleton mode. This is currently a placeholder flow for direct_radio-specific scan orchestration."
+                    },
+                    {
+                        cmd: "search_bot",
+                        params: {
+                            bot_id: "string",
+                            level: "optional number, default 1 (1=only this bot, 2=this bot + known neighbors)"
+                        },
+                        returns: {
+                            answer: "api_search_bot_started",
+                            accepted: "boolean",
+                            queued_ids: "list"
+                        },
+                        description: "Starts a targeted direct_radio NBH resync for one bot. Level 1 queries only the target bot, level 2 additionally queries its currently known neighbors for a more robust local relocalization."
                     },
                     {
                         cmd: "morph_get_structures",
@@ -14369,880 +7948,35 @@ async handleAPIMessage(message, socket) {
             return;
         } // if
 
-        if (decodedobject.cmd === 'version') {
-            answer = JSON.stringify({
-                ok: true,
-                answer: "api_version",
-                version: this.version
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_status') {
-            let l = this.bots.length;
-
-            answer = JSON.stringify({
-                ok: true,
-                answer: "api_status",
-                loaded_bots: l
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_status_extended') {
-            let ret = this.apicall_get_status_extended();
-            this.append_api_action_log("get_status_extended", {}, { ok: ret.ok, answer: ret.answer, loaded_cluster_bots: ret.loaded_cluster_bots ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_masterbot') {
-            let ret = this.apicall_get_masterbot();
-            this.append_api_action_log("get_masterbot", {}, { ok: ret.ok, answer: ret.answer, connected: ret.connected });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_scan_state') {
-            let ret = this.apicall_get_scan_state();
-            this.append_api_action_log("get_scan_state", {}, { ok: ret.ok, answer: ret.answer, level1_running: ret.level1.running, level2_running: ret.level2.running });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'gui_set_marker') {
-            let ret = this.apicall_gui_set_marker(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.size, decodedobject.color);
-            this.append_api_action_log("gui_set_marker", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, size: decodedobject.size, color: decodedobject.color }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'gui_clear_markers') {
-            let ret = this.apicall_gui_clear_markers();
-            this.append_api_action_log("gui_clear_markers", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'gui_refresh') {
-            let ret = this.apicall_gui_refresh();
-            this.append_api_action_log("gui_refresh", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, frontend_attached: ret.frontend_attached ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'debug_move') {
-            let ret = this.apicall_set_debug_move(decodedobject.mode);
-            this.append_api_action_log("debug_move", { mode: decodedobject.mode }, { ok: ret.ok, answer: ret.answer, debug_move_enabled: ret.debug_move_enabled ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'safe_mode') {
-            let ret = this.apicall_set_safe_mode(decodedobject.mode);
-            this.append_api_action_log("safe_mode", { mode: decodedobject.mode }, { ok: ret.ok, answer: ret.answer, safe_mode: ret.safe_mode ?? null, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'recalibrate_bot_address') {
-            let ret = this.apicall_recalibrate_bot_address(decodedobject.bot_id, decodedobject.mode ?? "standard");
-            this.append_api_action_log("recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, error: ret.error ?? "" });
-            this.append_api_bot_history(decodedobject.bot_id, "recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, old_adress: ret.old_adress ?? "", new_adress: ret.new_adress ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'recalibrate_bot_addresses') {
-            let ret = this.apicall_recalibrate_bot_addresses(decodedobject.mode ?? "standard");
-            this.append_api_action_log("recalibrate_bot_addresses", { mode: decodedobject.mode ?? "standard" }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, changed_count: ret.changed_count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'diagnose_ack_route') {
-            let ret = this.apicall_diagnose_ack_route(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz);
-            this.append_api_action_log("diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
-            this.append_api_bot_history(decodedobject.bot_id, "diagnose_ack_route", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx ?? null, vy: decodedobject.vy ?? null, vz: decodedobject.vz ?? null }, { ok: ret.ok, answer: ret.answer, ack_target_addr: ret.ack_target_addr ?? "", ack_retaddr: ret.ack_retaddr ?? "", error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'forbidden_add') {
-            let ret = this.apicall_forbidden_add(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("forbidden_add", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'forbidden_remove') {
-            let ret = this.apicall_forbidden_remove(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("forbidden_remove", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'forbidden_clear') {
-            let ret = this.apicall_forbidden_clear();
-            this.append_api_action_log("forbidden_clear", {}, { ok: ret.ok, answer: ret.answer, removed_count: ret.removed_count ?? 0, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'forbidden_list') {
-            let ret = this.apicall_forbidden_list();
-            this.append_api_action_log("forbidden_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'servicebay_add') {
-            let ret = this.apicall_servicebay_add(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("servicebay_add", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'servicebay_remove') {
-            let ret = this.apicall_servicebay_remove(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("servicebay_remove", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'servicebay_clear') {
-            let ret = this.apicall_servicebay_clear();
-            this.append_api_action_log("servicebay_clear", {}, { ok: ret.ok, answer: ret.answer, removed_count: ret.removed_count ?? 0, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'servicebay_list') {
-            let ret = this.apicall_servicebay_list();
-            this.append_api_action_log("servicebay_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'structurescan') {
-            this.start_scan(1);
-            this.append_api_action_log("structurescan", {}, { ok: true, answer: "api_structurescan_started", accepted: true });
-
-            answer = JSON.stringify({
-                ok: true,
-                answer: "api_structurescan_started",
-                accepted: true
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'structurescan_lvl2') {
-            this.start_scan_lvl2(1);
-            this.append_api_action_log("structurescan_lvl2", {}, { ok: true, answer: "api_structurescan_lvl2_started", accepted: true });
-
-            answer = JSON.stringify({
-                ok: true,
-                answer: "api_structurescan_lvl2_started",
-                accepted: true
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'morph_get_structures') {
-            let ret = this.apicall_morph_get_structures();
-            this.append_api_action_log("morph_get_structures", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'morph_get_algos') {
-            let ret = this.apicall_morph_get_algos();
-            this.append_api_action_log("morph_get_algos", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'morph_start') {
-            let ret = this.apicall_morph_start(decodedobject.algo, decodedobject.structure);
-            this.append_api_action_log("morph_start", { algo: decodedobject.algo, structure: decodedobject.structure }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'morph_check_progress') {
-            let ret = this.apicall_get_morph_status();
-            this.append_api_action_log("morph_check_progress", {}, { ok: ret.ok, answer: ret.answer, running: ret.running ?? false, phase: ret.phase ?? "", progress: ret.progress ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_bot_by_id') {
-            let ret = this.apicall_get_bot_by_id(decodedobject.bot_id);
-            this.append_api_action_log("get_bot_by_id", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, bot_id: decodedobject.bot_id });
-            this.append_api_bot_history(decodedobject.bot_id, "get_bot_by_id", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_bots') {
-            let ret = this.apicall_get_bots(
-                                          decodedobject.x,
-                                          decodedobject.y,
-                                          decodedobject.z,
-                                          decodedobject.mode,
-                                          decodedobject.radius
-                                          );
-            this.append_api_action_log("get_bots", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, mode: decodedobject.mode, radius: decodedobject.radius }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_bots_by_prefix') {
-            let ret = this.apicall_get_bots_by_prefix(decodedobject.prefix);
-            this.append_api_action_log("get_bots_by_prefix", { prefix: decodedobject.prefix }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_inactive_bots') {
-            let ret = this.apicall_get_inactive_bots();
-            this.append_api_action_log("get_inactive_bots", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_neighbors') {
-            let ret = this.apicall_get_neighbors(decodedobject.bot_id);
-            this.append_api_action_log("get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
-            this.append_api_bot_history(decodedobject.bot_id, "get_neighbors", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_grab_positions') {
-            let ret = this.apicall_get_grab_positions(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("get_grab_positions", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, feasible_count: ret.feasible_count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_turn_positions') {
-            let ret = this.apicall_get_turn_positions(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.radius);
-            this.append_api_action_log("get_turn_positions", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, radius: decodedobject.radius }, { ok: ret.ok, answer: ret.answer, turnable_same_y_count: ret.turnable_same_y_count ?? 0, turnable_strict_count: ret.turnable_strict_count ?? 0, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'is_occupied') {
-            let ret = this.apicall_is_occupied(decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("is_occupied", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, occupied: ret.occupied });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_slot_status') {
-            let ret = this.apicall_get_slot_status(decodedobject.bot_id, decodedobject.slot);
-            this.append_api_action_log("get_slot_status", { bot_id: decodedobject.bot_id, slot: decodedobject.slot }, { ok: ret.ok, answer: ret.answer });
-            this.append_api_bot_history(decodedobject.bot_id, "get_slot_status", { bot_id: decodedobject.bot_id, slot: decodedobject.slot }, { ok: ret.ok, answer: ret.answer });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'probe_move_bot') {
-            let ret = this.apicall_probe_move_bot(decodedobject.bot_id, decodedobject.move);
-            this.append_api_action_log("probe_move_bot", { bot_id: decodedobject.bot_id, move: decodedobject.move }, { ok: ret.ok, answer: ret.answer, possible: ret.possible ?? false });
-            this.append_api_bot_history(decodedobject.bot_id, "probe_move_bot", { bot_id: decodedobject.bot_id, move: decodedobject.move }, { ok: ret.ok, answer: ret.answer, possible: ret.possible ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'can_reach_position') {
-            let ret = this.apicall_can_reach_position(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("can_reach_position", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, reachable: ret.reachable ?? false, reason: ret.reason ?? "" });
-            this.append_api_bot_history(decodedobject.bot_id, "can_reach_position", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, reachable: ret.reachable ?? false, reason: ret.reason ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'find_path_for_bot') {
-            let ret = this.apicall_find_path_for_bot(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show);
-            this.append_api_action_log("find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0, path_visualized: ret.path_visualized ?? false });
-            this.append_api_bot_history(decodedobject.bot_id, "find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'find_path_for_bot_payload') {
-            let ret = this.apicall_find_path_for_bot_payload(decodedobject.bot_id, decodedobject.payload_bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show);
-            this.append_api_action_log("find_path_for_bot_payload", { bot_id: decodedobject.bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0, path_visualized: ret.path_visualized ?? false });
-            this.append_api_bot_history(decodedobject.bot_id, "find_path_for_bot_payload", { bot_id: decodedobject.bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'suggest_simple_move') {
-            let ret = this.apicall_suggest_simple_move(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("suggest_simple_move", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, suggested: ret.suggested ?? false, move_candidate: ret.move_candidate ?? "" });
-            this.append_api_bot_history(decodedobject.bot_id, "suggest_simple_move", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, suggested: ret.suggested ?? false, move_candidate: ret.move_candidate ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'move_bot_to') {
-            let ret = this.apicall_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-
-            if (ret?.ack_id)
-               {
-               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
-               ret.ack_wait = ack_wait_ret;
-               ret.ack_received = ack_wait_ret.ack_received;
-
-               if (ack_wait_ret.ack_received !== true)
-                  {
-                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
-                  } // if
-               } // if
-
-            this.append_api_action_log("move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            this.append_api_bot_history(decodedobject.bot_id, "move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'diagnose_move_bot_to') {
-            let ret = this.apicall_diagnose_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-            this.append_api_action_log("diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            this.append_api_bot_history(decodedobject.bot_id, "diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'would_split_cluster') {
-            let ret = this.apicall_would_split_cluster(decodedobject.bot_id);
-            this.append_api_action_log("would_split_cluster", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, would_split_cluster: ret.would_split_cluster ?? null, disconnected_count: ret.disconnected_count ?? 0 });
-            this.append_api_bot_history(decodedobject.bot_id, "would_split_cluster", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, would_split_cluster: ret.would_split_cluster ?? null, disconnected_count: ret.disconnected_count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'rotate_bot') {
-            let ret = this.apicall_rotate_bot(decodedobject.bot_id, decodedobject.direction);
-
-            if (ret?.ack_id)
-               {
-               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
-               ret.ack_wait = ack_wait_ret;
-               ret.ack_received = ack_wait_ret.ack_received;
-
-               if (ack_wait_ret.ack_received !== true)
-                  {
-                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
-                  } // if
-               } // if
-
-            this.append_api_action_log("rotate_bot", { bot_id: decodedobject.bot_id, direction: decodedobject.direction }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            this.append_api_bot_history(decodedobject.bot_id, "rotate_bot", { bot_id: decodedobject.bot_id, direction: decodedobject.direction }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'rotate_bot_to') {
-            let ret = this.apicall_rotate_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-
-            if (ret?.ok === true && Array.isArray(ret.rotation_plan) && ret.rotation_plan.length > 0)
-               {
-               let execute_ret = this.apicall_execute_rotation_plan(
-                                                                  decodedobject.bot_id,
-                                                                  ret.rotation_plan,
-                                                                  ret.target_orientation ?? null
-                                                                  );
-               execute_ret = await this.apicall_attach_ack_wait_and_recovery(execute_ret);
-
-               ret.executed = (execute_ret?.ack_received ?? false) === true;
-               ret.execution_steps = [
-                                     {
-                                     rotation_plan: ret.rotation_plan,
-                                     ack_id: execute_ret?.ack_id ?? null,
-                                     ack_received: execute_ret?.ack_received ?? false,
-                                     planned_raw_cmd: execute_ret?.planned_raw_cmd ?? null
-                                     }
-                                     ];
-               ret.ack_id = execute_ret?.ack_id ?? null;
-               ret.ack_retaddr = execute_ret?.ack_retaddr ?? "";
-               ret.planned_raw_cmd = execute_ret?.planned_raw_cmd ?? null;
-               ret.raw_cmd_result = execute_ret?.raw_cmd_result ?? null;
-               ret.ack_wait = execute_ret?.ack_wait ?? null;
-               ret.ack_received = execute_ret?.ack_received ?? false;
-               ret.ack_recovery = execute_ret?.ack_recovery ?? null;
-
-               if ((execute_ret?.ack_received ?? false) !== true)
-                  {
-                  ret.ok = false;
-                  ret.error = "ROTATION_PLAN_FAILED";
-                  ret.failed_step = 1;
-                  ret.failed_direction = (ret.rotation_plan[0] ?? null);
-                  answer = JSON.stringify(ret) + "\n";
-
-                  socket.write(answer, () => {
-                      socket.end();
-                  });
-                  return;
-                  } // if
-               } // if
-
-            this.append_api_action_log("rotate_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, rotation_plan: ret.rotation_plan ?? [] });
-            this.append_api_bot_history(decodedobject.bot_id, "rotate_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, rotation_plan: ret.rotation_plan ?? [] });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'grab_bot') {
-            let ret = this.apicall_grab_bot(decodedobject.bot_id);
-
-            if (ret?.ack_id)
-               {
-               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
-               ret.ack_wait = ack_wait_ret;
-               ret.ack_received = ack_wait_ret.ack_received;
-
-               if (ack_wait_ret.ack_received !== true)
-                  {
-                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
-                  } // if
-               } // if
-
-            this.append_api_action_log("grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            this.append_api_bot_history(decodedobject.bot_id, "grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'release_bot') {
-            let ret = this.apicall_release_bot(decodedobject.bot_id);
-
-            if (ret?.ack_id)
-               {
-               let ack_wait_ret = await this.apicall_wait_for_ack(ret.ack_id, 6, 500);
-               ret.ack_wait = ack_wait_ret;
-               ret.ack_received = ack_wait_ret.ack_received;
-
-               if (ack_wait_ret.ack_received !== true)
-                  {
-                  ret.ack_recovery = await this.apicall_recover_after_ack_timeout(ret.ack_id);
-                  } // if
-               } // if
-
-            this.append_api_action_log("release_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            this.append_api_bot_history(decodedobject.bot_id, "release_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'move_payload_to') {
-            let ret = await this.apicall_move_payload_to(
-                                                        decodedobject.carrier_bot_id,
-                                                        decodedobject.payload_bot_id,
-                                                        decodedobject.x,
-                                                        decodedobject.y,
-                                                        decodedobject.z,
-                                                        decodedobject.release_after
-                                                        );
-
-            this.append_api_action_log("move_payload_to", { carrier_bot_id: decodedobject.carrier_bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
-            this.append_api_bot_history(decodedobject.carrier_bot_id, "move_payload_to", { carrier_bot_id: decodedobject.carrier_bot_id, payload_bot_id: decodedobject.payload_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'move_carrier_to') {
-            let ret = await this.apicall_move_carrier_to(
-                                                        decodedobject.carrier_bot_id,
-                                                        decodedobject.x,
-                                                        decodedobject.y,
-                                                        decodedobject.z,
-                                                        decodedobject.vx,
-                                                        decodedobject.vy,
-                                                        decodedobject.vz,
-                                                        decodedobject.release_after
-                                                        );
-
-            this.append_api_action_log("move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
-            this.append_api_bot_history(decodedobject.carrier_bot_id, "move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", release_after: ret.release_after ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'diagnose_move_carrier_to') {
-            let ret = this.apicall_diagnose_move_carrier_to(
-                                                            decodedobject.carrier_bot_id,
-                                                            decodedobject.x,
-                                                            decodedobject.y,
-                                                            decodedobject.z,
-                                                            decodedobject.vx,
-                                                            decodedobject.vy,
-                                                            decodedobject.vz,
-                                                            decodedobject.release_after
-                                                            );
-
-            this.append_api_action_log("diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
-            this.append_api_bot_history(decodedobject.carrier_bot_id, "diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'calc_crater') {
-            let ret = this.apicall_calc_crater_stub(decodedobject);
-            this.append_api_action_log("calc_crater", { tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, mode: decodedobject.mode ?? "plan", max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, implemented: ret.implemented ?? false, error: ret.error ?? "" });
-            this.append_api_bot_history("", "calc_crater", { tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, mode: decodedobject.mode ?? "plan", max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, implemented: ret.implemented ?? false, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'crater_start') {
-            let ret = this.apicall_crater_start(decodedobject);
-            this.append_api_action_log("crater_start", { crater_id: decodedobject.crater_id ?? "crater_default", tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, crater_id: ret.crater_id ?? "", error: ret.error ?? "" });
-            this.append_api_bot_history("", "crater_start", { crater_id: decodedobject.crater_id ?? "crater_default", tx: decodedobject.tx, ty: decodedobject.ty, tz: decodedobject.tz, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, sx: decodedobject.sx, sy: decodedobject.sy, sz: decodedobject.sz, max_depth: decodedobject.max_depth ?? null }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false, crater_id: ret.crater_id ?? "", error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'crater_check_progress') {
-            let ret = this.apicall_get_crater_status(decodedobject.crater_id);
-            this.append_api_action_log("crater_check_progress", { crater_id: decodedobject.crater_id ?? "" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", running: ret.running ?? false, phase: ret.phase ?? "", progress: ret.progress ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'crater_fill') {
-            let ret = this.apicall_crater_fill(decodedobject.crater_id, decodedobject.mode);
-            this.append_api_action_log("crater_fill", { crater_id: decodedobject.crater_id ?? "crater_default", mode: decodedobject.mode ?? "execute" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", accepted: ret.accepted ?? false, fillable: ret.fillable ?? null, error: ret.error ?? "" });
-            this.append_api_bot_history("", "crater_fill", { crater_id: decodedobject.crater_id ?? "crater_default", mode: decodedobject.mode ?? "execute" }, { ok: ret.ok, answer: ret.answer, crater_id: ret.crater_id ?? "", accepted: ret.accepted ?? false, fillable: ret.fillable ?? null, error: ret.error ?? "" });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'crater_list') {
-            let ret = this.apicall_list_craters();
-            this.append_api_action_log("crater_list", {}, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0, active_crater_id: ret.active_crater_id ?? null });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_last_moves') {
-            answer = JSON.stringify(
-                this.apicall_get_last_moves(decodedobject.limit)
-            ) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_bot_history') {
-            let ret = this.apicall_get_bot_history(decodedobject.bot_id, decodedobject.limit);
-            this.append_api_action_log("get_bot_history", { bot_id: decodedobject.bot_id, limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_last_raw_cmds') {
-            let ret = this.apicall_get_last_raw_cmds(decodedobject.limit);
-            this.append_api_action_log("get_last_raw_cmds", { limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'raw_cmd') {
-            let ret = this.apicall_raw_cmd(decodedobject.value);
-            let raw_parts = String(decodedobject.value ?? "").split("#");
-            let raw_target_bot_id = this.apicall_resolve_bot_id_by_address(raw_parts[0] ?? "");
-            this.append_api_action_log("raw_cmd", { value: decodedobject.value }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
-            this.append_api_raw_cmd_log(decodedobject.value, raw_target_bot_id, ret.accepted ?? false);
-
-            if (raw_target_bot_id)
-               {
-               this.append_api_bot_history(raw_target_bot_id, "raw_cmd", { value: decodedobject.value }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
-               } // if
-
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'poll_masterbot_queue') {
-            let ret = this.apicall_poll_masterbot_queue();
-            this.append_api_action_log("poll_masterbot_queue", {}, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'reset_api_message_log') {
-            this.reset_api_message_log();
-            this.append_api_action_log("reset_api_message_log", {}, { ok: true, answer: "api_reset_api_message_log", accepted: true });
-
-            answer = JSON.stringify({
-                ok: true,
-                answer: "api_reset_api_message_log",
-                accepted: true,
-                cleared: true
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
-
-        if (decodedobject.cmd === 'get_api_messages') {
-            let ret = this.apicall_get_api_messages(decodedobject.cmd_filter, decodedobject.limit);
-            this.append_api_action_log("get_api_messages", { cmd_filter: decodedobject.cmd_filter, limit: decodedobject.limit }, { ok: ret.ok, answer: ret.answer, count: ret.count });
-            answer = JSON.stringify(ret) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
-            return;
-        } // if
+        let query_handled = await handle_readonly_api_command(this, decodedobject, socket);
+        if (query_handled === true)
+           {
+           return;
+           } // if
+
+        let gui_roles_handled = await handle_gui_roles_api_command(this, decodedobject, socket);
+        if (gui_roles_handled === true)
+           {
+           return;
+           } // if
+
+        let ack_handled = await handle_ack_api_command(this, decodedobject, socket);
+        if (ack_handled === true)
+           {
+           return;
+           } // if
+
+        let motion_handled = await handle_motion_api_command(this, decodedobject, socket);
+        if (motion_handled === true)
+           {
+           return;
+           } // if
+
+        let orchestration_handled = await handle_orchestration_api_command(this, decodedobject, socket);
+        if (orchestration_handled === true)
+           {
+           return;
+           } // if
 
         answer = JSON.stringify({
             ok: false,
@@ -15264,7 +7998,7 @@ async handleAPIMessage(message, socket) {
             socket.end();
         });
     } // try
-} // handleAPIMessage()
+} // handleAPIMessage_internal()
 
   
   
