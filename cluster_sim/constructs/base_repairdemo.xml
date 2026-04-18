@@ -2,6 +2,7 @@
 
 <masterbot>
 <id>MASTERBOT</id>
+<rid>00:00:00:00:00:00</rid>
 <pos>
 <x>0</x>
 <y>0</y>
@@ -16,6 +17,7 @@
 
 <cell>
 <id>B01</id>
+<rid>00:00:00:00:00:01</rid>
 <col>eeeeff</col>
 <pos>
 <x>1</x>
@@ -29,6 +31,7 @@
 
 <cell>
 <id>B02</id>
+<rid>00:00:00:00:00:02</rid>
 <col>eeeeff</col>
 <pos>
 <x>1</x>
@@ -42,6 +45,7 @@
 
 <cell>
 <id>B03</id>
+<rid>00:00:00:00:00:03</rid>
 <col>eeeeff</col>
 <pos>
 <x>1</x>
@@ -63,6 +67,7 @@
 
 <cell>
 <id>B04</id>
+<rid>00:00:00:00:00:04</rid>
 <col>eeeeff</col>
 <pos>
 <x>1</x>
@@ -76,6 +81,7 @@
 
 <cell>
 <id>B05</id>
+<rid>00:00:00:00:00:05</rid>
 <col>eeeeff</col>
 <pos>
 <x>1</x>
@@ -89,6 +95,7 @@
 
 <cell>
 <id>B06</id>
+<rid>00:00:00:00:00:06</rid>
 <col>eeeeff</col>
 <pos>
 <x>2</x>
@@ -102,6 +109,7 @@
 
 <cell>
 <id>B07</id>
+<rid>00:00:00:00:00:07</rid>
 <col>eeeeff</col>
 <pos>
 <x>2</x>
@@ -115,6 +123,7 @@
 
 <cell>
 <id>B08</id>
+<rid>00:00:00:00:00:08</rid>
 <col>eeeeff</col>
 <pos>
 <x>2</x>
@@ -128,6 +137,7 @@
 
 <cell>
 <id>B09</id>
+<rid>00:00:00:00:00:09</rid>
 <col>eeeeff</col>
 <pos>
 <x>2</x>
@@ -141,6 +151,7 @@
 
 <cell>
 <id>B10</id>
+<rid>00:00:00:00:00:10</rid>
 <col>eeeeff</col>
 <pos>
 <x>2</x>
@@ -154,6 +165,7 @@
 
 <cell>
 <id>B11</id>
+<rid>00:00:00:00:00:11</rid>
 <col>eeeeff</col>
 <pos>
 <x>3</x>
@@ -167,6 +179,7 @@
 
 <cell>
 <id>B12</id>
+<rid>00:00:00:00:00:12</rid>
 <col>eeeeff</col>
 <pos>
 <x>3</x>
@@ -180,6 +193,7 @@
 
 <cell>
 <id>B13</id>
+<rid>00:00:00:00:00:13</rid>
 <col>eeeeff</col>
 <pos>
 <x>3</x>
@@ -193,6 +207,7 @@
 
 <cell>
 <id>B14</id>
+<rid>00:00:00:00:00:14</rid>
 <col>eeeeff</col>
 <pos>
 <x>3</x>
@@ -206,6 +221,7 @@
 
 <cell>
 <id>B15</id>
+<rid>00:00:00:00:00:15</rid>
 <col>ff8888</col>
 <pos>
 <x>3</x>
@@ -219,6 +235,7 @@
 
 <cell>
 <id>B16</id>
+<rid>00:00:00:00:00:16</rid>
 <col>eeeeff</col>
 <pos>
 <x>4</x>
@@ -232,6 +249,7 @@
 
 <cell>
 <id>B17</id>
+<rid>00:00:00:00:00:17</rid>
 <col>eeeeff</col>
 <pos>
 <x>4</x>
@@ -245,6 +263,7 @@
 
 <cell>
 <id>B18</id>
+<rid>00:00:00:00:00:18</rid>
 <col>eeeeff</col>
 <pos>
 <x>4</x>
@@ -258,6 +277,7 @@
 
 <cell>
 <id>B19</id>
+<rid>00:00:00:00:00:19</rid>
 <col>eeeeff</col>
 <pos>
 <x>4</x>
@@ -271,6 +291,7 @@
 
 <cell>
 <id>B20</id>
+<rid>00:00:00:00:00:20</rid>
 <col>88ff88</col>
 <pos>
 <x>4</x>
@@ -284,6 +305,7 @@
 
 <cell>
 <id>B21</id>
+<rid>00:00:00:00:00:21</rid>
 <col>eeeeff</col>
 <pos>
 <x>5</x>
@@ -297,6 +319,7 @@
 
 <cell>
 <id>B22</id>
+<rid>00:00:00:00:00:22</rid>
 <col>eeeeff</col>
 <pos>
 <x>5</x>
@@ -310,6 +333,7 @@
 
 <cell>
 <id>B23</id>
+<rid>00:00:00:00:00:23</rid>
 <col>eeeeff</col>
 <pos>
 <x>5</x>
@@ -323,6 +347,7 @@
 
 <cell>
 <id>B24</id>
+<rid>00:00:00:00:00:24</rid>
 <col>eeeeff</col>
 <pos>
 <x>5</x>
@@ -336,6 +361,7 @@
 
 <cell>
 <id>B25</id>
+<rid>00:00:00:00:00:25</rid>
 <col>8888ff</col>
 <pos>
 <x>5</x>
@@ -351,6 +377,7 @@
 
 <cell>
 <id>B26</id>
+<rid>00:00:00:00:00:26</rid>
 <col>ff88ff</col>
 <pos>
 <x>3</x>
@@ -369,6 +396,7 @@
 
 <cell>
 <id>B27</id>
+<rid>00:00:00:00:00:27</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -382,6 +410,7 @@
 
 <cell>
 <id>B28</id>
+<rid>00:00:00:00:00:28</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -395,6 +424,7 @@
 
 <cell>
 <id>B29</id>
+<rid>00:00:00:00:00:29</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -408,6 +438,7 @@
 
 <cell>
 <id>B30</id>
+<rid>00:00:00:00:00:30</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -423,6 +454,7 @@
 
 <cell>
 <id>B32</id>
+<rid>00:00:00:00:00:32</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -440,6 +472,7 @@
 
 <cell>
 <id>B33</id>
+<rid>00:00:00:00:00:33</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -454,6 +487,7 @@
 
 <cell>
 <id>B34</id>
+<rid>00:00:00:00:00:34</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -467,6 +501,7 @@
 
 <cell>
 <id>B35</id>
+<rid>00:00:00:00:00:35</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -490,6 +525,7 @@
 
 <cell>
 <id>B36</id>
+<rid>00:00:00:00:00:36</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -503,6 +539,7 @@
 
 <cell>
 <id>B37</id>
+<rid>00:00:00:00:00:37</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -516,6 +553,7 @@
 
 <cell>
 <id>B38</id>
+<rid>00:00:00:00:00:38</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -529,6 +567,7 @@
 
 <cell>
 <id>B39</id>
+<rid>00:00:00:00:00:39</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -544,6 +583,7 @@
 
 <cell>
 <id>B40</id>
+<rid>00:00:00:00:00:40</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -559,6 +599,7 @@
 
 <cell>
 <id>B41</id>
+<rid>00:00:00:00:00:41</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -575,6 +616,7 @@
 
 <cell>
 <id>B42</id>
+<rid>00:00:00:00:00:42</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -589,6 +631,7 @@
 
 <cell>
 <id>B43</id>
+<rid>00:00:00:00:00:43</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -602,6 +645,7 @@
 
 <cell>
 <id>B44</id>
+<rid>00:00:00:00:00:44</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -624,6 +668,7 @@
 
 <cell>
 <id>B45</id>
+<rid>00:00:00:00:00:45</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -637,6 +682,7 @@
 
 <cell>
 <id>B46</id>
+<rid>00:00:00:00:00:46</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -650,6 +696,7 @@
 
 <cell>
 <id>B47</id>
+<rid>00:00:00:00:00:47</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -663,6 +710,7 @@
 
 <cell>
 <id>B48</id>
+<rid>00:00:00:00:00:48</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -678,6 +726,7 @@
 
 <cell>
 <id>B49</id>
+<rid>00:00:00:00:00:49</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -693,6 +742,7 @@
 
 <cell>
 <id>B50</id>
+<rid>00:00:00:00:00:50</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -709,6 +759,7 @@
 
 <cell>
 <id>B51</id>
+<rid>00:00:00:00:00:51</rid>
 <col>8888ff</col>
 <pos>
 <x>2</x>
@@ -723,6 +774,7 @@
 
 <cell>
 <id>B52</id>
+<rid>00:00:00:00:00:52</rid>
 <col>8888ff</col>
 <pos>
 <x>3</x>
@@ -736,6 +788,7 @@
 
 <cell>
 <id>B53</id>
+<rid>00:00:00:00:00:53</rid>
 <col>8888ff</col>
 <pos>
 <x>4</x>
@@ -751,6 +804,7 @@
 
 <cell>
 <id>B54</id>
+<rid>00:00:00:00:00:54</rid>
 <col>eeeeff</col>
 <pos>
 <x>0</x>
@@ -765,6 +819,7 @@
 
 <cell>
 <id>B55</id>
+<rid>00:00:00:00:00:55</rid>
 <col>eeeeff</col>
 <pos>
 <x>0</x>
@@ -778,7 +833,8 @@
 
 
 <cell>
-<id>B55</id>
+<id>B56</id>
+<rid>00:00:00:00:00:56</rid>
 <col>eeeeff</col>
 <pos>
 <x>0</x>
@@ -792,7 +848,8 @@
 
 
 <cell>
-<id>B56</id>
+<id>B57</id>
+<rid>00:00:00:00:00:57</rid>
 <col>eeeeff</col>
 <pos>
 <x>0</x>
@@ -807,6 +864,7 @@
 
 <cell>
 <id>RESERVE1</id>
+<rid>00:00:00:00:01:01</rid>
 <col>eeffee</col>
 <pos>
 <x>1</x>
@@ -820,6 +878,7 @@
 
 <cell>
 <id>RESERVE2</id>
+<rid>00:00:00:00:01:02</rid>
 <col>eeffee</col>
 <pos>
 <x>1</x>
@@ -834,6 +893,7 @@
 
 <cell>
 <id>CARRIER1</id>
+<rid>00:00:00:00:01:03</rid>
 <col>aaaaff</col>
 <pos>
 <x>1</x>
@@ -849,6 +909,8 @@
 
 <cell>
 <id>SERVICEBAY</id>
+<rid>00:00:00:00:01:04</rid>
+
 <col>ffff00</col>
 <pos>
 <x>0</x>
