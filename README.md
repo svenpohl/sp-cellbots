@@ -46,6 +46,7 @@ structures.
 - [Installation & Quickstart](docs/install.md)  
 - [CellBot Protocol and OP-Codes](docs/protocol.md)  
 - [CellBot Hardware Blueprint (Virtual)](docs/hardware_blueprint.md)  
+- [Direct Radio](docs/direct_radio.md)  
 - [Usage & Examples](docs/usage.md)  
 - [API](docs/api.md)  
 - [Morphing](docs/morphing.md)  
@@ -60,20 +61,20 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.5.4**  
+Current version: **1.6**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
 
-- **1.5.4** (08.04.2026)  
-**Repair workflow expansion: crater build/fill and rescue tooling**
-  - Added API-first crater workflow for repair scenarios: **`calc_crater`**, **`crater_start`**, **`crater_check_progress`**, **`crater_fill`**, **`crater_list`**
-  - Implemented asynchronous crater execution with progress/state tracking (similar to morph progress handling)
-  - Added automatic reverse-fill support for named crater sessions to close previously opened access shafts
-  - Extended API diagnostics and planning helpers for repair/rescue flows, including **`get_grab_positions`**, **`get_turn_positions`**, **`get_bots_by_prefix`**, and **`get_inactive_bots`**
-  - Improved runtime role handling for **Forbidden** and **ServiceBay** cells in practical API workflows
-  - Expanded API docs with a dedicated crater-build section and repair demo visuals
+- **1.6** (18.04.2026)  
+**Direct-Radio transition layer and API architecture refactor**
+  - Added preparation for a simpler hardware transition path with **direct radio communication** (`communication_mode = direct_radio`) while keeping `mesh_opcode` as default reference mode
+  - Added configurable **Radio IDs (`rid`)** and static radio mapping flow for direct addressing in both ClusterSim and BotController
+  - Introduced and documented the new **NBH / RNBH OP-codes** for direct-radio neighborhood discovery, enabling precise bot relocalization (position/orientation sync) without mesh route addressing
+  - Refactored BotController API implementation from a monolithic `botcontroller_class.js` block into structured runtime/service modules for better maintainability and faster extension
+  - Migrated and stabilized core API command paths for `direct_radio`, including scan, level-2 scan, movement, rotation, targeted resync (`search_bot`), and crater build/fill execution flows
+  - Added dedicated documentation chapter: **[Direct Radio](docs/direct_radio.md)**
   - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
 
 - **1.5** (04.04.2026)  
