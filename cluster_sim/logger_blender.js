@@ -12,16 +12,13 @@ static enabled = true;
  
   
 static setEnabled(flag) {
-console.log(typeof flag); 
-
-    
    if (typeof flag === 'string') 
       {
       this.enabled = (flag.trim().toLowerCase() === 'true');
       } else {
              this.enabled = !!flag;
              }
-} // setEnabled
+} // setEnabled()
   
   
   
@@ -134,5 +131,4 @@ fs.appendFileSync(this.logFile, entry);
 } // class LoggerBlender
 
 module.exports = LoggerBlender;
-
 

@@ -30,6 +30,8 @@ const path = require('path');
 
 const bot_class = require('./bot_class');
 const cmd_parser_class = require('../common/cmd_parser_class');  
+const { parse_config_file } = require('../common/config_parser');
+const { console_format_log } = require('../common/system_utils');
 
 const Logger = require('./logger');
 Logger.reset();
@@ -57,6 +59,7 @@ class masterbot_class
   this.XMLLOADED         = 0;
   this.mbconnection_id   = -1;  
   this.mbconnection_slot = "";
+  this.rid               = "";
   
   this.msgqueue          = [];
   this.max_msgqueue      = 600;
@@ -84,6 +87,15 @@ class masterbot_class
   this.index_neighbors['l'] = -1;
   this.index_neighbors['t'] = -1;
   this.index_neighbors['d'] = -1;
+  
+  // only ID's (!)
+  this.nbh_info = [];  
+  this.nbh_info['f'] = "";
+  this.nbh_info['r'] = "";
+  this.nbh_info['b'] = "";
+  this.nbh_info['l'] = "";
+  this.nbh_info['t'] = "";
+  this.nbh_info['d'] = "";
   
   this.botindex = [];
   this.payload_bot_ids = {};
@@ -204,7 +216,9 @@ return(this.is_payload_bot_int_id(botindex));
   
   
   // --> Blender-Logging
-  if (!this.QUIET) console.log( "blenderlogging: " + this.config.blenderlogging );
+  if (!this.QUIET) console.log(console_format_log("blenderlogging", 30, this.config.blenderlogging));
+  if (!this.QUIET) console.log(console_format_log("mobility_mode", 30, (this.config.mobility_mode ?? "full_edge")));
+  if (!this.QUIET) console.log(console_format_log("communication_mode", 30, (this.config.communication_mode ?? "mesh_opcode")));
 
   LoggerBlender.setEnabled( this.config.blenderlogging );
   LoggerBlender.open();
@@ -294,6 +308,10 @@ const xml2js = require('xml2js');
       this.vz                = parseFloat(cell.pos[0].vz[0]);
    
       this.mbconnection_slot  = cell.mbconnection[0];
+      this.rid               =
+                               Array.isArray(cell.rid)
+                               ? String(cell.rid[0] ?? "")
+                               : (cell.rid !== undefined ? String(cell.rid) : "");
       
       }); // mbcell.forEach
       
@@ -309,6 +327,9 @@ const xml2js = require('xml2js');
 
       const parsed_inactive = this.parse_role_bool(cell.inactive);
       const parsed_servicebay = this.parse_role_bool(cell.servicebay);
+      const parsed_rid =
+            Array.isArray(cell.rid) ? String(cell.rid[0] ?? "") :
+            (cell.rid !== undefined ? String(cell.rid) : "");
 
       if (parsed_servicebay === true)
          {
@@ -330,6 +351,7 @@ const xml2js = require('xml2js');
       const bot_class_obj = new bot_class();
       bot_class_obj.setvalues(
                            cell.id[0],
+                           parsed_rid,
                            cell.pos[0].x[0],
                            cell.pos[0].y[0],
                            cell.pos[0].z[0],
@@ -782,6 +804,40 @@ return(ret);
 } // has_horizontal_neighbor
 
 
+//
+// get_botindex_by_rid()
+//
+get_botindex_by_rid(rid)
+{
+if (rid === undefined || rid === null)
+   {
+   return(null);
+   } // if
+
+const rid_string = String(rid).trim();
+
+if (rid_string == "")
+   {
+   return(null);
+   } // if
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i] === undefined || this.bots[i] == null)
+       {
+       continue;
+       } // if
+
+    if (String(this.bots[i].rid ?? "").trim() == rid_string)
+       {
+       return(i);
+       } // if
+    } // for
+
+return(null);
+} // get_botindex_by_rid()
+
+
   
 // 
 // dumpdebug()
@@ -874,37 +930,89 @@ if (!this.QUIET) console.log("---------");
 
 } // dumpdebug()  
  
+//
+// export_system_dump_json()
+//
+export_system_dump_json()
+{
+const dump_dir  = path.join(__dirname, "logs");
+const dump_file = path.join(dump_dir, "system_dump.json");
+
+if (!fs.existsSync(dump_dir))
+   {
+   fs.mkdirSync(dump_dir, { recursive: true });
+   } // if
+
+const bots_dump = [];
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    bots_dump.push({
+      id: this.bots[i].id,
+      rid: this.bots[i].rid ?? "",
+      x: Number(this.bots[i].x),
+      y: Number(this.bots[i].y),
+      z: Number(this.bots[i].z),
+      vx: Number(this.bots[i].vector_x),
+      vy: Number(this.bots[i].vector_y),
+      vz: Number(this.bots[i].vector_z)
+    });
+    } // for
+
+const dump_json = {
+  meta: {
+    generated_at: new Date().toISOString(),
+    dump_version: "1.0"
+  },
+  system: {
+    bot_count: this.bots.length,
+    bot_count_with_masterbot: this.bots.length + 1,
+    payload_bot_count: Object.keys(this.payload_bot_ids).length,
+    servicebay_count: this.servicebay_cells.length,
+    queue_bc_size: this.msgqueue_bc.length,
+    queue_masterbot_size: this.msgqueue.length
+  },
+  masterbot: {
+    id: this.id,
+    x: Number(this.x),
+    y: Number(this.y),
+    z: Number(this.z),
+    vx: Number(this.vx),
+    vy: Number(this.vy),
+    vz: Number(this.vz)
+  },
+  bots: bots_dump
+};
+
+fs.writeFileSync(dump_file, JSON.stringify(dump_json, null, 2), "utf8");
+
+return({
+  ok: true,
+  file: dump_file,
+  bot_count: this.bots.length
+});
+} // export_system_dump_json()
+
 
 //
 // loadConfig()
 // 
 loadconfig(filePath) {
-  const configData = fs.readFileSync(filePath, 'utf-8');
-  const config = {};
+  const config = parse_config_file(filePath);
 
-  configData.split('\n').forEach(line => {
-    const [key, value] = this.split_first(line.trim(), '=');
-    if (key && value !== null) {
-      config[key.trim()] = value.trim();
-    }
-  });
+  if (!config.mobility_mode || config.mobility_mode.trim() == "") {
+    config.mobility_mode = "full_edge";
+  } // if
+
+  if (!config.communication_mode || config.communication_mode.trim() == "") {
+    config.communication_mode = "mesh_opcode";
+  } // if
 
   // Add config to global space
   this.config = config;
   
   return config;
-}
-
-
-split_first(text, separator) {
-  const index = text.indexOf(separator);
-  if (index === -1) {
-    return [text, null]; // Separator not found
-  }
-  const part1 = text.slice(0, index);
-  const part2 = text.slice(index + separator.length);
-  return [part1, part2];
-}
+} // loadconfig()
 
 
 
@@ -1247,6 +1355,11 @@ if ( msgarray['cmd'] ==  cmd_parser_class_obj.CMD_RALIFE )
    this.msgqueue_bc.push( message ); 
    } // rcheck   
 
+if ( msgarray['cmd'] ==  cmd_parser_class_obj.CMD_RNBH )
+   {
+   this.msgqueue_bc.push( message );
+   } // rnbh
+
    
 // Custom - Return  
 if ( msgarray['cmd'] ==  "XRRC" )
@@ -1342,6 +1455,14 @@ async simulate_bot_step()
 let cmd_parser_class_obj = new cmd_parser_class();
   
 this.create_botindex_array();
+
+const communication_mode = (this.config && this.config.communication_mode) ? this.config.communication_mode : "mesh_opcode";
+
+// Communication mode switch:
+// - mesh_opcode: use legacy routing + run_cmd processing below.
+// - direct_radio: use dedicated direct-radio branch.
+if (communication_mode == "mesh_opcode")
+   {
  
 
 //
@@ -1565,13 +1686,82 @@ for (let i=0; i < this.bots.length; i++)
     
     } // for i...
 
+   } // if (communication_mode == "mesh_opcode")
+else
+if (communication_mode == "direct_radio")
+   {
+   //
+   // Direct radio:
+   // - Destination is interpreted as RID (not slot-address routing).
+   // - Command is executed directly on target bot via run_cmd().
+   //
+   let message = this.pop_msg();
+
+   if (message != "")
+      {
+      let msgarray = cmd_parser_class_obj.parse(message);
+      let destination = String(msgarray['destination'] ?? "").trim();
+      let cmd_name = String(msgarray['cmdname'] ?? "");
+      const sign_parts = String(message).split("@");
+
+      Logger.log("direct_radio dispatch incoming destination=[" + destination + "] cmdname=[" + cmd_name + "] raw=[" + message + "]");
+
+      if (destination == "" || destination == ".")
+         {
+         Logger.log("direct_radio local masterbot handling destination=[" + destination + "] cmdname=[" + cmd_name + "]");
+         this.move_botcontroller_queue(msgarray, message);
+         } else
+           if (
+               destination == String(this.rid ?? "") ||
+               destination == "00:00:00:00:00:00"
+              )
+             {
+             Logger.log(
+                        "direct_radio local masterbot handling by rid destination=[" +
+                        destination + "] cmdname=[" + cmd_name + "] master_rid=[" +
+                        String(this.rid ?? "") + "]"
+                       );
+             this.move_botcontroller_queue(msgarray, message);
+             } else
+           {
+           let target_botindex = this.get_botindex_by_rid(destination);
+
+           if (target_botindex == null)
+              {
+              Logger.log("Invalid direct_radio destination rid: " + destination + " message: " + message);
+              } else
+                {
+                // In direct_radio, keep signature payload exactly as originally signed
+                // (everything after first '#', same as BotController.sign()).
+                if (msgarray['signature_type'] != "" && sign_parts.length >= 2)
+                   {
+                   const full_payload = sign_parts.slice(1).join("@");
+                   const hash_idx = full_payload.indexOf("#");
+                   if (hash_idx >= 0 && hash_idx < (full_payload.length - 1))
+                      {
+                      msgarray['sign_message'] = full_payload.substring(hash_idx + 1);
+                      } // if
+                   } // if
+
+                Logger.log("direct_radio resolved destination rid=[" + destination + "] -> botid=[" + this.bots[target_botindex].id + "]");
+                await this.bots[target_botindex].run_cmd(msgarray, this);
+                } // else
+           } // else
+      } // if message != ""
+
+
+
+
+   } // if (communication_mode == "direct_radio")
+
+
+
+
+
+
 this.counter++;
  
-
 if (!this.QUIET) this.spinner() ;
-
-
- 
   
 } // simulate_bot_step()
 
@@ -1708,6 +1898,132 @@ if (botindex2 != null)
   
 return ( status );  
 } // get_botstatus
+
+
+//
+// get_nbh()
+//
+get_nbh(mode, x, y, z, slot)
+{
+const requested_mode = String(mode ?? "").toLowerCase().trim();
+const requested_slot = String(slot ?? "").toUpperCase().trim();
+const allow_rid_discovery =
+      (this.config && (
+                       this.config.allow_rid_discovery === true ||
+                       this.config.allow_rid_discovery === 1 ||
+                       this.config.allow_rid_discovery === "1" ||
+                       String(this.config.allow_rid_discovery ?? "").toLowerCase() == "true"
+                      ));
+
+const ret =
+{
+ok: false,
+mode: requested_mode,
+slot: requested_slot,
+source_id: null,
+source_rid: null,
+neighbor_id: null,
+neighbor_rid: null,
+neighbor_vec: "x",
+reason: "NBH_UNRESOLVED"
+};
+
+const valid_slots = [ "F", "R", "B", "L", "T", "D" ];
+if (!valid_slots.includes(requested_slot))
+   {
+   ret.reason = "INVALID_SLOT";
+   return(ret);
+   } // if
+
+if (requested_mode != "id" && requested_mode != "rid")
+   {
+   ret.reason = "INVALID_MODE";
+   return(ret);
+   } // if
+
+if (requested_mode == "rid" && !allow_rid_discovery)
+   {
+   ret.reason = "RID_DISCOVERY_DISABLED";
+   return(ret);
+   } // if
+
+let key = this.getKey_3d(x,y,z);
+let source_botindex = this.botindex[key];
+if (source_botindex === undefined || source_botindex === null)
+   {
+   ret.reason = "SOURCE_NOT_FOUND";
+   return(ret);
+   } // if
+
+ret.source_id = String(this.bots[source_botindex].id ?? "");
+if (requested_mode == "rid")
+   {
+   ret.source_rid = String(this.bots[source_botindex].rid ?? "");
+   } // if
+
+let slot_lower = requested_slot.toLowerCase();
+let neighbor_key = this.bots[source_botindex].index_neighbors[slot_lower];
+if (neighbor_key === undefined || neighbor_key === null || neighbor_key == -1)
+   {
+   ret.ok = true;
+   ret.reason = "EMPTY";
+   return(ret);
+   } // if
+
+let arrayxyz = this.key_to_xyz(neighbor_key);
+let newx = Number(x) + Number(arrayxyz[0]);
+let newy = Number(y) + Number(arrayxyz[1]);
+let newz = Number(z) + Number(arrayxyz[2]);
+
+if (
+    newx == this.x &&
+    newy == this.y &&
+    newz == this.z
+   )
+   {
+   ret.ok = true;
+   ret.neighbor_id = "MB";
+   if (requested_mode == "rid")
+      {
+      ret.neighbor_rid = String(this.rid ?? "");
+      } // if
+   ret.reason = "OK";
+   return(ret);
+   } // if
+
+let neighbor_botindex = this.get_3d(newx,newy,newz);
+if (neighbor_botindex === undefined || neighbor_botindex === null)
+   {
+   ret.ok = true;
+   ret.reason = "EMPTY";
+   return(ret);
+   } // if
+
+ret.ok = true;
+ret.neighbor_id = String(this.bots[neighbor_botindex].id ?? "");
+
+if (requested_mode == "rid")
+   {
+   ret.neighbor_rid = String(this.bots[neighbor_botindex].rid ?? "");
+   } // if
+
+if (requested_slot == "T" || requested_slot == "D")
+   {
+   // Keep T/D vector semantics aligned with RINFO:
+   // vector is relative from the source bot's current pose.
+   const source_x = this.bots[source_botindex].x;
+   const source_y = this.bots[source_botindex].y;
+   const source_z = this.bots[source_botindex].z;
+   const nbh_vec = this.get_td_relationvector(source_x, source_y, source_z, requested_slot);
+   if (Array.isArray(nbh_vec) && nbh_vec.length == 3)
+      {
+      ret.neighbor_vec = String(nbh_vec[0]) + "," + String(nbh_vec[1]) + "," + String(nbh_vec[2]);
+      } // if
+   } // if
+
+ret.reason = "OK";
+return(ret);
+} // get_nbh()
 
 
 
