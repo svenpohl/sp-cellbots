@@ -634,12 +634,14 @@ class CalcCraterHelper {
     const request = CalcCraterHelper.normalizeRequest(rawRequest);
     const validation = CalcCraterHelper.validateRequest(request);
     const world = CalcCraterHelper.extractWorld(context);
+    const plan = CalcCraterHelper.buildPlan(request, world);
+    const pairCount = Number(plan?.stats?.pair_count ?? 0);
 
     if (!validation.ok) {
       return {
         ok: false,
         answer: "api_calc_crater",
-        implemented: false,
+        implemented: true,
         error: "INVALID_PARAMETERS",
         errors: validation.errors,
         request: request,
@@ -647,22 +649,26 @@ class CalcCraterHelper {
           has_world: Boolean(context?.world),
           has_botcontroller: Boolean(context?.botcontroller)
         },
-        plan: CalcCraterHelper.buildPlan(request, world)
+        executable: false,
+        executable_steps: 0,
+        plan: plan
       };
     } // if
 
     return {
       ok: true,
       answer: "api_calc_crater",
-      implemented: false,
-      error: "NOT_IMPLEMENTED_YET",
+      implemented: true,
+      error: "",
       request: request,
       context_hint: {
         has_world: Boolean(context?.world),
         has_botcontroller: Boolean(context?.botcontroller),
         bot_count: world.bots.length
       },
-      plan: CalcCraterHelper.buildPlan(request, world)
+      executable: (pairCount > 0),
+      executable_steps: pairCount,
+      plan: plan
     };
   } // calcCrater()
 
