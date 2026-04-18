@@ -146,53 +146,84 @@ verifyMessage(sigtype, message, receivedSignature, keypair_or_secret)
 
 if ( sigtype == this.SIG_HMAC )
    {
-   const expectedSignature = this.signMessage(sigtype, message, keypair_or_secret);
-   
-   return crypto.timingSafeEqual
-      (
-      Buffer.from(expectedSignature, 'hex'),
-      Buffer.from(receivedSignature, 'hex')
-     );
+   try
+      {
+      const expectedSignature = this.signMessage(sigtype, message, keypair_or_secret);
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+      const receivedBuffer = Buffer.from(String(receivedSignature ?? ''), 'hex');
+
+      if (expectedBuffer.length !== receivedBuffer.length)
+         {
+         return(false);
+         } // if
+
+      return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+      } catch (err)
+        {
+        return(false);
+        } // catch
   
    } // SIG_HMAC
    
    
 if (sigtype == this.SIG_ED25519) 
    {
-   // Public Key (Base64) → Uint8Array
-   const pubBuf = Buffer.from(keypair_or_secret.trim(), 'base64');
-   const publicKey = new Uint8Array(pubBuf);
+   try
+      {
+      // Public Key (Base64) → Uint8Array
+      const pubBuf = Buffer.from(String(keypair_or_secret ?? '').trim(), 'base64');
+      const publicKey = new Uint8Array(pubBuf);
 
-   // Message → UTF-8 → Uint8Array
-   const msgBuf = Buffer.from(message, 'utf8');
-   const messageBytes = new Uint8Array(msgBuf);
+      // Message → UTF-8 → Uint8Array
+      const msgBuf = Buffer.from(String(message ?? ''), 'utf8');
+      const messageBytes = new Uint8Array(msgBuf);
 
-   // Signature (Base64) → Uint8Array
-   const sigBuf = Buffer.from(receivedSignature.trim(), 'base64');
-   const signatureBytes = new Uint8Array(sigBuf);
+      // Signature (Base64) → Uint8Array
+      const sigBuf = Buffer.from(String(receivedSignature ?? '').trim(), 'base64');
+      const signatureBytes = new Uint8Array(sigBuf);
 
-   return nacl.sign.detached.verify(messageBytes, signatureBytes, publicKey);
+      if (publicKey.length !== nacl.sign.publicKeyLength)
+         {
+         return(false);
+         } // if
+
+      if (signatureBytes.length !== nacl.sign.signatureLength)
+         {
+         return(false);
+         } // if
+
+      return nacl.sign.detached.verify(messageBytes, signatureBytes, publicKey);
+      } catch (err)
+        {
+        return(false);
+        } // catch
    } // SIG_ED25519
 
 
 
 if (sigtype == this.SIG_RSA) {
 
-    let pemKey = keypair_or_secret;
+    try
+       {
+       let pemKey = keypair_or_secret;
 
-    if (pemKey.startsWith("PEM|")) {
-        pemKey = this.normalizePEM(pemKey, "PUBLIC KEY");
-    }
+       if (String(pemKey ?? "").startsWith("PEM|")) {
+           pemKey = this.normalizePEM(pemKey, "PUBLIC KEY");
+       }
 
-    return crypto.verify(
-        "sha256",
-        Buffer.from(message),
-        {
-            key: pemKey,
-            padding: crypto.constants.RSA_PKCS1_PADDING
-        },
-        Buffer.from(receivedSignature, "base64")
-    );
+       return crypto.verify(
+           "sha256",
+           Buffer.from(String(message ?? "")),
+           {
+               key: pemKey,
+               padding: crypto.constants.RSA_PKCS1_PADDING
+           },
+           Buffer.from(String(receivedSignature ?? ""), "base64")
+       );
+       } catch (err)
+         {
+         return(false);
+         } // catch
 }
 
 
@@ -275,5 +306,4 @@ normalizePEM(pem, type) {
 
 // Export class
 module.exports = signature_class;
-
 
