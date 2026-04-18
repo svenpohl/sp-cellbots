@@ -19,6 +19,7 @@ constructor()
   { 
   this.id       = "";
   this.bottmpid = "";
+  this.rid      = "";
   this.type     = 0;
   this.x        = 0;
   this.y        = 0;
@@ -72,13 +73,14 @@ constructor()
 //
 // setvalues()
 //  
-setvalues( id, x,y,z, vx,vy,vz, inactive = 0, servicebay = 0, color, physical_bot_move_delay,                           
+setvalues( id, rid = "", x,y,z, vx,vy,vz, inactive = 0, servicebay = 0, color, physical_bot_move_delay,                           
            enable_signing,
            signature_type,
            public_key_or_secret
 )
 {
 this.id = id;
+this.rid = Array.isArray(rid) ? String(rid[0] ?? "") : String(rid ?? "");
 this.x = x;
 this.y = y;
 this.z = z;
@@ -127,6 +129,63 @@ this.signature_type       = signature_type;
 this.public_key_or_secret = public_key_or_secret;
 
 } // setvalues()
+
+
+//
+// get_nbh()
+//
+get_nbh(mode, slot, caller = null)
+{
+/*
+In direct_radio mode, this helper behaves like a local barcode/NFC style reader.
+The bot reads neighbor data on the requested slot directly from local hardware context.
+If mode == "rid", reading RID must respect config.allow_rid_discovery == true.
+If allow_rid_discovery is false, RID must not be disclosed.
+
+In mesh_opcode mode, this helper is intentionally different.
+Bots are treated as communication peers on a routed protocol path, not as barcode readers.
+So neighbor ID/RID discovery should be performed via protocol opcodes (to be decided),
+instead of direct local RID reads.
+*/
+
+const requested_mode = String(mode ?? "").toLowerCase().trim();
+const requested_slot = String(slot ?? "").toUpperCase().trim();
+const communication_mode =
+      (caller && caller.config && caller.config.communication_mode)
+      ? String(caller.config.communication_mode)
+      : "mesh_opcode";
+
+if (communication_mode == "direct_radio")
+   {
+   if (!caller || typeof caller.get_nbh != "function")
+      {
+      return({
+             ok: false,
+             mode: requested_mode,
+             slot: requested_slot,
+             neighbor_id: null,
+             neighbor_rid: null,
+             reason: "MASTERBOT_NBH_UNAVAILABLE"
+             });
+      } // if
+
+   return(caller.get_nbh(requested_mode, this.x, this.y, this.z, requested_slot));
+   } // if
+
+if (communication_mode == "mesh_opcode")
+   {
+   // reserved for future opcode-based neighborhood discovery in mesh mode
+   } // if
+
+return({
+       ok: false,
+       mode: requested_mode,
+       slot: requested_slot,
+       neighbor_id: null,
+       neighbor_rid: null,
+       reason: "NOT_IMPLEMENTED_YET"
+       });
+} // get_nbh()
 
 
 //
@@ -256,7 +315,13 @@ if (this.enable_signing == "true")
   
 if (signature_check != true)
    {
-   console.log("WRONG SIGNATURE")
+   Logger.log(
+              "run_cmd signature_check failed botid=[" + this.id +
+              "] rid=[" + String(this.rid ?? "") +
+              "] cmdname=[" + String(cmdarray.cmdname ?? "") +
+              "] destination=[" + String(cmdarray.destination ?? "") +
+              "] sign_type=[" + String(cmdarray.signature_type ?? "") + "]"
+              );
    return;
    }  
 // <-
@@ -347,11 +412,112 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_CHECK )
         } // else
    
    
-   // Execute command
+   // Execute command.
+   // In direct_radio mode we bypass slot-routing and return directly to masterbot queue.
    let cmdreturn = destreturn + "#RCHECK#" + this.id + ";"  +  status + "";
-   
-   this.push_msg( cmdreturn );      
+
+   if (String(caller?.config?.communication_mode ?? "mesh_opcode") == "direct_radio")
+      {
+      caller.push_msg(cmdreturn);
+      } else
+        {
+        this.push_msg(cmdreturn);
+        } // else
    } // CMD_CHECK
+
+
+if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_NBH )
+   {
+   destreturn = cmdarray.destreturn;
+   let sourceslot = cmdarray.sourceslot.toUpperCase();
+   destreturn = destreturn.replace(/s/gi, sourceslot);
+
+   let nbh_mode = "id";
+   let nbh_slot_selector = ".";
+   if (
+       Array.isArray(cmdarray.subcmd) &&
+       cmdarray.subcmd.length > 0 &&
+       Array.isArray(cmdarray.subcmd[0]) &&
+       cmdarray.subcmd[0].length > 0
+      )
+      {
+      nbh_mode = String(cmdarray.subcmd[0][0].mode ?? "id").toLowerCase().trim();
+      nbh_slot_selector = String(cmdarray.subcmd[0][0].slot_selector ?? ".").toUpperCase().trim();
+      } // if
+
+   if (nbh_mode != "id" && nbh_mode != "rid")
+      {
+      nbh_mode = "id";
+      } // if
+
+   if (
+       nbh_slot_selector != "." &&
+       nbh_slot_selector != "F" &&
+       nbh_slot_selector != "R" &&
+       nbh_slot_selector != "B" &&
+       nbh_slot_selector != "L" &&
+       nbh_slot_selector != "T" &&
+       nbh_slot_selector != "D"
+      )
+      {
+      nbh_slot_selector = ".";
+      } // if
+
+   let target_slots = [];
+   if (nbh_slot_selector == ".")
+      {
+      target_slots = [ "F", "R", "B", "L", "T", "D" ];
+      } else
+        {
+        target_slots = [ nbh_slot_selector ];
+        } // else
+
+   const payload_parts = [];
+   for (let i = 0; i < target_slots.length; i++)
+       {
+       const slot_name = String(target_slots[i] ?? "").toUpperCase().trim();
+       let nbh_value = "x";
+       let nbh_vec = "x";
+
+       const nbh_result = this.get_nbh(nbh_mode, slot_name, caller);
+       if (nbh_result && nbh_result.ok === true)
+          {
+          if (nbh_mode == "rid")
+             {
+             nbh_value = String(nbh_result.neighbor_rid ?? "x").trim();
+             if (nbh_value == "")
+                {
+                nbh_value = "x";
+                } // if
+             } else
+               {
+               nbh_value = String(nbh_result.neighbor_id ?? "x").trim();
+               if (nbh_value == "")
+                  {
+                  nbh_value = "x";
+                  } // if
+               } // else
+
+          nbh_vec = String(nbh_result.neighbor_vec ?? "x").trim();
+          if (nbh_vec == "")
+             {
+             nbh_vec = "x";
+             } // if
+          } // if
+
+       payload_parts.push(slot_name + ":" + nbh_value + "|" + nbh_vec);
+       } // for
+
+   let payload = payload_parts.join("/");
+   let cmdreturn = destreturn + "#RNBH#" + this.id + ";" + payload;
+   if (String(caller?.config?.communication_mode ?? "mesh_opcode") == "direct_radio")
+      {
+      caller.push_msg(cmdreturn);
+      } else
+        {
+        this.push_msg(cmdreturn);
+        } // else
+   } // CMD_NBH
 
 
 
@@ -526,8 +692,14 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           
           // Execute command
           let cmdreturn = destreturn + "#RALIFE#" + this.id + ";" + cmdarray.bottmpid ;
-   
-          this.push_msg( cmdreturn );
+
+          if (String(caller?.config?.communication_mode ?? "mesh_opcode") == "direct_radio")
+             {
+             caller.push_msg(cmdreturn);
+             } else
+               {
+               this.push_msg(cmdreturn);
+               } // else
 
 
           } // LIFE

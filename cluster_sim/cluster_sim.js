@@ -25,10 +25,10 @@
 
 const args = process.argv.slice(2);
 const QUIET = args.includes("--quiet")
+const { check_nodejs_version, console_format_log } = require('../common/system_utils');
 
 if (!QUIET)
    {
-   const { check_nodejs_version } = require('../common/system_utils');
    check_nodejs_version("23.11.0");
    }
 
@@ -77,9 +77,9 @@ let   MASTERBOT_NAME = config.name;
 
 if (!QUIET) 
    {
-   console.log(`Masterbot Version: ${version} - CellBots`);
-   console.log(`Port: ${PORT}`);
-   console.log(`MASTERBOT_NAME: ${MASTERBOT_NAME}`);
+   console.log(console_format_log("Masterbot Version", 30, `${version} - CellBots`));
+   console.log(console_format_log("Port", 30, PORT));
+   console.log(console_format_log("MASTERBOT_NAME", 30, MASTERBOT_NAME));
    }
 
  
@@ -128,6 +128,14 @@ const server = net.createServer((socket) => {
             masterbot_class_obj.dumpdebug();  
             jsonmsg = '{ "cmd": "msg",   "info": "dumphandler", "msg":"executed" }\n';
             socket.write( jsonmsg );                
+        break;
+
+        case 'system_dump':
+            {
+            const dump_result = masterbot_class_obj.export_system_dump_json();
+            jsonmsg = '{ "cmd": "msg", "info": "system_dump", "msg":"executed", "file":"'+dump_result.file+'", "bot_count":'+dump_result.bot_count+' }\n';
+            socket.write( jsonmsg );
+            } // case system_dump
         break;
 
         case 'step':       
@@ -301,6 +309,13 @@ wss.on('connection', (ws) => {
            process.exit(0);        
            } else
 
+        if (decodedobject.cmd === 'system_dump')
+           {
+           const dump_result = masterbot_class_obj.export_system_dump_json();
+           answer = "{ \"answer\":\"answer_system_dump\", \"ok\":true, \"file\":\""+dump_result.file+"\", \"bot_count\":"+dump_result.bot_count+" }";
+           ws.send(answer);
+           } else
+
 
         if (decodedobject.cmd === 'getclusterdata') 
            {       
@@ -349,5 +364,3 @@ if (!QUIET) console.log('Server (webguisim) is running on http://localhost:3020'
 
 
 main();
-
-
