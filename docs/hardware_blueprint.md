@@ -153,5 +153,4 @@ Future CellBots might:
 **From simulation to self-building matter? Sooner than we think.**
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [CellBot Protocol](protocol.md) | **Next chapter:** [Usage & Examples](usage.md)
-
+**Previous chapter:** [CellBot Protocol](protocol.md) | **Next chapter:** [Direct Radio](direct_radio.md)

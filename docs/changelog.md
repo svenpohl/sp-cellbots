@@ -6,6 +6,16 @@
 
 ---
 
+- **1.6** (18.04.2026)  
+**Direct-Radio transition layer and API architecture refactor**
+  - Added preparation for a simpler hardware transition path with **direct radio communication** (`communication_mode = direct_radio`) while keeping `mesh_opcode` as default reference mode
+  - Added configurable **Radio IDs (`rid`)** and static radio mapping flow for direct addressing in both ClusterSim and BotController
+  - Introduced and documented the new **NBH / RNBH OP-codes** for direct-radio neighborhood discovery, enabling precise bot relocalization (position/orientation sync) without mesh route addressing
+  - Refactored BotController API implementation from a monolithic `botcontroller_class.js` block into structured runtime/service modules for better maintainability and faster extension
+  - Migrated and stabilized core API command paths for `direct_radio`, including scan, level-2 scan, movement, rotation, targeted resync (`search_bot`), and crater build/fill execution flows
+  - Added dedicated documentation chapter: **[Direct Radio](direct_radio.md)**
+  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
+
 - **1.5.4** (08.04.2026)  
 **Repair workflow expansion: crater build/fill and rescue tooling**
   - Added API-first crater workflow for repair scenarios: **`calc_crater`**, **`crater_start`**, **`crater_check_progress`**, **`crater_fill`**, **`crater_list`**

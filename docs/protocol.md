@@ -22,12 +22,14 @@ Illustration: Each CellBot has six available slots—one for each spatial direct
 2. [RINFO](#2-command-rinfo)  
 3. [CHECK](#3-command-check)  
 4. [RCHECK](#4-command-rcheck)  
-5. [MOVE](#5-command-move)  
-6. [RALIFE](#6-command-ralife)  
-7. [SYS](#7-command-sys)  
-8. [X-Custom Command](#8-command-x-custom-command)  
-9. [Signature Mode & Message Authentication](#signature-mode--message-authentication)  
-10. [Logging](#logging)
+5. [NBH](#5-command-nbh)  
+6. [RNBH](#6-command-rnbh)  
+7. [MOVE](#7-command-move)  
+8. [RALIFE](#8-command-ralife)  
+9. [SYS](#9-command-sys)  
+10. [X-Custom Command](#10-command-x-custom-command)  
+11. [Signature Mode & Message Authentication](#signature-mode--message-authentication)  
+12. [Logging](#logging)
 
 
 ## 1. Command: INFO
@@ -162,7 +164,59 @@ This compact response is intended for higher-level structure diagnostics such as
 
 ---
 
-## 5. Command: MOVE
+## 5. Command: NBH
+
+**Purpose:**
+Neighborhood query command used to request direct neighbor identity information from one bot.
+
+This command is especially important in `direct_radio` mode because structural detection requires bots to report the IDs of adjacent bots without relying on mesh routing addresses.
+
+In `direct_radio` mode, responses are sent to the configured MasterBot RID (radio ID), not through mesh path addresses. Neighbor discovery itself is modeled as a local contact interface (conceptually similar to QR/barcode-style side identification or Manchester-coded local side signaling). A dedicated technical chapter for this hardware-facing layer will follow later.
+
+**Message format:**
+`[(destination)#NBH#(mode)#(slot_selector)#(return_destination)]`
+
+- `destination`: target bot (RID in `direct_radio`, mesh address in `mesh_opcode`)
+- `mode`: `id` or `rid`
+- `slot_selector`: `F|R|B|L|T|D` or `.` for all slots
+- `return_destination`: where the response must be sent
+
+**Example (single slot):**
+`[00:00:00:00:00:26#NBH#id#F#00:00:00:00:00:00]`
+
+**Example (all slots):**
+`[00:00:00:00:00:26#NBH#id#.#00:00:00:00:00:00]`
+
+---
+
+## 6. Command: RNBH
+
+**Purpose:**
+Response to an `NBH` query containing neighbor data in slot order.
+
+**Message format:**
+`[(return_destination)#RNBH#(self_bot_id);(payload)]`
+
+**Payload format (single slot):**
+`[Slot:ID|VectorOrX]`
+
+**Payload format (wildcard `.`):**
+`[F:.../R:.../B:.../L:.../T:.../D:...]`
+
+Notes:
+- For side slots (`F/R/B/L`) vector can be `x` if not required.
+- For `T` and `D`, a relative vector may be included (or `x` if unavailable).
+- `x` means empty/unknown/unavailable.
+
+**Example (single slot):**
+`[00:00:00:00:00:00#RNBH#B26;F:B02|x]`
+
+**Example (all slots):**
+`[00:00:00:00:00:00#RNBH#B26;F:B02|x/R:MB|x/B:x|x/L:B04|x/T:B11|-1,0,0/D:x|x]`
+
+---
+
+## 7. Command: MOVE
 
 **Purpose:**
 Universal movement command—enables combined motor movements of a CellBot, including climbing, rotation, grabbing, and permanent connections.
@@ -219,7 +273,7 @@ The `NONCE` subcommand allows the master controller to include a unique number (
 
 ---
 
-## 6. Command: RALIFE
+## 8. Command: RALIFE
 
 **Purpose:**
 Proof-of-life response after completing a movement sequence (e.g., triggered by "LIFE" subcommand).
@@ -231,7 +285,7 @@ Proof-of-life response after completing a movement sequence (e.g., triggered by 
 `BBL#RALIFE#B001`
 
 ---
-## 7. Command: SYS
+## 9. Command: SYS
 
 **Purpose:**  
 Handles system-level commands such as security actions, configuration changes, and cryptographic operations.  
@@ -353,7 +407,7 @@ FF#SYS#UPDATEKEY03PEM|MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArb/fDWScRvlgNj
 
 ---
 
-## 8. Command: X-Custom Command
+## 10. Command: X-Custom Command
 
 **Purpose:**
 Allows developer-defined special commands. All custom commands start with **"X"**. Unknown X-commands are forwarded by default unless blocked by hardware.
@@ -366,7 +420,7 @@ Allows developer-defined special commands. All custom commands start with **"X"*
 [(address)#X[CUSTOM-COMMAND]#(PARAMETERS)#(Return-Address)]
 ```
 
-## 🔧 8. Command: `X-Custom` (Developer-Defined)
+## 🔧 10. Command: `X-Custom` (Developer-Defined)
 
 **Purpose:**  
 Enables custom, developer-defined commands.  
