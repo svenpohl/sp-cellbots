@@ -171,6 +171,7 @@
 <div class="buttonbar">
     
     <button id="requestquitbotcontroller">QUIT</button>
+    <button id="requestsystemdump">SYSTEM DUMP</button>
 
 </div>
 
@@ -286,6 +287,17 @@
         
         
         
+     if (decodedobject.answer == "answer_system_dump")
+        {
+        console.log("SYSTEM DUMP:");
+        console.log(decodedobject);
+
+        if (decodedobject.ok)
+           {
+           document.getElementById('debug').innerHTML = "System dump exported (" + decodedobject.bot_count + " bots)";
+           } // if
+        } // if (decodedobject.answer == "answer_system_dump")
+
      if (decodedobject.notify == "update")
         {
         console.log("incoming update ");
@@ -350,6 +362,18 @@
             cmd = "{ \"cmd\":\"quit\" }";; 
             socket.send(cmd);
             document.getElementById('debug').innerHTML = "Disconnected";
+        });
+
+        document.getElementById('requestsystemdump').addEventListener('click', function() {
+        if (connected == 0)
+           {
+           alert('No Connection');
+           return;
+           } // if
+
+        cmd = "{ \"cmd\":\"system_dump\" }";
+        socket.send(cmd);
+        document.getElementById('debug').innerHTML = "System dump requested...";
         });
         
         
