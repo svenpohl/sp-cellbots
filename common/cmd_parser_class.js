@@ -23,12 +23,12 @@ this.CMD_X      = 9;
 
 this.CMD_RET_OK = 10;
 this.CMD_RINFO  = 11;
-
-this.CMD_CHECK  = 12;
-this.CMD_RCHECK = 13;
-this.CMD_ALIFE  = 14;
-this.CMD_RALIFE = 15;
-this.CMD_SYS    = 16;
+this.CMD_RNBH   = 12;
+this.CMD_CHECK  = 13;
+this.CMD_RCHECK = 14;
+this.CMD_ALIFE  = 15;
+this.CMD_RALIFE = 16;
+this.CMD_SYS    = 17;
 
 } // constructor()
 
@@ -70,6 +70,10 @@ let destslot    		 =  "";
 let rawcmd      		 =  "";
 let status      		 =  "";
 let status_mode          =  "";
+let nbh_mode             =  "";
+let nbh_slot_selector    =  "";
+let nbh_payload          =  "";
+let nbh_neighbors        =  {};
 let subcmd      		 = [];
 let signature_type       = "";
 let public_signature     = "";
@@ -195,6 +199,71 @@ if (trimmedcmd[1] == "RINFO")
    vz = vectorarray[2];
          
    } // RINFO
+
+
+//
+// NBH
+//
+if (trimmedcmd[1] == "NBH")
+   {
+   botcmd            = this.CMD_NBH;
+   cmdname           = "NBH";
+   destination       = trimmedcmd[0];
+   nbh_mode          = String(trimmedcmd[2] ?? "").toLowerCase().trim();
+   nbh_slot_selector = String(trimmedcmd[3] ?? "").trim();
+   destreturn        = trimmedcmd[4];
+
+   if (nbh_slot_selector != ".")
+      {
+      nbh_slot_selector = nbh_slot_selector.toUpperCase();
+      } // if
+
+   let subcmd_tmp = [ { mode: nbh_mode, slot_selector: nbh_slot_selector } ];
+   subcmd.push(subcmd_tmp);
+   } // NBH
+
+
+//
+// RNBH
+//
+if (trimmedcmd[1] == "RNBH")
+   {
+   botcmd      = this.CMD_RNBH;
+   cmdname     = "RNBH";
+   destination = trimmedcmd[0];
+
+   let tail = trimmedcmd[2];
+   const [tail_botid, tail_payload] = this.split_first(tail, ';');
+   botid = tail_botid;
+   nbh_payload = String(tail_payload ?? "");
+
+   const slot_entries = nbh_payload.split('/');
+   for (let i = 0; i < slot_entries.length; i++)
+       {
+       const entry = String(slot_entries[i] ?? "").trim();
+       if (entry == "")
+          {
+          continue;
+          } // if
+
+       const [slot_key, slot_rest] = this.split_first(entry, ':');
+       const key = String(slot_key ?? "").trim().toUpperCase();
+       const rest = String(slot_rest ?? "").trim();
+
+       if (key != "")
+          {
+          const [neighbor_id_raw, neighbor_vec_raw] = this.split_first(rest, '|');
+          const neighbor_id = String(neighbor_id_raw ?? "").trim();
+          const neighbor_vec = String(neighbor_vec_raw ?? "").trim();
+
+          nbh_neighbors[key] =
+            {
+            id: (neighbor_id == "" ? "x" : neighbor_id),
+            vec: (neighbor_vec == "" ? "x" : neighbor_vec)
+            };
+          } // if
+       } // for
+   } // RNBH
 
 
  
@@ -518,6 +587,10 @@ ret['destreturn']    = destreturn;
 ret['color']         = color;
 ret['status']        = status;
 ret['status_mode']   = status_mode;
+ret['nbh_mode']      = nbh_mode;
+ret['nbh_slot_selector'] = nbh_slot_selector;
+ret['nbh_payload']   = nbh_payload;
+ret['nbh_neighbors'] = nbh_neighbors;
 
 
 ret['destslot']      = destslot;

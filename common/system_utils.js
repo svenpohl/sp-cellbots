@@ -81,9 +81,18 @@ function check_nodejs_version(requiredVersion = "23.11.0") {
         );
         return true; // newer is usually okay, but warn
     }
-}
+} // check_nodejs_version()
+
+function console_format_log(label, width = 30, value = "") {
+    const safe_label = String(label ?? "");
+    const safe_value = String(value ?? "");
+    const safe_width = Math.max(Number(width) || 0, safe_label.length + 2);
+    const dot_count = Math.max(safe_width - safe_label.length, 2);
+    const dots = ".".repeat(dot_count);
+    return `${safe_label}${dots}: ${safe_value}`;
+} // console_format_log()
 
 module.exports = {
-    check_nodejs_version
+    check_nodejs_version,
+    console_format_log
 };
-
