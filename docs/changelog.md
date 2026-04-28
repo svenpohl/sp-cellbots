@@ -6,6 +6,16 @@
 
 ---
 
+- **1.7** (28.04.2026)  
+**Vehicle Kinematics mobility mode (preview)**
+  - Added `mobility_mode = vehicle_kinematics` as the new default mode (preview)
+  - In this mode, SP-CellBots can only drive forward/backward in a straight line, and can climb walls/stairs only in that direction — path planning accounts for this constraint
+  - Mode is currently only active for the LLM-facing API command `move_bot_to` (NOT for morphing)
+  - Goal: preparation for simpler, more realistic hardware as a stepping stone toward `full_edge` mobility
+  - Primary demo: `node api.js structurescan` + `node api.js move_bot_to B26 5 2 4 0 0 -1`
+  - Test batch sequence: `node api.js batch ./tests/batch02.json`
+  - Additional changes: minor bugfixes and sequential batch processing in `api.js`
+
 - **1.6** (18.04.2026)  
 **Direct-Radio transition layer and API architecture refactor**
   - Added preparation for a simpler hardware transition path with **direct radio communication** (`communication_mode = direct_radio`) while keeping `mesh_opcode` as default reference mode
