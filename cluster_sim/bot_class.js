@@ -189,6 +189,101 @@ return({
 
 
 //
+// get_mobility_mode()
+//
+get_mobility_mode(caller = null)
+{
+let mode = "full_edge";
+
+if (caller && caller.config && caller.config.mobility_mode)
+   {
+   mode = String(caller.config.mobility_mode).trim();
+   if (mode == "")
+      {
+      mode = "full_edge";
+      } // if
+   } // if
+
+return(mode);
+} // get_mobility_mode()
+
+
+//
+// validate_vehicle_kinematics_move()
+//
+validate_vehicle_kinematics_move(caller, fa, la, direction_slot, target_x, target_y, target_z)
+{
+let ret =
+{
+ok: true,
+code: "VK_OK",
+reason: "",
+mode: this.get_mobility_mode(caller)
+};
+
+// Explicit mobility gate:
+// - full_edge: keep legacy behavior unchanged
+// - vehicle_kinematics: enforce reduced DoF rules
+if (ret.mode != "vehicle_kinematics")
+   {
+   return(ret);
+   } // if
+
+let dir = String(direction_slot ?? "").toUpperCase().trim();
+let first_anchor = String(fa ?? "").toUpperCase().trim();
+let last_anchor  = String(la ?? "").toUpperCase().trim();
+
+// Rule 1: no lateral translation without rotation
+if (dir == "R" || dir == "L")
+   {
+   ret.ok = false;
+   ret.code = "VK_BLOCK_LATERAL_MOVE";
+   ret.reason = "Lateral translation requires rotation in vehicle_kinematics mode.";
+   return(ret);
+   } // if
+
+// Rule 2: climbing only with frontal support
+// Rule 3: no rear climbing
+// Rule 4: no overhead-only climbing
+if (dir == "T" || dir == "D")
+   {
+   let front_anchor_from_cmd = (first_anchor.indexOf("F") >= 0 || last_anchor.indexOf("F") >= 0);
+   let rear_anchor_from_cmd  = (first_anchor.indexOf("B") >= 0 || last_anchor.indexOf("B") >= 0);
+   let top_anchor_from_cmd   = (first_anchor.indexOf("T") >= 0 || last_anchor.indexOf("T") >= 0);
+
+   let front_on_current = caller.has_neighbour(this.x, this.y, this.z, this.vector_x, this.vector_y, this.vector_z, this.x, this.y, this.z, "F");
+   let front_on_target  = caller.has_neighbour(target_x, target_y, target_z, this.vector_x, this.vector_y, this.vector_z, this.x, this.y, this.z, "F");
+
+   if (rear_anchor_from_cmd)
+      {
+      ret.ok = false;
+      ret.code = "VK_BLOCK_REAR_CLIMB";
+      ret.reason = "Rear-anchor climbing is not allowed in vehicle_kinematics mode.";
+      return(ret);
+      } // if
+
+   if (top_anchor_from_cmd && !front_anchor_from_cmd && !front_on_current && !front_on_target)
+      {
+      ret.ok = false;
+      ret.code = "VK_BLOCK_OVERHEAD_CLIMB";
+      ret.reason = "Overhead-only climbing is blocked; frontal support is required.";
+      return(ret);
+      } // if
+
+   if (!front_anchor_from_cmd && !front_on_current && !front_on_target)
+      {
+      ret.ok = false;
+      ret.code = "VK_BLOCK_CLIMB_REQUIRES_FRONT_SUPPORT";
+      ret.reason = "Vertical movement requires frontal support in vehicle_kinematics mode.";
+      return(ret);
+      } // if
+   } // if
+
+return(ret);
+} // validate_vehicle_kinematics_move()
+
+
+//
 // push_msg
 //
 push_msg( msg )
@@ -523,9 +618,12 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_NBH )
 
 if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
    {   
+   const mobility_mode = this.get_mobility_mode(caller);
    let size = cmdarray.subcmd.length;
    let move_sequence_aborted = false;
    this.servicebay_extracted = false;
+
+   Logger.log("MOVE mobility_mode=" + mobility_mode + " bot=" + this.id + " subcmd_count=" + size);
 
    for (let i=0; i<size; i++)
        {
@@ -889,6 +987,15 @@ target_x = Number(this.x) + Number(vector[0]);
 target_y = Number(this.y) + Number(vector[1]);
 target_z = Number(this.z) + Number(vector[2]);
 
+// ------------------------------------------------------------
+// mobility_mode gate (vehicle_kinematics / full_edge / future)
+// ------------------------------------------------------------
+let vk_validation = this.validate_vehicle_kinematics_move(caller, fa, la, direction_slot, target_x, target_y, target_z);
+if (!vk_validation.ok)
+   {
+   Logger.log("MOVE blocked [" + vk_validation.code + "] bot=" + this.id + " dir=" + direction_slot + " from=" + this.x + "," + this.y + "," + this.z + " to=" + target_x + "," + target_y + "," + target_z + " reason=" + vk_validation.reason);
+   return;
+   } // if
 
 
      
