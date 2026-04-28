@@ -31,9 +31,21 @@ if (cmd === "get_status")
    let ret = {
              ok: true,
              answer: "api_status",
-             loaded_bots: controller.bots.length
+             loaded_bots: controller.bots.length,
+             mobility_mode: String(controller?.config?.mobility_mode ?? "full_edge").trim(),
+             communication_mode: String(controller?.config?.communication_mode ?? "mesh_opcode").trim()
              };
-   controller.append_api_action_log("get_status", {}, { ok: ret.ok, answer: ret.answer, loaded_bots: ret.loaded_bots });
+   controller.append_api_action_log(
+                                    "get_status",
+                                    {},
+                                    {
+                                     ok: ret.ok,
+                                     answer: ret.answer,
+                                     loaded_bots: ret.loaded_bots,
+                                     mobility_mode: ret.mobility_mode,
+                                     communication_mode: ret.communication_mode
+                                    }
+                                    );
    await write_and_close(socket, ret);
    return(true);
    } // if

@@ -21,6 +21,19 @@ if (ret?.ack_id)
       {
       ret.ack_recovery = await controller.apicall_recover_after_ack_timeout(ret.ack_id);
       } // if
+
+   if (
+       ack_wait_ret.ack_received === true ||
+       ret?.ack_recovery?.resolved_locally === true
+      )
+      {
+      ret.ack_local_state = controller.apicall_apply_ack_local_state(ret.ack_id);
+
+      if (ret?.bot_id)
+         {
+         ret.current_state = controller.apicall_get_bot_snapshot(ret.bot_id);
+         } // if
+      } // if
    } // if
 
 return(ret);
@@ -78,19 +91,32 @@ if (cmd === "suggest_simple_move")
 
 if (cmd === "move_bot_to")
    {
-   let ret = controller.apicall_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
+   let ret = controller.apicall_move_bot_to(
+                                           decodedobject.bot_id,
+                                           decodedobject.x,
+                                           decodedobject.y,
+                                           decodedobject.z,
+                                           true,
+                                           decodedobject.goal_orientation ?? null
+                                           );
    ret = await attach_ack_wait_if_needed(controller, ret);
-   controller.append_api_action_log("move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-   controller.append_api_bot_history(decodedobject.bot_id, "move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   controller.append_api_action_log("move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, goal_orientation: decodedobject.goal_orientation ?? null }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   controller.append_api_bot_history(decodedobject.bot_id, "move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, goal_orientation: decodedobject.goal_orientation ?? null }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
    await write_and_close(socket, ret);
    return(true);
    } // if
 
 if (cmd === "diagnose_move_bot_to")
    {
-   let ret = controller.apicall_diagnose_move_bot_to(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z);
-   controller.append_api_action_log("diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-   controller.append_api_bot_history(decodedobject.bot_id, "diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   let ret = controller.apicall_diagnose_move_bot_to(
+                                                    decodedobject.bot_id,
+                                                    decodedobject.x,
+                                                    decodedobject.y,
+                                                    decodedobject.z,
+                                                    decodedobject.goal_orientation ?? null
+                                                    );
+   controller.append_api_action_log("diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, goal_orientation: decodedobject.goal_orientation ?? null }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   controller.append_api_bot_history(decodedobject.bot_id, "diagnose_move_bot_to", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, goal_orientation: decodedobject.goal_orientation ?? null }, { ok: ret.ok, answer: ret.answer, executable: ret.executable ?? false, path_found: ret.path_found ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
    await write_and_close(socket, ret);
    return(true);
    } // if

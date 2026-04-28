@@ -175,6 +175,7 @@ let bot = controller.bots[botindex];
 let bots_s = controller.apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids);
 let bots_f = controller.apicall_build_forbidden_grid();
 let carried_payload_bot_id = String(planning_options?.carried_payload_bot_id ?? "").trim();
+let goal_orientation = planning_options?.goal_orientation ?? null;
 let bot_snapshot = controller.apicall_get_bot_snapshot(bot_id);
 let src = {
           x: Number(bot.x),
@@ -189,8 +190,10 @@ let dest = {
 let path_result = null;
 let path = null;
 let path_debug_rejections = [];
+let path_vehicle_dry_run = null;
 let src_is_forbidden = controller.apicall_is_forbidden_cell(src.x, src.y, src.z, bots_f);
 let dest_is_forbidden = controller.apicall_is_forbidden_cell(dest.x, dest.y, dest.z, bots_f);
+let mobility_mode = String(controller?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
 
 if (src_is_forbidden === true)
    {
@@ -267,6 +270,21 @@ if (carried_payload_bot_id != "")
                                                              }
                                                              );
    } // if
+else if (mobility_mode == "vehicle_kinematics")
+   {
+   path_vehicle_dry_run = controller.apicall_calc_vehicle_kinematics_path(
+                                                                    src,
+                                                                    dest,
+                                                                    bots_s,
+                                                                    bots_f,
+                                                                    {
+                                                                    orientation: bot_snapshot?.orientation ?? null,
+                                                                    goal_orientation: goal_orientation,
+                                                                    include_start: true
+                                                                    }
+                                                                    );
+   path_result = path_vehicle_dry_run;
+   } // if
 else
    {
    path_result = controller.apicall_calc_single_path(src, dest, bots_s, bots_f);
@@ -279,7 +297,19 @@ if (Array.isArray(path_result))
 else if (path_result && typeof path_result == "object")
    {
    path = Array.isArray(path_result.path) ? path_result.path : null;
+   if (!path && Array.isArray(path_result.states))
+      {
+      path = path_result.states;
+      } // if
+   if (!path && Array.isArray(path_result.states_full))
+      {
+      path = path_result.states_full;
+      } // if
    path_debug_rejections = Array.isArray(path_result.debug_rejections) ? path_result.debug_rejections : [];
+   if (path_vehicle_dry_run == null && mobility_mode == "vehicle_kinematics")
+      {
+      path_vehicle_dry_run = path_result;
+      } // if
    } // else if
 
 if (!path)
@@ -291,8 +321,11 @@ if (!path)
           target: dest,
           path_found: false,
           reason: "NO_SURFACE_PATH_FOUND",
+          mobility_mode: mobility_mode,
           show_requested: show_path,
           carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+          goal_orientation: goal_orientation,
+          vehicle_path_dry_run: path_vehicle_dry_run,
           path_debug_rejections: path_debug_rejections,
           path: []
           });
@@ -326,9 +359,12 @@ return({
        target: dest,
        path_found: true,
        reason: "PATH_FOUND",
+       mobility_mode: mobility_mode,
        show_requested: show_path,
        carried_payload_bot_id: (carried_payload_bot_id != "" ? carried_payload_bot_id : null),
+       goal_orientation: goal_orientation,
        excluded_bot_ids: excluded_bot_ids,
+       vehicle_path_dry_run: path_vehicle_dry_run,
        path_debug_rejections: path_debug_rejections,
        path_visualized: path_visualized,
        marker_count: marker_count,
@@ -505,7 +541,7 @@ return({
 } // apicall_suggest_simple_move()
 
 
-function apicall_move_bot_to(controller, bot_id, x, y, z, execute_move = true)
+function apicall_move_bot_to(controller, bot_id, x, y, z, execute_move = true, goal_orientation = null)
 {
 let target_x = Number(x);
 let target_y = Number(y);
@@ -517,6 +553,17 @@ let excluded_bot_ids = [];
 let should_execute_move = (execute_move === true);
 let live_botindex = null;
 let send_address = "";
+let mobility_mode = String(controller?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
+let normalized_goal_orientation = null;
+
+if (goal_orientation && typeof goal_orientation == "object")
+   {
+   normalized_goal_orientation = {
+                                  x: Number(goal_orientation.x ?? 0),
+                                  y: Number(goal_orientation.y ?? 0),
+                                  z: Number(goal_orientation.z ?? 0)
+                                  };
+   } // if
 
 if (safe_prepare_ret?.ok !== true)
    {
@@ -578,11 +625,12 @@ let path_ret = apicall_find_path_for_bot(
                                         target_y,
                                         target_z,
                                         false,
-                                        {
-                                        excluded_bot_ids: excluded_bot_ids,
-                                        carried_payload_bot_id: carried_payload_bot_id
-                                        }
-                                        );
+                                       {
+                                       excluded_bot_ids: excluded_bot_ids,
+                                       carried_payload_bot_id: carried_payload_bot_id,
+                                       goal_orientation: normalized_goal_orientation
+                                       }
+                                       );
 
 if (path_ret.ok !== true)
    {
@@ -612,6 +660,8 @@ if (path_ret.path_found !== true)
           current_state: bot_snapshot,
           carried_payload_bot_id: carried_payload_bot_id,
           planning_excluded_bot_ids: excluded_bot_ids,
+          mobility_mode: mobility_mode,
+          goal_orientation: normalized_goal_orientation,
           path_found: false,
           path_length: 0,
           planned_moves: [],
@@ -640,19 +690,48 @@ let planned_primitives = apicall_add_anchors_to_primitive_paths(
                                                                 excluded_bot_ids
                                                                 );
 let bots_tmp = controller.apicall_build_active_bots_tmp(false, excluded_bot_ids);
-let legacy_move_ret = controller.calc_move_cmds(
-                                                path_ret.path ?? [],
-                                                Number(bot_snapshot.orientation.x),
-                                                Number(bot_snapshot.orientation.y),
-                                                Number(bot_snapshot.orientation.z),
-                                                bots_tmp
-                                                );
+let legacy_move_ret = null;
+let calc_move_debug_payload = {
+                               bot_id: bot_id,
+                               mobility_mode: mobility_mode,
+                               goal_orientation: normalized_goal_orientation,
+                               start_orientation: bot_snapshot?.orientation ?? null,
+                               path_length: Array.isArray(path_ret.path) ? path_ret.path.length : 0,
+                               planned_moves_count: Array.isArray(planned_moves) ? planned_moves.length : 0,
+                               planned_primitives_count: Array.isArray(planned_primitives) ? planned_primitives.length : 0,
+                               bots_tmp_count: Array.isArray(bots_tmp) ? bots_tmp.length : 0
+                               };
+
+// console.log("[calc_move_cmds] args:", JSON.stringify(calc_move_debug_payload));
+
+if (mobility_mode == "vehicle_kinematics" && typeof controller.calc_move_vk_cmds == "function")
+   {
+   legacy_move_ret = controller.calc_move_vk_cmds(
+                                                  path_ret.path ?? [],
+                                                  Number(bot_snapshot.orientation.x),
+                                                  Number(bot_snapshot.orientation.y),
+                                                  Number(bot_snapshot.orientation.z),
+                                                  bots_tmp,
+                                                  normalized_goal_orientation
+                                                  );
+   } else
+     {
+     legacy_move_ret = controller.calc_move_cmds(
+                                                 path_ret.path ?? [],
+                                                 Number(bot_snapshot.orientation.x),
+                                                 Number(bot_snapshot.orientation.y),
+                                                 Number(bot_snapshot.orientation.z),
+                                                 bots_tmp,
+                                                 normalized_goal_orientation
+                                                 );
+     } // else
 let planned_movecmds_legacy = legacy_move_ret?.movecmds ?? "";
 let planned_raw_cmd = null;
 let raw_ret = null;
 let ack_id = null;
 let ack_retaddr = "";
 let ack_target_addr = "";
+let ack_target_orientation = null;
 let ack_target_neighbors_debug = [];
 let ack_target_neighbors_live_debug = [];
 let ack_stl_debug = null;
@@ -667,6 +746,37 @@ if (communication_mode == "direct_radio")
    ack_retaddr = String(controller.get_direct_radio_master_rid() ?? "").trim();
    } // if
 
+if (normalized_goal_orientation)
+   {
+   ack_target_orientation = {
+                             x: Number(normalized_goal_orientation.x ?? 0),
+                             y: Number(normalized_goal_orientation.y ?? 0),
+                             z: Number(normalized_goal_orientation.z ?? 0)
+                             };
+   }
+else if (mobility_mode == "vehicle_kinematics" && Array.isArray(path_ret.path) && path_ret.path.length > 0)
+   {
+   let path_goal_stage = path_ret.path[path_ret.path.length - 1];
+
+   if (path_goal_stage && path_goal_stage.vx !== undefined)
+      {
+      ack_target_orientation = {
+                                x: Number(path_goal_stage.vx ?? bot_snapshot.orientation.x ?? 0),
+                                y: Number(path_goal_stage.vy ?? bot_snapshot.orientation.y ?? 0),
+                                z: Number(path_goal_stage.vz ?? bot_snapshot.orientation.z ?? 0)
+                                };
+      } // if
+   } // else if
+
+if (!ack_target_orientation)
+   {
+   ack_target_orientation = {
+                             x: Number(bot_snapshot.orientation.x),
+                             y: Number(bot_snapshot.orientation.y),
+                             z: Number(bot_snapshot.orientation.z)
+                             };
+   } // if
+
 if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
    {
    let bots_tmp_ack = controller.apicall_build_active_bots_tmp(true, excluded_bot_ids);
@@ -674,6 +784,8 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
 
    if (ack_botindex != null)
       {
+      try
+         {
       bots_tmp_ack[ack_botindex].x = target_x;
       bots_tmp_ack[ack_botindex].y = target_y;
       bots_tmp_ack[ack_botindex].z = target_z;
@@ -827,6 +939,17 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
                                                                        botindex_map_ack
                                                                        );
          } // if
+         } catch (err)
+           {
+           ack_stl_debug = {
+                            error: "ACK_ROUTE_SIMULATION_FAILED",
+                            message: err && err.message ? err.message : String(err),
+                            mobility_mode: mobility_mode,
+                            partial_ack_target_addr: ack_target_addr,
+                            partial_ack_retaddr: ack_retaddr
+                            };
+           Logger.log("move_bot_to ack route simulation failed: " + ack_stl_debug.message);
+           } // catch
       } // if
    } // if
 
@@ -862,6 +985,7 @@ if (should_execute_move === true && planned_raw_cmd)
                                       {
                                       bot_id: bot_id,
                                       to: { x: target_x, y: target_y, z: target_z },
+                                      orientation: ack_target_orientation,
                                       planned_raw_cmd: planned_raw_cmd,
                                       retaddr: ack_retaddr,
                                       status: "pending"
@@ -880,37 +1004,40 @@ if (should_execute_move === true && planned_raw_cmd)
 
    if ((raw_ret.accepted ?? false) === true && ack_id === null)
       {
-      let fallback_botindex = controller.get_bot_by_id(bot_id, controller.bots);
+         let fallback_botindex = controller.get_bot_by_id(bot_id, controller.bots);
 
-      if (fallback_botindex != null)
-         {
-         let oldx = Number(controller.bots[fallback_botindex].x);
+         if (fallback_botindex != null)
+            {
+            let oldx = Number(controller.bots[fallback_botindex].x);
          let oldy = Number(controller.bots[fallback_botindex].y);
          let oldz = Number(controller.bots[fallback_botindex].z);
 
-         controller.update_keyindex(oldx, oldy, oldz, target_x, target_y, target_z);
-         controller.bots[fallback_botindex].x = Number(target_x);
-         controller.bots[fallback_botindex].y = Number(target_y);
-         controller.bots[fallback_botindex].z = Number(target_z);
+            controller.update_keyindex(oldx, oldy, oldz, target_x, target_y, target_z);
+            controller.bots[fallback_botindex].x = Number(target_x);
+            controller.bots[fallback_botindex].y = Number(target_y);
+            controller.bots[fallback_botindex].z = Number(target_z);
+            controller.bots[fallback_botindex].vector_x = Number(ack_target_orientation.x);
+            controller.bots[fallback_botindex].vector_y = Number(ack_target_orientation.y);
+            controller.bots[fallback_botindex].vector_z = Number(ack_target_orientation.z);
 
-         if (String(carried_payload_bot_id ?? "").trim() != "")
-            {
-            controller.apicall_sync_payload_from_carrier(
-                                                       bot_id,
-                                                       {
-                                                       x: Number(target_x),
-                                                       y: Number(target_y),
-                                                       z: Number(target_z)
-                                                       },
-                                                       {
-                                                       x: Number(controller.bots[fallback_botindex].vector_x),
-                                                       y: Number(controller.bots[fallback_botindex].vector_y),
-                                                       z: Number(controller.bots[fallback_botindex].vector_z)
-                                                       }
-                                                       );
-            } // if
+            if (String(carried_payload_bot_id ?? "").trim() != "")
+               {
+               controller.apicall_sync_payload_from_carrier(
+                                                          bot_id,
+                                                          {
+                                                          x: Number(target_x),
+                                                          y: Number(target_y),
+                                                          z: Number(target_z)
+                                                          },
+                                                          {
+                                                          x: Number(ack_target_orientation.x),
+                                                          y: Number(ack_target_orientation.y),
+                                                          z: Number(ack_target_orientation.z)
+                                                          }
+                                                          );
+               } // if
 
-         controller.apicall_gui_refresh();
+            controller.apicall_gui_refresh();
          } // if
       } // if
    } // if
@@ -945,59 +1072,69 @@ if (Array.isArray(path_ret.path))
        } // for
    } // if
 
-return({
-       ok: true,
-       answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
-       bot_id: bot_id,
-       execution_mode: (should_execute_move ? "batched-raw-cmd" : "diagnostic-plan"),
-       target: {
-                x: target_x,
-                y: target_y,
-                z: target_z
-                },
-       executable: (planned_raw_cmd !== null),
-       executed: (should_execute_move ? ((raw_ret?.accepted ?? false) === true) : false),
-       reason: "PATH_READY_FOR_MOVE_TRANSLATION",
-       current_state: bot_snapshot,
-       carried_payload_bot_id: carried_payload_bot_id,
-       planning_excluded_bot_ids: excluded_bot_ids,
-       turn_positions_on_path: turn_positions_on_path,
-       path_found: path_ret.path_found === true,
-       path_length: path_ret.path_length ?? ((path_ret.path ?? []).length),
-       path: path_ret.path ?? [],
-       planned_moves: planned_moves,
-       planned_primitives: planned_primitives,
-       path_debug_rejections: path_ret.path_debug_rejections ?? [],
-       invalid_primitive_count: move_diagnostic_summary?.invalid_primitive_count ?? 0,
-       invalid_primitive_indices: move_diagnostic_summary?.invalid_primitive_indices ?? [],
-       path_debug_rejection_count: move_diagnostic_summary?.path_debug_rejection_count ?? 0,
-       path_debug_rejection_reasons: move_diagnostic_summary?.path_debug_rejection_reasons ?? [],
-       legacy_translation_status: move_diagnostic_summary?.legacy_translation_status ?? "not_attempted",
-       legacy_translation_warning: move_diagnostic_summary?.legacy_translation_warning ?? "",
-       final_diagnostic_reason: move_diagnostic_summary?.final_diagnostic_reason ?? "MOVE_TRANSLATION_FAILED",
-       planned_movecmds_legacy: planned_movecmds_legacy,
-       ack_target_addr: ack_target_addr,
-       ack_target_neighbors_debug: ack_target_neighbors_debug,
-       ack_target_neighbors_live_debug: ack_target_neighbors_live_debug,
-       ack_stl_debug: ack_stl_debug,
-       ack_id: ack_id,
-       ack_retaddr: ack_retaddr,
-       planned_raw_cmd: planned_raw_cmd,
-       raw_cmd_result: raw_ret,
-       notes: [
-               "Primitive middle paths are already derived from the coordinate path.",
-               "Anchors are now selected for each primitive where possible.",
-               "A complete MOVE raw command is preferably built via the legacy calc_move_cmds() translator.",
-               "API move commands now append ALIFE with an API-specific acknowledgement id when a return address is available.",
-               (should_execute_move ? "The command is executed immediately in this version if all primitives are valid." : "Diagnostic mode stops before raw command execution and only returns the planned translation.")
-               ]
-       });
+let response = {
+               ok: true,
+               answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
+               bot_id: bot_id,
+               mobility_mode: mobility_mode,
+               goal_orientation: normalized_goal_orientation,
+               execution_mode: (should_execute_move ? "batched-raw-cmd" : "diagnostic-plan"),
+               target: {
+                        x: target_x,
+                        y: target_y,
+                        z: target_z
+                        },
+               executable: (planned_raw_cmd !== null),
+               executed: (should_execute_move ? ((raw_ret?.accepted ?? false) === true) : false),
+               reason: "PATH_READY_FOR_MOVE_TRANSLATION",
+               current_state: bot_snapshot,
+               carried_payload_bot_id: carried_payload_bot_id,
+               planning_excluded_bot_ids: excluded_bot_ids,
+               path_found: path_ret.path_found === true,
+               path_length: path_ret.path_length ?? ((path_ret.path ?? []).length),
+               planned_raw_cmd: planned_raw_cmd,
+               raw_cmd_result: raw_ret,
+               ack_id: ack_id,
+               ack_retaddr: ack_retaddr,
+               notes: [
+                       "Primitive middle paths are already derived from the coordinate path.",
+                       "Anchors are now selected for each primitive where possible.",
+                       "A complete MOVE raw command is preferably built via the legacy calc_move_cmds() translator.",
+                       "API move commands now append ALIFE with an API-specific acknowledgement id when a return address is available.",
+                       (should_execute_move ? "The command is executed immediately in this version if all primitives are valid." : "Diagnostic mode stops before raw command execution and only returns the planned translation.")
+                       ]
+               };
+
+// For normal move_bot_to (execution mode), strip verbose diagnostic fields to keep responses compact.
+// Full diagnostic details are only included in diagnose_move_bot_to responses.
+if (should_execute_move !== true)
+   {
+   response.turn_positions_on_path = turn_positions_on_path;
+   response.path = path_ret.path ?? [];
+   response.planned_moves = planned_moves;
+   response.planned_primitives = planned_primitives;
+   response.path_debug_rejections = path_ret.path_debug_rejections ?? [];
+   response.invalid_primitive_count = move_diagnostic_summary?.invalid_primitive_count ?? 0;
+   response.invalid_primitive_indices = move_diagnostic_summary?.invalid_primitive_indices ?? [];
+   response.path_debug_rejection_count = move_diagnostic_summary?.path_debug_rejection_count ?? 0;
+   response.path_debug_rejection_reasons = move_diagnostic_summary?.path_debug_rejection_reasons ?? [];
+   response.legacy_translation_status = move_diagnostic_summary?.legacy_translation_status ?? "not_attempted";
+   response.legacy_translation_warning = move_diagnostic_summary?.legacy_translation_warning ?? "";
+   response.final_diagnostic_reason = move_diagnostic_summary?.final_diagnostic_reason ?? "MOVE_TRANSLATION_FAILED";
+   response.planned_movecmds_legacy = planned_movecmds_legacy;
+   response.ack_target_addr = ack_target_addr;
+   response.ack_target_neighbors_debug = ack_target_neighbors_debug;
+   response.ack_target_neighbors_live_debug = ack_target_neighbors_live_debug;
+   response.ack_stl_debug = ack_stl_debug;
+   } // if
+
+return(response);
 } // apicall_move_bot_to()
 
 
-function apicall_diagnose_move_bot_to(controller, bot_id, x, y, z)
+function apicall_diagnose_move_bot_to(controller, bot_id, x, y, z, goal_orientation = null)
 {
-return(apicall_move_bot_to(controller, bot_id, x, y, z, false));
+return(apicall_move_bot_to(controller, bot_id, x, y, z, false, goal_orientation));
 } // apicall_diagnose_move_bot_to()
 
 

@@ -45,6 +45,8 @@ return({
        loaded_cluster_bots: cluster_count,
        masterbot_connected: (controller.MASTERBOT_CONNECTED == 1),
        masterbot_name: controller.masterbot_name,
+       mobility_mode: String(controller?.config?.mobility_mode ?? "full_edge").trim(),
+       communication_mode: String(controller?.config?.communication_mode ?? "mesh_opcode").trim(),
        bounding_box: bounding_box
        });
 } // apicall_get_status_extended()
