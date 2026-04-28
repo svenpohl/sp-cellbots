@@ -61,7 +61,7 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.6**  
+Current version: **1.7**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
