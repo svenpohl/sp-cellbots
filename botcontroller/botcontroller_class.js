@@ -158,7 +158,8 @@ const {
       apicall_get_wrapped_cell_for_double_step: runtime_get_wrapped_cell_for_double_step,
       apicall_is_valid_wrapped_double_step: runtime_is_valid_wrapped_double_step,
       apicall_calc_single_path: runtime_calc_single_path,
-      apicall_calc_single_path_payload: runtime_calc_single_path_payload
+      apicall_calc_single_path_payload: runtime_calc_single_path_payload,
+      apicall_calc_vehicle_kinematics_path: runtime_calc_vehicle_kinematics_path
       } = require('./api_service/modules/api_path_core_runtime');
 const {
       apicall_get_normalized_crater_id: runtime_get_normalized_crater_id,
@@ -324,6 +325,7 @@ constructor()
    this.api_crater_runs = {};
    this.crater_active_id = this.api_crater_default_id;
    this.debug_move_enabled = false;
+   this.debug_vk_exports = true;
    this.safe_mode = 2;
    this.direct_radio_id_rid_map = {};
    this.direct_radio_rid_id_map = {};
@@ -757,6 +759,145 @@ apicall_mark_ack_recovered(ack_id)
 {
 return(runtime_mark_ack_recovered(this, ack_id));
 } // apicall_mark_ack_recovered()
+
+
+apicall_apply_ack_local_state(ack_id)
+{
+let normalized_ack_id = String(ack_id ?? "").trim();
+let ack_entry = this.apicall_get_ack(normalized_ack_id);
+let bot_id = String(ack_entry?.bot_id ?? "").trim();
+let botindex = null;
+let mode = String(ack_entry?.mode ?? "").trim().toLowerCase();
+let mobility_mode = String(this?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
+let payload_bot_id = String(ack_entry?.payload_bot_id ?? "").trim();
+let target_position = ack_entry?.to ?? null;
+let target_orientation = ack_entry?.orientation ?? null;
+let applied = false;
+
+if (!ack_entry || bot_id == "")
+   {
+   return({
+          ok: false,
+          answer: "api_ack_local_state",
+          ack_id: normalized_ack_id,
+          error: "ACK_ENTRY_MISSING",
+          applied: false
+          });
+   } // if
+
+botindex = this.get_bot_by_id(bot_id, this.bots);
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_ack_local_state",
+          ack_id: normalized_ack_id,
+          bot_id: bot_id,
+          error: "BOT_NOT_FOUND",
+          applied: false
+          });
+   } // if
+
+if (target_position && typeof target_position == "object")
+   {
+   let oldx = Number(this.bots[botindex].x);
+   let oldy = Number(this.bots[botindex].y);
+   let oldz = Number(this.bots[botindex].z);
+   let nextx = Number(target_position.x ?? oldx);
+   let nexty = Number(target_position.y ?? oldy);
+   let nextz = Number(target_position.z ?? oldz);
+
+   if (oldx !== nextx || oldy !== nexty || oldz !== nextz)
+      {
+      this.update_keyindex(oldx, oldy, oldz, nextx, nexty, nextz);
+      this.bots[botindex].x = nextx;
+      this.bots[botindex].y = nexty;
+      this.bots[botindex].z = nextz;
+      applied = true;
+      } // if
+   } // if
+
+if (target_orientation && typeof target_orientation == "object")
+   {
+   let nextvx = Number(target_orientation.x ?? this.bots[botindex].vector_x ?? 0);
+   let nextvy = Number(target_orientation.y ?? this.bots[botindex].vector_y ?? 0);
+   let nextvz = Number(target_orientation.z ?? this.bots[botindex].vector_z ?? 0);
+
+   if (
+       (mode == "spin" || mobility_mode == "vehicle_kinematics") &&
+       (
+        Number(this.bots[botindex].vector_x) !== nextvx ||
+        Number(this.bots[botindex].vector_y) !== nextvy ||
+        Number(this.bots[botindex].vector_z) !== nextvz
+       )
+      )
+      {
+      this.bots[botindex].vector_x = nextvx;
+      this.bots[botindex].vector_y = nextvy;
+      this.bots[botindex].vector_z = nextvz;
+      applied = true;
+      } // if
+   } // if
+
+if (mode == "move" || mode == "spin")
+   {
+   let carrier_snapshot = this.apicall_get_bot_snapshot(bot_id);
+
+   if (carrier_snapshot && payload_bot_id != "")
+      {
+      this.apicall_sync_payload_from_carrier(
+                                             bot_id,
+                                             carrier_snapshot.position,
+                                             carrier_snapshot.orientation
+                                             );
+      applied = true;
+      } // if
+   } // if
+else if (mode == "grab")
+   {
+   if (payload_bot_id != "")
+      {
+      this.apicall_register_payload_link(bot_id, payload_bot_id, "F", true);
+      let carrier_snapshot = this.apicall_get_bot_snapshot(bot_id);
+
+      if (carrier_snapshot)
+         {
+         this.apicall_sync_payload_from_carrier(
+                                                bot_id,
+                                                carrier_snapshot.position,
+                                                carrier_snapshot.orientation
+                                                );
+         } // if
+
+      applied = true;
+      } // if
+   } // else if
+else if (mode == "release")
+   {
+   if (payload_bot_id != "")
+      {
+      this.apicall_clear_payload_link(bot_id);
+      applied = true;
+      } // if
+   } // else if
+
+if (applied === true)
+   {
+   this.apicall_gui_refresh();
+   } // if
+
+return({
+       ok: true,
+       answer: "api_ack_local_state",
+       ack_id: normalized_ack_id,
+       bot_id: bot_id,
+       mode: mode,
+       mobility_mode: mobility_mode,
+       applied: applied,
+       snapshot: this.apicall_get_bot_snapshot(bot_id)
+       });
+} // apicall_apply_ack_local_state()
 
 
 apicall_remove_ack(ack_id)
@@ -3670,7 +3811,7 @@ const bots_tmp = Array.isArray(botsInput) ? botsInput : Object.values(botsInput)
 //
 // calc_move_cmd()
 //
-calc_move_cmds(fullPath, vx, vy, vz, bots )
+calc_move_cmds(fullPath, vx, vy, vz, bots, goal_orientation = null)
 {
 let movecmds = "";
 
@@ -3882,11 +4023,986 @@ let ret = {
            final_lastanchorneighbour: final_lastanchorneighbour
            };
 
+let calc_move_cmds_return_path = path.join(__dirname, "logs", "calc_move_cmds_return.json");
+if (this.debug_vk_exports === true)
+   {
+   fs.writeFileSync(calc_move_cmds_return_path, JSON.stringify(ret, null, 2), "utf8");
+   Logger.log("calc_move_cmds return dumped: " + calc_move_cmds_return_path);
+   } // if (this.debug_vk_exports === true)
+
 // console.log("ret: calc_move_cmds");
 // console.log( ret );
 
 return(ret);
 } // calc_move_cmds
+
+
+
+//
+// calc_move_vk_cmds()
+// Vehicle-kinematics entry point for the MOVE translation chain.
+// For now this mirrors calc_move_cmds() so we can switch call sites
+// cleanly and extend the rotation-aware logic later in one place.
+//
+calc_move_vk_cmds(fullPath, vx, vy, vz, bots, goal_orientation = null)
+{
+const self = this;
+
+let stage_dump_path = path.join(__dirname, "logs", "calc_move_vk_stages.json");
+let stage_dump = {
+                 timestamp: new Date().toISOString(),
+                 start_orientation: {
+                                     x: Number(vx),
+                                     y: Number(vy),
+                                     z: Number(vz)
+                                     },
+                 goal_orientation: goal_orientation ?? null,
+                 path_length: Array.isArray(fullPath) ? fullPath.length : 0,
+                 bots_count: Array.isArray(bots) ? bots.length : 0,
+                 stages: Array.isArray(fullPath) ? fullPath : []
+                 };
+
+Logger.log("calc_move_vk_cmds called: path_length=" + stage_dump.path_length + " goal_orientation=" + JSON.stringify(stage_dump.goal_orientation) + " dump_path=" + stage_dump_path);
+vk_debug_write(stage_dump_path, JSON.stringify(stage_dump, null, 2), "utf8");
+
+//return(this.calc_move_cmds(fullPath, vx, vy, vz, bots, goal_orientation));
+
+// ---
+
+let movecmds = "";
+
+let lastneighbour= null;
+let final_lastanchor= null;
+let final_lastanchorneighbour = null;
+
+let vk_movesubcmds = [];
+let vk_bots = Array.isArray(bots) ? bots.map(bot => Object.assign({}, bot)) : [];
+let vk_moving_bot_index = null;
+let pending_vk_macro_step = null;
+
+function vk_debug_write(file_path, content, encoding = "utf8")
+{
+if (self.debug_vk_exports !== true)
+   {
+   return;
+   }
+
+fs.writeFileSync(file_path, content, encoding);
+} // vk_debug_write()
+
+function get_vk_anchor(stage)
+{
+let result = {
+             slot: "D",
+             neighbour: {
+                        x: stage.x,
+                        y: stage.y - 1,
+                        z: stage.z
+                        },
+             fallback: true
+             };
+
+let neighbours = self.get_valid_neighbours(
+                                           {x:stage.x, y:stage.y, z:stage.z},
+                                           {x:self.mb.x, y:self.mb.y, z:self.mb.z},
+                                           vk_bots
+                                           );
+
+if (Array.isArray(neighbours) && neighbours.length > 0)
+   {
+   let tx = neighbours[0].x - stage.x;
+   let ty = neighbours[0].y - stage.y;
+   let tz = neighbours[0].z - stage.z;
+   let slot = self.get_cell_slot_byvector(tx, ty, tz, stage.vx, stage.vy, stage.vz);
+
+   result = {
+            slot: slot,
+            neighbour: {
+                       x: neighbours[0].x,
+                       y: neighbours[0].y,
+                       z: neighbours[0].z
+                       },
+            fallback: false
+            };
+   } // if (Array.isArray(neighbours) && neighbours.length > 0)
+
+return(result);
+} // get_vk_anchor()
+
+function get_vk_policy_anchor(stage, slot)
+{
+let rel = self.get_cell_relation_vector_byslot(slot, stage.vx, stage.vy, stage.vz);
+
+return({
+       slot: slot,
+       neighbour: {
+                  x: stage.x + Number(rel.x ?? 0),
+                  y: stage.y + Number(rel.y ?? 0),
+                  z: stage.z + Number(rel.z ?? 0)
+                  },
+       fallback: false
+       });
+} // get_vk_policy_anchor()
+
+function get_vk_anchor_policy(step)
+{
+let policy = {
+             start_slot: "D",
+             stop_slot: "D",
+             reason: "horizontal_or_rotation"
+             };
+
+if (step != null && step.merged === true)
+   {
+   if (step.merge_type == "step_up")
+      {
+      policy = {
+               start_slot: "F",
+               stop_slot: "D",
+               reason: "merged_step_up_transition"
+               };
+      } else if (step.merge_type == "step_down")
+        {
+        policy = {
+                 start_slot: "D",
+                 stop_slot: "F",
+                 reason: "merged_step_down_transition"
+                 };
+        } else
+          {
+          policy = {
+                   start_slot: "F",
+                   stop_slot: "D",
+                   reason: "merged_step_transition"
+                   };
+          }
+   } else if (step != null && (step.direction === "up" || step.direction === "down"))
+     {
+     policy = {
+              start_slot: "F",
+              stop_slot: "F",
+              reason: "wall_vertical_move"
+              };
+     }
+
+return(policy);
+} // get_vk_anchor_policy()
+
+function get_vk_step_primitive(from_stage, to_stage)
+{
+let dx = to_stage.x - from_stage.x;
+let dy = to_stage.y - from_stage.y;
+let dz = to_stage.z - from_stage.z;
+
+if (dx == 0 && dy == 1 && dz == 0)
+   {
+   return("T");
+   }
+
+if (dx == 0 && dy == -1 && dz == 0)
+   {
+   return("D");
+   }
+
+if (dy == 0 && dx == from_stage.vx && dz == from_stage.vz)
+   {
+   return("F");
+   }
+
+if (dy == 0 && dx == -from_stage.vx && dz == -from_stage.vz)
+   {
+   return("B");
+   }
+
+return("");
+} // get_vk_step_primitive()
+
+function get_vk_step_merge_info(current, next, next2)
+{
+let result = {
+             merged: false,
+             merge_type: "",
+             merged_primitive: "",
+             first_primitive: "",
+             second_primitive: "",
+             merge_detail: ""
+             };
+
+if (current == null || next == null || next2 == null)
+   {
+   return(result);
+   }
+
+if (current.vx != next.vx || current.vy != next.vy || current.vz != next.vz)
+   {
+   return(result);
+   }
+
+if (next.vx != next2.vx || next.vy != next2.vy || next.vz != next2.vz)
+   {
+   return(result);
+   }
+
+let first_primitive = get_vk_step_primitive(current, next);
+let second_primitive = get_vk_step_primitive(next, next2);
+
+if (first_primitive == "" || second_primitive == "")
+   {
+   return(result);
+   }
+
+let first_is_vertical = (first_primitive == "T" || first_primitive == "D");
+let first_is_horizontal = (first_primitive == "F" || first_primitive == "B");
+let second_is_vertical = (second_primitive == "T" || second_primitive == "D");
+let second_is_horizontal = (second_primitive == "F" || second_primitive == "B");
+
+if (first_is_vertical && second_is_horizontal)
+   {
+   if (first_primitive == "T")
+      {
+      result.merged = true;
+      result.merge_type = "step_up";
+      result.merged_primitive = first_primitive + second_primitive;
+      result.first_primitive = first_primitive;
+      result.second_primitive = second_primitive;
+      result.merge_detail = "vertical_then_horizontal";
+      return(result);
+      } // if (first_primitive == "T")
+   }
+
+if (first_is_horizontal && second_is_vertical)
+   {
+   if (second_primitive == "D")
+      {
+      result.merged = true;
+      result.merge_type = "step_down";
+      result.merged_primitive = first_primitive + second_primitive;
+      result.first_primitive = first_primitive;
+      result.second_primitive = second_primitive;
+      result.merge_detail = "horizontal_then_vertical";
+      return(result);
+      } // if (second_primitive == "D")
+   }
+
+return(result);
+} // get_vk_step_merge_info()
+
+function get_vk_merged_movesubcmd(merge_type, merged_primitive)
+{
+if (merge_type == "step_up")
+   {
+   return("F_" + String(merged_primitive ?? "") + "_D");
+   }
+
+if (merge_type == "step_down")
+   {
+   return("D_" + String(merged_primitive ?? "") + "_F");
+   }
+
+return(String(merged_primitive ?? ""));
+} // get_vk_merged_movesubcmd()
+
+function build_vk_macro_steps(raw_path)
+{
+let macro_steps = [];
+let merge_trace = [];
+
+if (!Array.isArray(raw_path) || raw_path.length == 0)
+   {
+   return(macro_steps);
+   } // if
+
+    for (let i=0; i<raw_path.length-1; i++)
+    {
+    let current = raw_path[i];
+    let next = raw_path[i+1];
+    let anchor_start_info = get_vk_anchor(current);
+    let anchor_stop_info = get_vk_anchor(next);
+    let merged_move = null;
+
+    if (i + 2 < raw_path.length)
+       {
+       merged_move = get_vk_step_merge_info(current, next, raw_path[i+2]);
+       } // if
+
+    if (merged_move != null && merged_move.merged === true)
+       {
+       let merge_next = raw_path[i+2];
+
+       merge_trace.push({
+                        raw_index: i,
+                        raw_span: 2,
+                        merged: true,
+                        merge_type: merged_move.merge_type,
+                        merge_detail: merged_move.merge_detail,
+                        merged_primitive: merged_move.merged_primitive,
+                        first_primitive: merged_move.first_primitive,
+                        second_primitive: merged_move.second_primitive,
+                        from: current,
+                        next: next,
+                        to: merge_next
+                        });
+
+       macro_steps.push({
+                        index: macro_steps.length,
+                        raw_index: i,
+                        raw_span: 2,
+                        merged: true,
+                        merge_type: merged_move.merge_type,
+                        merge_detail: merged_move.merge_detail,
+                        merged_primitive: merged_move.merged_primitive,
+                        from: current,
+                        to: merge_next,
+                        anchor_start_info: anchor_start_info,
+                        anchor_stop_info: get_vk_anchor(merge_next)
+                        });
+
+       i += 1;
+       continue;
+       } // if
+
+    merge_trace.push({
+                     raw_index: i,
+                     raw_span: 1,
+                     merged: false,
+                     merge_type: "",
+                     merge_detail: "",
+                     merged_primitive: "",
+                     first_primitive: "",
+                     second_primitive: "",
+                     from: current,
+                     next: next,
+                     to: next
+                     });
+
+    macro_steps.push({
+                     index: macro_steps.length,
+                     raw_index: i,
+                     raw_span: 1,
+                     merged: false,
+                     merge_type: "",
+                     merge_detail: "",
+                     merged_primitive: "",
+                     from: current,
+                     to: next,
+                     anchor_start_info: anchor_start_info,
+                     anchor_stop_info: anchor_stop_info
+                     });
+    } // for i<raw_path.length-1
+
+   return({
+          macro_steps: macro_steps,
+          merge_trace: merge_trace
+          });
+} // build_vk_macro_steps()
+
+let vk_macro_build = build_vk_macro_steps(fullPath);
+let vk_macro_steps = Array.isArray(vk_macro_build?.macro_steps) ? vk_macro_build.macro_steps : [];
+let vk_merge_trace = Array.isArray(vk_macro_build?.merge_trace) ? vk_macro_build.merge_trace : [];
+
+if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
+   {
+   vk_moving_bot_index = self.get_botindex_by_xyz(
+                                                  {x: vk_macro_steps[0].from.x, y: vk_macro_steps[0].from.y, z: vk_macro_steps[0].from.z},
+                                                  vk_bots
+                                                  );
+   lastneighbour = vk_macro_steps[0].anchor_start_info.neighbour;
+
+   for (let i=0; i<vk_macro_steps.length; i++)
+       {
+        let step = vk_macro_steps[i];
+        let current = step.from;
+        let next = step.to;
+        let anchor_start_info = step.anchor_start_info;
+        let anchor_stop_info = step.anchor_stop_info;
+        let anchor_policy = get_vk_anchor_policy(step);
+
+        let dx = next.x - current.x;
+        let dy = next.y - current.y;
+        let dz = next.z - current.z;
+       let same_position = (dx == 0 && dy == 0 && dz == 0);
+       let same_orientation = (current.vx == next.vx && current.vy == next.vy && current.vz == next.vz);
+
+       let current_dir = String(current.dir || (current.vx + "," + current.vy + "," + current.vz));
+       let next_dir = String(next.dir || (next.vx + "," + next.vy + "," + next.vz));
+       let rotation = "";
+       let type = "";
+       let direction = "";
+       let movesubcmd = "";
+       let validation = {
+                        checked: false,
+                        ok: null,
+                        reason: "",
+                        expected_pos: {
+                                      x: next.x,
+                                      y: next.y,
+                                      z: next.z
+                                      },
+                        virtual_pos: null,
+                        lastanchor: "",
+                        lastanchorneighbour: null
+                        };
+
+       if (step.merged === true)
+          {
+          type = "translation";
+          rotation = "none";
+          direction = step.merge_type;
+          movesubcmd = get_vk_merged_movesubcmd(step.merge_type, step.merged_primitive);
+
+          anchor_start_info = get_vk_policy_anchor(current, anchor_policy.start_slot);
+          anchor_stop_info = get_vk_policy_anchor(next, anchor_policy.stop_slot);
+
+          validation = {
+                       checked: true,
+                       ok: (movesubcmd !== ""),
+                       reason: (movesubcmd === "" ? "MERGED_COMPOSITE_UNKNOWN" : "MERGED_COMPOSITE_ACCEPTED"),
+                       expected_pos: {
+                                     x: next.x,
+                                     y: next.y,
+                                     z: next.z
+                                     },
+                       virtual_pos: {
+                                    x: next.x,
+                                    y: next.y,
+                                    z: next.z
+                                    },
+                       lastanchor: anchor_stop_info.slot,
+                       lastanchorneighbour: anchor_stop_info.neighbour
+                       };
+          } else if (same_position && !same_orientation)
+            {
+            type = "rotation";
+            direction = "stay";
+
+            let turn_key = current_dir + ">" + next_dir;
+            let spin_right = {
+                             "ZP>PX": true,
+                             "PX>ZN": true,
+                             "ZN>XN": true,
+                             "XN>ZP": true
+                             };
+            let spin_left = {
+                            "ZP>XN": true,
+                            "XN>ZN": true,
+                            "ZN>PX": true,
+                            "PX>ZP": true
+                            };
+
+            if (spin_right[turn_key] === true)
+               {
+               rotation = "SR";
+               movesubcmd = "D_SR_D";
+               } else if (spin_left[turn_key] === true)
+                 {
+                 rotation = "SL";
+                 movesubcmd = "D_SL_D";
+                 } else
+                   {
+                   rotation = "UNKNOWN";
+                   movesubcmd = "";
+                   }
+
+            let rotation_anchor_pos = {
+                                      x: current.x,
+                                      y: current.y - 1,
+                                      z: current.z
+                                      };
+            let rotation_anchor_index = self.get_botindex_by_xyz(rotation_anchor_pos, bots);
+            anchor_start_info = get_vk_policy_anchor(current, "D");
+            anchor_stop_info = get_vk_policy_anchor(next, "D");
+            validation = {
+                         checked: true,
+                         ok: (movesubcmd !== "" && rotation_anchor_index != null),
+                         reason: (movesubcmd === "" ? "UNKNOWN_ROTATION" : (rotation_anchor_index == null ? "DOWN_ANCHOR_MISSING" : "ROTATION_DOWN_ANCHOR_OK")),
+                         expected_pos: {
+                                       x: next.x,
+                                       y: next.y,
+                                       z: next.z
+                                       },
+                         virtual_pos: {
+                                      x: current.x,
+                                      y: current.y,
+                                      z: current.z
+                                      },
+                         lastanchor: "D",
+                         lastanchorneighbour: rotation_anchor_pos
+                         };
+            } else if (!same_position)
+              {
+              type = "translation";
+              rotation = "none";
+
+              if (dy == 1)
+                 {
+                 direction = "up";
+                 movesubcmd = "F_T_F";
+                 anchor_start_info = get_vk_policy_anchor(current, "F");
+                 anchor_stop_info = get_vk_policy_anchor(next, "F");
+                 } else if (dy == -1)
+                   {
+                   direction = "down";
+                   movesubcmd = "F_D_F";
+                   anchor_start_info = get_vk_policy_anchor(current, "F");
+                   anchor_stop_info = get_vk_policy_anchor(next, "F");
+                   } else if (dx == current.vx && dz == current.vz)
+                     {
+                     direction = "forward";
+                     movesubcmd = anchor_start_info.slot + "_F_" + anchor_stop_info.slot;
+                     anchor_start_info = get_vk_policy_anchor(current, "D");
+                     anchor_stop_info = get_vk_policy_anchor(next, "D");
+                     } else if (dx == -current.vx && dz == -current.vz)
+                       {
+                       direction = "backward";
+                       movesubcmd = anchor_start_info.slot + "_B_" + anchor_stop_info.slot;
+                       anchor_start_info = get_vk_policy_anchor(current, "D");
+                       anchor_stop_info = get_vk_policy_anchor(next, "D");
+                       } else
+                         {
+                         direction = "unsupported";
+                         }
+
+              if (movesubcmd !== "")
+                 {
+                 let move_parts = movesubcmd.split("_");
+                 let virtual_move_cmd = move_parts.length >= 2 ? move_parts[1] : "";
+                 let teststruct = self.test_virtual_botmove(
+                                                           {x:current.x, y:current.y, z:current.z},
+                                                           virtual_move_cmd,
+                                                           vk_bots
+                                                           );
+
+                 let virtual_pos = teststruct && teststruct.lastpos ? teststruct.lastpos : null;
+                 let virtual_matches_expected = (
+                                                 virtual_pos != null &&
+                                                 virtual_pos.x == next.x &&
+                                                 virtual_pos.y == next.y &&
+                                                 virtual_pos.z == next.z
+                                                 );
+
+                 validation = {
+                              checked: true,
+                              ok: (teststruct != null && teststruct.check === true && virtual_matches_expected === true),
+                              reason: (teststruct == null ? "NO_TESTSTRUCT" : (teststruct.check !== true ? "VIRTUAL_MOVE_INVALID" : (virtual_matches_expected !== true ? "VIRTUAL_POS_MISMATCH" : "VIRTUAL_MOVE_OK"))),
+                              expected_pos: {
+                                            x: next.x,
+                                            y: next.y,
+                                            z: next.z
+                                            },
+                              virtual_pos: virtual_pos,
+                              lastanchor: teststruct ? teststruct.lastanchor : "",
+                              lastanchorneighbour: teststruct ? teststruct.lastanchorneighbour : null
+                              };
+
+                 if (validation.ok === true)
+                    {
+                    if (direction == "forward" || direction == "backward")
+                       {
+                       anchor_start_info = get_vk_policy_anchor(current, "D");
+                       anchor_stop_info = get_vk_policy_anchor(next, "D");
+                       } else if (direction == "up" || direction == "down")
+                         {
+                         anchor_start_info = get_vk_policy_anchor(current, "F");
+                         anchor_stop_info = get_vk_policy_anchor(next, "F");
+                         }
+
+                    movesubcmd = anchor_start_info.slot + "_" + virtual_move_cmd + "_" + anchor_stop_info.slot;
+                    }
+                 } // if (movesubcmd !== "")
+              } else
+                {
+                type = "noop";
+                direction = "stay";
+                rotation = "none";
+                validation = {
+                             checked: true,
+                             ok: true,
+                             reason: "NOOP",
+                             expected_pos: {
+                                           x: next.x,
+                                           y: next.y,
+                                           z: next.z
+                                           },
+                             virtual_pos: {
+                                          x: current.x,
+                                          y: current.y,
+                                          z: current.z
+                                          },
+                             lastanchor: anchor_stop_info.slot,
+                             lastanchorneighbour: anchor_stop_info.neighbour
+                             };
+                }
+
+       vk_movesubcmds.push({
+                            index: i,
+                            type: type,
+                            direction: direction,
+                            rotation: rotation,
+                            translation: {
+                                         dx: dx,
+                                         dy: dy,
+                                         dz: dz
+                                         },
+                            from: {
+                                  x: current.x,
+                                  y: current.y,
+                                  z: current.z,
+                                  vx: current.vx,
+                                  vy: current.vy,
+                                  vz: current.vz,
+                                  dir: current.dir ?? null
+                                  },
+                            to: {
+                                x: next.x,
+                                y: next.y,
+                                z: next.z,
+                                vx: next.vx,
+                                vy: next.vy,
+                                vz: next.vz,
+                                dir: next.dir ?? null
+                                },
+                            anchor_start: anchor_start_info.slot,
+                            anchor_start_info: anchor_start_info,
+                            anchor_stop: anchor_stop_info.slot,
+                            anchor_stop_info: anchor_stop_info,
+                            validation: validation,
+                            movesubcmd: movesubcmd,
+                            merged: step.merged === true,
+                            merged_detail: step.merge_detail ?? "",
+                            merged_primitive: step.merged_primitive ?? ""
+                            });
+
+       if (vk_moving_bot_index != null && vk_bots[vk_moving_bot_index] !== undefined)
+          {
+          vk_bots[vk_moving_bot_index].x = next.x;
+          vk_bots[vk_moving_bot_index].y = next.y;
+          vk_bots[vk_moving_bot_index].z = next.z;
+          vk_bots[vk_moving_bot_index].vector_x = next.vx;
+          vk_bots[vk_moving_bot_index].vector_y = next.vy;
+          vk_bots[vk_moving_bot_index].vector_z = next.vz;
+          } // if (vk_moving_bot_index != null && vk_bots[vk_moving_bot_index] !== undefined)
+       } // for i<vk_macro_steps.length
+
+   let last_step = vk_macro_steps[vk_macro_steps.length-1];
+   final_lastanchor = last_step.anchor_stop_info.slot;
+   final_lastanchorneighbour = last_step.anchor_stop_info.neighbour;
+   } // if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
+
+movecmds = vk_movesubcmds
+           .map(item => item.movesubcmd)
+           .filter(item => item !== "")
+           .join(";");
+
+let vk_movesubcmds_path = path.join(__dirname, "logs", "calc_move_vk_movesubcmds.json");
+vk_debug_write(vk_movesubcmds_path, JSON.stringify(vk_movesubcmds, null, 2), "utf8");
+Logger.log("calc_move_vk_cmds movesubcmds dumped: " + vk_movesubcmds_path);
+
+let vk_merge_trace_path = path.join(__dirname, "logs", "calc_move_vk_merge_trace.json");
+vk_debug_write(vk_merge_trace_path, JSON.stringify(vk_merge_trace, null, 2), "utf8");
+Logger.log("calc_move_vk_cmds merge trace dumped: " + vk_merge_trace_path);
+
+let vk_merge_trace_lines = [];
+
+for (let i=0; i<vk_merge_trace.length; i++)
+    {
+    let item = vk_merge_trace[i];
+    let from_dir = item.from && item.from.dir != null ? item.from.dir : (item.from ? (item.from.vx + "," + item.from.vy + "," + item.from.vz) : "");
+    let next_dir = item.next && item.next.dir != null ? item.next.dir : (item.next ? (item.next.vx + "," + item.next.vy + "," + item.next.vz) : "");
+    let to_dir = item.to && item.to.dir != null ? item.to.dir : (item.to ? (item.to.vx + "," + item.to.vy + "," + item.to.vz) : "");
+    let line = [
+                String(item.raw_index).padStart(2, "0"),
+                item.merged === true ? "merged" : "single",
+                item.merge_type || "-",
+                item.merge_detail || "-",
+                item.merged_primitive || "-",
+                `from=(${item.from.x},${item.from.y},${item.from.z})[${from_dir}]`,
+                `next=(${item.next.x},${item.next.y},${item.next.z})[${next_dir}]`,
+                `to=(${item.to.x},${item.to.y},${item.to.z})[${to_dir}]`
+                ].join(" | ");
+    vk_merge_trace_lines.push(line);
+    } // for i<vk_merge_trace.length
+
+let vk_merge_trace_text = [
+                           "calc_move_vk_cmds merge_trace",
+                           "path_length=" + vk_merge_trace.length,
+                           "goal_orientation=" + JSON.stringify(goal_orientation ?? null),
+                           ""
+                           ].concat(vk_merge_trace_lines).join("\n");
+
+let vk_merge_trace_text_path = path.join(__dirname, "logs", "calc_move_vk_merge_trace.txt");
+vk_debug_write(vk_merge_trace_text_path, vk_merge_trace_text, "utf8");
+Logger.log("calc_move_vk_cmds merge trace text dumped: " + vk_merge_trace_text_path);
+
+let vk_chain_lines = [];
+
+for (let i=0; i<vk_movesubcmds.length; i++)
+    {
+    let item = vk_movesubcmds[i];
+    let from_dir = item.from && item.from.dir != null ? item.from.dir : (item.from ? (item.from.vx + "," + item.from.vy + "," + item.from.vz) : "");
+    let to_dir = item.to && item.to.dir != null ? item.to.dir : (item.to ? (item.to.vx + "," + item.to.vy + "," + item.to.vz) : "");
+    let line = [
+                String(item.index).padStart(2, "0"),
+                item.type,
+                item.direction,
+                item.rotation,
+                `from=(${item.from.x},${item.from.y},${item.from.z})[${from_dir}]`,
+                `to=(${item.to.x},${item.to.y},${item.to.z})[${to_dir}]`,
+                `anchor=${item.anchor_start}->${item.anchor_stop}`,
+                `move=${item.movesubcmd || ""}`,
+                item.merged === true ? `merged=${item.merged_primitive}` : ""
+                ].filter(part => part !== "").join(" | ");
+    vk_chain_lines.push(line);
+    } // for i<vk_movesubcmds.length
+
+let vk_chain_text = [
+                    "calc_move_vk_cmds chain",
+                    "path_length=" + vk_movesubcmds.length,
+                    "goal_orientation=" + JSON.stringify(goal_orientation ?? null),
+                    ""
+                    ].concat(vk_chain_lines).join("\n");
+
+let vk_chain_text_path = path.join(__dirname, "logs", "calc_move_vk_chain.txt");
+vk_debug_write(vk_chain_text_path, vk_chain_text, "utf8");
+Logger.log("calc_move_vk_cmds chain dumped: " + vk_chain_text_path);
+
+let vk_chain_dump = {
+                     timestamp: new Date().toISOString(),
+                     path_length: vk_movesubcmds.length,
+                     goal_orientation: goal_orientation ?? null,
+                     chain: vk_movesubcmds
+                     };
+
+let vk_chain_json_path = path.join(__dirname, "logs", "calc_move_vk_chain.json");
+vk_debug_write(vk_chain_json_path, JSON.stringify(vk_chain_dump, null, 2), "utf8");
+Logger.log("calc_move_vk_cmds chain json dumped: " + vk_chain_json_path);
+
+
+/* 
+
+
+         
+
+const moveMap = {
+  "E,1,0,0": "F",
+  "E,0,-1,0": "D",
+  "E,-1,0,0": "B",
+  "E,0,1,0": "T",
+  "E,0,0,-1": "R",
+  "E,0,0,1": "L",
+
+  "S,1,0,0": "L",
+  "S,0,-1,0": "D",
+  "S,-1,0,0": "R",
+  "S,0,1,0": "T",
+  "S,0,0,-1": "F",
+  "S,0,0,1": "B",
+
+  "W,1,0,0": "B",
+  "W,0,-1,0": "D",
+  "W,-1,0,0": "F",
+  "W,0,1,0": "T",
+  "W,0,0,-1": "L",
+  "W,0,0,1": "R",
+  
+  "N,1,0,0": "R",
+  "N,0,-1,0": "D",
+  "N,-1,0,0": "L",
+  "N,0,1,0": "T",
+  "N,0,0,-1": "B",
+  "N,0,0,1": "F"
+     
+};
+
+
+let orientation = "";
+
+if (vx ==  1 && vy ==  0 && vz ==  0) orientation = "E";
+if (vx ==  0 && vy ==  0 && vz == -1) orientation = "S";
+if (vx == -1 && vy ==  0 && vz ==  0) orientation = "W";
+if (vx ==  0 && vy ==  0 && vz ==  1) orientation = "N";
+
+
+// Create raw moves
+let rawMoves = "";
+
+let bot_x = fullPath[0].x;
+let bot_y = fullPath[0].y;
+let bot_z = fullPath[0].z;
+
+
+let size = fullPath.length;
+
+for (let i=0; i<size-1; i++)
+    {
+    
+        
+    
+    let diffx = fullPath[i+1].x - fullPath[i].x;
+    let diffy = fullPath[i+1].y - fullPath[i].y;
+    let diffz = fullPath[i+1].z - fullPath[i].z;
+    
+
+    let moveMapIndex = orientation + "," + diffx + "," + diffy + "," + diffz ;
+
+    let result = moveMap[ moveMapIndex ] ;
+    
+    if (!result) {
+    console.warn('WARN: no mapping for:', moveMapIndex, '(orientation:', orientation, ')');  
+    }
+    
+    rawMoves += moveMap[ moveMapIndex ];
+
+    } // for i..size
+
+
+
+    
+    
+size = rawMoves.length;
+
+
+let lastneighbour = {};
+let final_lastanchor = "";
+let final_lastanchorneighbour = null;
+//    
+// Iterate all SubMoves, e.g. 'F' or 'FT'...    
+//
+for (let i=0; i<size; i++)
+    {
+    
+    //
+    // Get first anchor slot
+    //
+
+    let neighbours = this.get_valid_neighbours( {x:bot_x, y:bot_y, z:bot_z },{x:this.mb.x, y:this.mb.y, z:this.mb.z }, bots );
+
+
+    let tx = neighbours[0].x - bot_x;
+    let ty = neighbours[0].y - bot_y;
+    let tz = neighbours[0].z - bot_z;
+    
+    lastneighbour = {x:neighbours[0].x, y:neighbours[0].y, z:neighbours[0].z };
+    
+     
+    let move = this.get_cell_slot_byvector(tx,ty,tz, vx,vy,vz);
+    
+
+    movecmds += move + "_";
+     
+     
+    
+    let MoveSubCmd = rawMoves[i];
+    let check = "";
+    let lastanchor = "";
+    let teststruct = null;
+    
+    
+    // check if last valid connection slot 
+    teststruct   = this.test_virtual_botmove( {x:bot_x, y:bot_y, z:bot_z } , MoveSubCmd ,  bots);
+    check        = teststruct.check;
+    lastanchor   = teststruct.lastanchor;
+ 
+    
+    
+    // must check again with next movecmds
+    if (check === false)
+       {
+       
+       i++;
+       MoveSubCmd += rawMoves[i];
+    
+       // check ist last valid connection slot          
+       teststruct   = this.test_virtual_botmove( {x:bot_x, y:bot_y, z:bot_z } , MoveSubCmd ,  bots);
+       check        = teststruct.check;
+       lastanchor   = teststruct.lastanchor;
+       
+        
+       //console.log("second i: "+i + " : MoveSubCmd:" + MoveSubCmd + " check: [" + check +"]" );
+        
+       } // if check === false
+    
+    //   
+    // Here Path should be valid
+    //
+    if (check === false)
+       {  
+       
+       console.log('\x1b[1m\x1b[31m%s\x1b[0m', 'No valid move found!');
+       //process.exit(1);
+       } else
+         {
+         // check if last valid connection slot
+         movecmds += MoveSubCmd + "_" + lastanchor ;
+         final_lastanchor = lastanchor;
+         final_lastanchorneighbour = teststruct.lastanchorneighbour;
+         
+         
+         if (i < (size-1) ) 
+            {
+            movecmds += ";";
+                        
+            } else
+              {
+              
+              //console.log( "teststruct.lastanchorneighbour :" + JSON.stringify(teststruct.lastanchorneighbour, null, 2)  );
+              //console.log( "last anchor: " + lastanchor );
+              
+              }
+         
+         //
+         // Set tmpbot virtual to new target coordinate
+         //
+         let botindex = this.get_botindex_by_xyz(  {x:bot_x, y:bot_y, z:bot_z }, bots  );
+         
+         if ( botindex != null )
+            {
+
+            bots[botindex].x = teststruct.lastpos.x;
+            bots[botindex].y = teststruct.lastpos.y;
+            bots[botindex].z = teststruct.lastpos.z;
+            
+            bot_x            = teststruct.lastpos.x;
+            bot_y            = teststruct.lastpos.y;
+            bot_z            = teststruct.lastpos.z;
+
+            } else
+              {
+              console.warn("botindex is null");
+              }
+         
+
+         } // else
+       
+    
+    
+    
+    } // for i..size        
+    
+    
+ */
+ 
+
+let ret = {
+           movecmds: movecmds,
+           lastneighbour: lastneighbour,
+           final_lastanchor: final_lastanchor,
+           final_lastanchorneighbour: final_lastanchorneighbour
+           };
+
+let calc_move_cmds_return_path = path.join(__dirname, "logs", "calc_move_cmds_return.json");
+if (self.debug_vk_exports === true)
+   {
+   fs.writeFileSync(calc_move_cmds_return_path, JSON.stringify(ret, null, 2), "utf8");
+   Logger.log("calc_move_cmds return dumped: " + calc_move_cmds_return_path);
+   } // if (self.debug_vk_exports === true)
+
+// console.log("ret: calc_move_cmds");
+// console.log( ret );
+
+return(ret);
+
+// ---
+} // calc_move_vk_cmds()
 
 
 
@@ -3949,6 +5065,16 @@ if (locallog ) console.log(bot_x + " " + bot_y + " " + bot_z);
  
 let keyindex = this.get_botindex_by_xyz(  {x:bot_x, y:bot_y, z:bot_z } , bots );
 if (locallog ) console.log( "-keyindex:" + keyindex);
+
+if (keyindex == null || bots[keyindex] === undefined)
+   {
+   result.check      = false;
+   result.reason     = "BOT_NOT_FOUND_AT_VIRTUAL_START";
+   result.lastanchor = "";
+   result.lastpos    = {x:bot_x, y:bot_y, z:bot_z };
+   result.lastanchorneighbour = null;
+   return(result);
+   } // if (keyindex == null || bots[keyindex] === undefined)
 
 let vx = bots[ keyindex ] .vector_x;
 let vy = bots[ keyindex ] .vector_y;
@@ -5075,6 +6201,12 @@ return(runtime_calc_single_path_payload(this, src, dest, bots_s, bots_f, payload
 } // apicall_calc_single_path_payload()
 
 
+apicall_calc_vehicle_kinematics_path(src, dest, bots_s, bots_f, vehicle_options = {})
+{
+return(runtime_calc_vehicle_kinematics_path(this, src, dest, bots_s, bots_f, vehicle_options));
+} // apicall_calc_vehicle_kinematics_path()
+
+
 apicall_find_path_for_bot(bot_id, x, y, z, show = false, planning_options = {})
 {
 return(runtime_find_path_for_bot(this, bot_id, x, y, z, show, planning_options));
@@ -5270,15 +6402,15 @@ return(runtime_suggest_simple_move(this, bot_id, x, y, z));
 } // apicall_suggest_simple_move()
 
 
-apicall_move_bot_to(bot_id, x, y, z, execute_move = true)
+apicall_move_bot_to(bot_id, x, y, z, execute_move = true, goal_orientation = null)
 {
-return(runtime_move_bot_to(this, bot_id, x, y, z, execute_move));
+return(runtime_move_bot_to(this, bot_id, x, y, z, execute_move, goal_orientation));
 } // apicall_move_bot_to()
 
 
-apicall_diagnose_move_bot_to(bot_id, x, y, z)
+apicall_diagnose_move_bot_to(bot_id, x, y, z, goal_orientation = null)
 {
-return(runtime_diagnose_move_bot_to(this, bot_id, x, y, z));
+return(runtime_diagnose_move_bot_to(this, bot_id, x, y, z, goal_orientation));
 } // apicall_diagnose_move_bot_to()
 
 
@@ -7105,7 +8237,9 @@ async handleAPIMessage_internal(message, socket) {
                         params: {},
                         returns: {
                             answer: "api_status",
-                            loaded_bots: "number"
+                            loaded_bots: "number",
+                            mobility_mode: "string",
+                            communication_mode: "string"
                         },
                         description: "Returns the number of currently loaded bots in the BotController."
                     },
@@ -7116,6 +8250,8 @@ async handleAPIMessage_internal(message, socket) {
                             answer: "api_status_extended",
                             loaded_bots_total: "number",
                             loaded_cluster_bots: "number",
+                            mobility_mode: "string",
+                            communication_mode: "string",
                             bounding_box: "object"
                         },
                         description: "Returns an extended BotController status including cluster bounding box."
@@ -7569,7 +8705,10 @@ async handleAPIMessage_internal(message, socket) {
                             bot_id: "string",
                             x: "number",
                             y: "number",
-                            z: "number"
+                            z: "number",
+                            vx: "optional number",
+                            vy: "optional number",
+                            vz: "optional number"
                         },
                         returns: {
                             answer: "api_can_reach_position",
@@ -7639,7 +8778,7 @@ async handleAPIMessage_internal(message, socket) {
                             path_found: "boolean",
                             turn_positions_on_path: "list"
                         },
-                        description: "Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available."
+                        description: "Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
                     },
                     {
                         cmd: "would_split_cluster",
@@ -7659,7 +8798,10 @@ async handleAPIMessage_internal(message, socket) {
                             bot_id: "string",
                             x: "number",
                             y: "number",
-                            z: "number"
+                            z: "number",
+                            vx: "optional number",
+                            vy: "optional number",
+                            vz: "optional number"
                         },
                         returns: {
                             answer: "api_diagnose_move_bot_to",
@@ -7668,7 +8810,7 @@ async handleAPIMessage_internal(message, socket) {
                             planned_primitives: "list",
                             turn_positions_on_path: "list"
                         },
-                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics."
+                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
                     },
                     {
                         cmd: "rotate_bot",
@@ -7988,10 +9130,12 @@ async handleAPIMessage_internal(message, socket) {
             socket.end();
         });
     } catch (err) {
+        Logger.log("handleAPIMessage_internal error: " + (err && err.stack ? err.stack : err.message));
         answer = JSON.stringify({
             ok: false,
             error: "INVALID_JSON",
-            message: err.message
+            message: err.message,
+            stack: err && err.stack ? err.stack : ""
         }) + "\n";
 
         socket.write(answer, () => {

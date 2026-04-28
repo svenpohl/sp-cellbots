@@ -4,6 +4,7 @@
 
 const net = require("net");
 const path = require("path");
+const fs = require("fs");
 const { parse_config_file } = require("../common/config_parser");
 
 //
@@ -34,6 +35,22 @@ function loadconfig(filePath) {
 
 function buildRequestFromCli() {
   const cmd = process.argv[2] ?? "describe";
+
+  function parseGoalOrientationFromCli(startIndex) {
+    const vxRaw = process.argv[startIndex];
+    const vyRaw = process.argv[startIndex + 1];
+    const vzRaw = process.argv[startIndex + 2];
+
+    if (vxRaw === undefined && vyRaw === undefined && vzRaw === undefined) {
+      return null;
+    } // if
+
+    return {
+      x: Number(vxRaw ?? 0),
+      y: Number(vyRaw ?? 0),
+      z: Number(vzRaw ?? 0)
+    };
+  } // parseGoalOrientationFromCli()
 
   if (cmd == "describe") {
     return { cmd: "describe" };
@@ -335,13 +352,21 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "batch") {
+    return {
+      cmd: "batch",
+      file: process.argv[3] ?? ""
+    };
+  } // if
+
   if (cmd == "move_bot_to") {
     return {
       cmd: "move_bot_to",
       bot_id: process.argv[3] ?? "",
       x: Number(process.argv[4] ?? 0),
       y: Number(process.argv[5] ?? 0),
-      z: Number(process.argv[6] ?? 0)
+      z: Number(process.argv[6] ?? 0),
+      goal_orientation: parseGoalOrientationFromCli(7)
     };
   } // if
 
@@ -351,7 +376,8 @@ function buildRequestFromCli() {
       bot_id: process.argv[3] ?? "",
       x: Number(process.argv[4] ?? 0),
       y: Number(process.argv[5] ?? 0),
-      z: Number(process.argv[6] ?? 0)
+      z: Number(process.argv[6] ?? 0),
+      goal_orientation: parseGoalOrientationFromCli(7)
     };
   } // if
 
@@ -583,8 +609,113 @@ function api_interface_description(responseObject) {
     } // if
   } // for
 
+  // CLI-only features (api.js wrapper, not BotController commands)
+  output += "\nCLI-only features (api.js wrapper):\n";
+  output += "- batch <file>\n";
+  output += "  Reads a JSON file with multiple move_bot_to commands and executes them sequentially.\n";
+  output += "  Each move opens its own TCP connection (atomic-request mode).\n";
+  output += "  params:\n";
+  output += "    - file: path to JSON file (array of {id, x, y, z, vx?, vy?, vz?})\n";
+  output += "  returns:\n";
+  output += "    - answer: api_batch_complete\n";
+  output += "    - total: number of moves\n";
+  output += "    - results: array of per-move {index, move, response}\n";
+
   return output.trim();
 } // api_interface_description()
+
+
+function executeBatch(moves) {
+  let index = 0;
+  const results = [];
+  const configPath = path.join(__dirname, "config.cfg");
+  const config = loadconfig(configPath);
+  const apiPort = parseInt(config.api_port, 10);
+
+  function sendNext() {
+    if (index >= moves.length) {
+      // Alle Moves verarbeitet – Ergebnis ausgeben
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        answer: "api_batch_complete",
+        total: moves.length,
+        results: results
+      }) + "\n");
+      return;
+    } // if
+
+    const move = moves[index];
+    const client = new net.Socket();
+
+    client.connect(apiPort, "127.0.0.1", () => {
+      const request = {
+        cmd: "move_bot_to",
+        bot_id: move.id,
+        x: move.x,
+        y: move.y,
+        z: move.z,
+        goal_orientation: (move.vx !== undefined && move.vy !== undefined && move.vz !== undefined)
+          ? { x: move.vx, y: move.vy, z: move.vz }
+          : null
+      };
+
+      client.write(JSON.stringify(request) + "\n");
+    });
+
+    // Buffer für TCP-Chunking: Große Responses können in mehreren
+    // data-Events ankommen → erst sammeln, dann parsen.
+    let responseBuffer = "";
+
+    client.on("data", (data) => {
+      responseBuffer += data.toString();
+
+      // Versuche zu parsen – wenn vollständig, klappt's; wenn nicht,
+      // warten wir auf den nächsten Chunk.
+      let responseObject;
+      try {
+        responseObject = JSON.parse(responseBuffer);
+      } catch (err) {
+        // Noch nicht vollständig – auf nächsten Chunk warten
+        return;
+      } // try
+
+      // Vollständiges JSON erhalten
+      const summary = {
+        ok: responseObject.ok,
+        executed: responseObject.executed,
+        ack_received: responseObject.ack_received,
+        final_diagnostic_reason: responseObject.final_diagnostic_reason,
+        current_state: responseObject.current_state
+      };
+
+      results.push({
+        index: index,
+        move: moves[index],
+        response: summary
+      });
+
+      client.end();
+    });
+
+
+    client.on("close", () => {
+      index++;
+      sendNext();
+    });
+
+    client.on("error", (err) => {
+      results.push({
+        index: index,
+        move: moves[index],
+        error: err.message
+      });
+      index++;
+      sendNext();
+    });
+  } // sendNext()
+
+  sendNext();
+} // executeBatch()
 
 
 function main() {
@@ -599,24 +730,111 @@ function main() {
     process.exit(1);
   } // if
 
+  if (requestObject.cmd === "batch") {
+    // Batch-Modus: Datei einlesen und sequentiell ausführen
+    // (eigene Verbindungen pro Move in executeBatch())
+    const batchFilePath = path.resolve(__dirname, requestObject.file);
+
+    let batchData;
+    try {
+      const fileContent = fs.readFileSync(batchFilePath, "utf8");
+      batchData = JSON.parse(fileContent);
+    } catch (err) {
+      console.error("Batch file error:", err.message);
+      process.exit(1);
+    } // try
+
+    if (!Array.isArray(batchData) || batchData.length === 0) {
+      console.error("Batch file must contain a non-empty JSON array");
+      process.exit(1);
+    } // if
+
+    // Keine Verbindung nötig – executeBatch() macht eigene Verbindungen
+    client.destroy();
+    executeBatch(batchData);
+    return;
+  } // if
+
   client.connect(apiPort, "127.0.0.1", () => {
+    // Normaler Single-Request (wie bisher)
     client.write(JSON.stringify(requestObject) + "\n");
   });
 
+  // Buffer for TCP chunking - large responses may arrive in multiple chunks
+  let responseBuffer = "";
+
   client.on("data", (data) => {
-    const responseText = data.toString().trim();
+    responseBuffer += data.toString();
 
+    // Try to parse - if incomplete, wait for next chunk
+    let responseObject;
     try {
-      const responseObject = JSON.parse(responseText);
-
-      if (responseObject.answer == "api_description") {
-        process.stdout.write(api_interface_description(responseObject) + "\n");
-      } else {
-        process.stdout.write(JSON.stringify(responseObject) + "\n");
-      } // if
+      responseObject = JSON.parse(responseBuffer);
     } catch (err) {
-      process.stdout.write(responseText + "\n");
+      // Not complete yet - wait for next chunk
+      return;
     } // try
+
+    // Complete JSON received - clear buffer
+    responseBuffer = "";
+
+    if (responseObject.answer == "api_description") {
+      process.stdout.write(api_interface_description(responseObject) + "\n");
+    } else {
+      // Compact JSON output: simple {ok, result} for success, {ok, result, reason} for failure
+      const ok = responseObject.ok === true;
+      const executed = responseObject.executed;
+      const ack = responseObject.ack_received === true;
+      const reason = responseObject.final_diagnostic_reason || responseObject.reason || "";
+      const answer = responseObject.answer || "";
+
+      let result = {};
+
+      // Batch result
+      if (answer === "api_batch_complete") {
+        const total = responseObject.total ?? 0;
+        const success = (responseObject.results ?? []).filter(r => r.response?.ok && r.response?.executed).length;
+        result = { ok: true, result: "batch_complete", total: total, succeeded: success };
+
+      // Move/Action commands with executed flag
+      } else if (executed !== undefined) {
+        if (ok && executed && ack) {
+          result = { ok: true, result: "succeeded" };
+          if (responseObject.current_state) {
+            const s = responseObject.current_state;
+            const pos = s.position || s;
+            result.position = { x: pos.x, y: pos.y, z: pos.z };
+          }
+        } else if (ok && executed) {
+          result = { ok: true, result: "succeeded", ack: "pending" };
+        } else {
+          result = { ok: false, result: "failed" };
+          if (reason) result.reason = reason;
+        }
+
+      // Query commands (describe, get_bot_by_id, get_status, etc.)
+      } else if (ok) {
+        if (answer === "api_get_bot_by_id" && responseObject.position) {
+          const p = responseObject.position;
+          result = { ok: true, result: "bot_info", bot_id: responseObject.bot_id, position: { x: p.x, y: p.y, z: p.z } };
+          if (responseObject.orientation) {
+            result.orientation = { x: responseObject.orientation.x, y: responseObject.orientation.y, z: responseObject.orientation.z };
+          }
+        } else if (answer === "api_get_status") {
+          result = { ok: true, result: "status", status: responseObject.status || "ok" };
+        } else if (answer === "api_version") {
+          result = { ok: true, result: "version", version: responseObject.version || "?" };
+        } else {
+          result = { ok: true, result: answer };
+        }
+
+      } else {
+        result = { ok: false, result: "failed" };
+        if (reason) result.reason = reason;
+      } // if
+
+      process.stdout.write(JSON.stringify(result) + "\n");
+    } // if
   });
 
   client.on("close", () => {
