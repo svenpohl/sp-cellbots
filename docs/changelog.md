@@ -6,6 +6,14 @@
 
 ---
 
+- **1.7.1** (29.04.2026)  
+**VoxelEdit integration**
+  - Added `tools/voxeledit/` – a standalone 3D voxel editor for SP-CellBots
+  - Three.js-based editor with Construct (XML), Structure (JSON), and Overlay modes
+  - Place, delete, rename, and visually edit bot positions in a 3D viewport
+  - Separate target-file workflow for TRGT markers
+  - Express server on port 5175, start with `cd tools/voxeledit && node server.js`
+
 - **1.7** (28.04.2026)  
 **Vehicle Kinematics mobility mode (preview)**
   - Added `mobility_mode = vehicle_kinematics` as the new default mode (preview)

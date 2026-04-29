@@ -119,6 +119,52 @@ const height = 2;   // y-direction (number of layers)
 ```
 
 ---
+# VoxelEdit
+VoxelEdit 0.1 - Part of the [SP-CellBot](https://github.com/svenpohl/sp-cellbots) project
+
+![VoxelEdit Screenshot](img/voxeledit01.jpg)
+
+**VoxelEdit** is a **Three.js**-based 3D voxel editor for designing and editing SP-CellBots constructs and target structures directly in the browser.  
+It provides a visual workspace to place, delete, rename, and arrange bots in a 3D viewport, with support for both XML constructs and JSON target structures.
+
+---
+
+## ✨ Features
+
+- **Three modes:**
+  - **Construct (XML):** Edit bot positions with auto-incrementing IDs (B1, B2, …) – saved XML files are used by `cluster_sim/constructs/`
+  - **Structure (JSON):** Place target voxels (TRGT markers) for morph targets – saved JSON files are used by `botcontroller/structures/`
+  - **Overlay:** View both construct and structure layers simultaneously
+- **3D viewport** with orbit controls (middle-click, Shift+drag, arrow keys)
+- **Ghost preview** – wireframe shows where the next bot will be placed
+- **Smart prefix handling** – auto-selects prefix from selected bot or mode
+- **Bot renaming** – change bot IDs inline
+- **Separate target-file workflow** – load/save TRGT markers independently from constructs
+- **Express server** on port 5175
+
+---
+
+## 🚀 Usage
+
+Start the local server:
+```bash
+cd tools/voxeledit
+node server.js
+```
+
+Open the frontend in your browser:
+```
+http://localhost:5175
+```
+
+**Workflow:**
+1. Select a mode (Construct, Structure, or Overlay).
+2. Choose or create a file from the toolbar.
+3. Left-click to place bots, right-click to delete.
+4. Use the Target row to load/save TRGT markers separately.
+5. Save your work – XML for constructs, JSON for target structures.
+
+---
 # Voxelizer
 Voxelizer 1.0 - Part of the [SP-CellBot](https://github.com/svenpohl/sp-cellbots) project
 
