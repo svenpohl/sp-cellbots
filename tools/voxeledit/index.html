@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SP-CellBots VoxelEdit</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #2d2d2d; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; overflow: hidden; }
+
+    /* Toolbar */
+    #toolbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      display: flex; flex-direction: column;
+      background: rgba(30,30,30,0.92); backdrop-filter: blur(8px);
+      border-bottom: 1px solid #444;
+      user-select: none;
+    }
+    #toolbar .row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 4px 12px;
+      height: 32px;
+    }
+    #toolbar .row + .row {
+      border-top: 1px solid #333;
+    }
+    #toolbar label { opacity: 0.8; font-size: 12px; white-space: nowrap; }
+    #toolbar select, #toolbar input, #toolbar button {
+      background: #3a3a3a; color: #e0e0e0; border: 1px solid #555;
+      border-radius: 4px; padding: 2px 8px; font-size: 12px;
+    }
+    #toolbar button {
+      cursor: pointer; transition: background 0.15s;
+    }
+    #toolbar button:hover { background: #4a4a4a; }
+    #toolbar button.primary { background: #2a6a3a; border-color: #3a8a4a; }
+    #toolbar button.primary:hover { background: #3a8a4a; }
+    #toolbar .sep { width: 1px; height: 20px; background: #555; }
+
+    /* Bot-ID-Editor */
+    #botIdInput { width: 70px; text-align: center; }
+
+    /* Statuszeile */
+    #statusbar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 3px 12px;
+      background: rgba(30,30,30,0.92); backdrop-filter: blur(8px);
+      border-top: 1px solid #444;
+      height: 28px;
+      font-size: 11px; opacity: 0.8;
+    }
+
+    /* Viewport */
+    #viewport {
+      position: fixed; top: 64px; left: 0; right: 0; bottom: 28px;
+    }
+    #viewport canvas { display: block; width: 100%; height: 100%; }
+
+    /* Ghost-Info-Tooltip */
+    #ghostInfo {
+      position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+      z-index: 15;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+      padding: 4px 12px; border-radius: 8px;
+      font-size: 12px; opacity: 0; transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    #ghostInfo.visible { opacity: 1; }
+
+    /* Structure-Overlay-Hinweis */
+    #structureOverlay {
+      position: fixed; top: 72px; right: 12px; z-index: 15;
+      background: rgba(0,40,80,0.7); backdrop-filter: blur(4px);
+      padding: 6px 10px; border-radius: 8px;
+      font-size: 11px; border: 1px solid #4488ff44;
+      display: none;
+    }
+    #structureOverlay.visible { display: block; }
+
+    /* Legende (ausklappbar, unten links) */
+    #legendToggle {
+      position: fixed; bottom: 36px; left: 12px; z-index: 16;
+      background: rgba(30,30,30,0.85); backdrop-filter: blur(4px);
+      border: 1px solid #555; border-radius: 6px;
+      padding: 4px 10px; font-size: 11px; cursor: pointer;
+      color: #aaa; user-select: none;
+      transition: background 0.15s;
+    }
+    #legendToggle:hover { background: rgba(50,50,50,0.9); color: #fff; }
+    #legendToggle .arrow { display: inline-block; transition: transform 0.2s; margin-right: 4px; }
+    #legendToggle .arrow.open { transform: rotate(90deg); }
+
+    #legendPanel {
+      position: fixed; bottom: 68px; left: 12px; z-index: 16;
+      background: rgba(25,25,25,0.92); backdrop-filter: blur(8px);
+      border: 1px solid #444; border-radius: 8px;
+      padding: 10px 14px; font-size: 11px; line-height: 1.7;
+      min-width: 200px;
+      display: none;
+      pointer-events: auto;
+    }
+    #legendPanel.visible { display: block; }
+    #legendPanel kbd {
+      display: inline-block; background: #3a3a3a; border: 1px solid #555;
+      border-radius: 3px; padding: 0 5px; font-size: 10px;
+      font-family: monospace; color: #ddd; min-width: 20px; text-align: center;
+    }
+    #legendPanel .section { margin-top: 6px; padding-top: 6px; border-top: 1px solid #333; }
+    #legendPanel .section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    #legendPanel .title { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <!-- Zeile 1: Modus + Construct + Bot-ID -->
+    <div class="row">
+      <label>Mode:</label>
+      <select id="modeSelect">
+        <option value="construct">Construct (XML)</option>
+        <option value="structure">Structure (JSON)</option>
+        <option value="overlay">Overlay</option>
+      </select>
+
+      <div class="sep"></div>
+
+      <label>Construct:</label>
+      <select id="fileSelect" style="min-width:140px"></select>
+      <button id="btnNew">New</button>
+      <button id="btnLoad">Load</button>
+      <button id="btnSave" class="primary">Save</button>
+
+      <div class="sep"></div>
+
+      <label>Bot-ID:</label>
+      <input id="botIdInput" type="text" value="B1" />
+      <button id="btnRename" style="font-size:11px;padding:2px 6px;">Rename</button>
+      <label style="font-size:11px;opacity:0.6;">Prefix:</label>
+      <select id="prefixSelect" style="width:65px;">
+        <option value="B">B</option>
+        <option value="R">R</option>
+        <option value="TRGT">TRGT</option>
+      </select>
+
+      <div class="sep"></div>
+
+      <span id="botCount" style="font-size:12px;opacity:0.7;">0 Bots</span>
+    </div>
+
+    <!-- Zeile 2: Target -->
+    <div class="row">
+      <label style="color:#ff6666;">Target:</label>
+      <select id="targetSelect" style="min-width:140px;border-color:#884444;"></select>
+      <button id="btnTargetNew" style="border-color:#884444;">New</button>
+      <button id="btnTargetLoad" style="border-color:#884444;">Load</button>
+      <button id="btnTargetSave" class="primary" style="background:#6a2a2a;border-color:#8a3a3a;">Save</button>
+    </div>
+  </div>
+
+  <!-- Viewport -->
+  <div id="viewport"></div>
+
+  <!-- Ghost-Info -->
+  <div id="ghostInfo">🟦 Left-click: place &nbsp;|&nbsp; 🟥 Right-click: delete &nbsp;|&nbsp; ⬆ Shift+drag: orbit</div>
+
+  <!-- Structure-Overlay -->
+  <div id="structureOverlay">🔵 Structure mode – target voxels in blue</div>
+
+  <!-- Legend (collapsible) -->
+  <div id="legendToggle"><span class="arrow">▶</span> Controls</div>
+  <div id="legendPanel">
+    <div class="section">
+      <div class="title">Mouse</div>
+      <kbd>Left-click</kbd> Place / select bot<br>
+      <kbd>Right-click</kbd> Delete bot<br>
+      <kbd>Middle-click</kbd> + drag = orbit<br>
+      <kbd>Shift</kbd> + <kbd>Left</kbd> Orbit<br>
+      <kbd>Scroll</kbd> Zoom
+    </div>
+    <div class="section">
+      <div class="title">Keyboard</div>
+      <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Rotate camera<br>
+      <kbd>Space</kbd> / <kbd>Enter</kbd> Place ghost<br>
+      <kbd>Back</kbd> / <kbd>Del</kbd> Delete bot
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="statusbar">
+    <span id="statusLeft">Ready</span>
+    <span id="statusRight"><a href="https://github.com/svenpohl/sp-cellbots" target="_blank" style="color:#888;text-decoration:none;">Part of the SP-CellBots Project</a></span>
+  </div>
+
+  <!-- Three.js -->
+
+  <script src="js/three.min.js"></script>
+
+  <script>
+  "use strict";
+
+  // ============================================================
+  //  GLOBAL STATE
+  // ============================================================
+
+  const STATE = {
+    mode: "construct",
+    bots: [],
+    structure: [],
+    selectedBotId: null,
+    ghostPos: null,
+    currentFile: "base_25.xml",
+    dirty: false,
+    // Target-Datei (separate JSON-Struktur für TRGT-Marker)
+    targetFile: "",
+    targetDirty: false,
+  };
+
+  // ============================================================
+  //  THREE.JS SETUP
+  // ============================================================
+
+  const container = document.getElementById("viewport");
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x2d2d2d);
+  // Z-Achse spiegeln: Three.js ist rechtshändig, wir wollen ein
+  // Schulkoordinatensystem (linkshändig) mit x=Breite, y=Höhe, z=Tiefe.
+  scene.scale.z = -1;
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 1000);
+  camera.position.set(8, 6, -8);
+  camera.lookAt(0, 0, 0);
+
+  // Licht
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  dirLight.position.set(5, 10, 5);
+  scene.add(dirLight);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+  dirLight2.position.set(-5, 5, -5);
+  scene.add(dirLight2);
+
+  // ============================================================
+  //  RASTER + SCHACHBRETT
+  // ============================================================
+
+  const GRID_SIZE = 20;
+  const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_SIZE, 0x555555, 0x333333);
+  scene.add(gridHelper);
+
+  function createCheckerboard() {
+    const size = 1;
+    const geo = new THREE.PlaneGeometry(size, size);
+    const mat1 = new THREE.MeshBasicMaterial({ color: 0x444444, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+    const mat2 = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+    const group = new THREE.Group();
+    const half = 10;
+    for (let x = -half; x < half; x++) {
+      for (let z = -half; z < half; z++) {
+        const mat = (x + z) % 2 === 0 ? mat1 : mat2;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x + 0.5, -0.01, z + 0.5);
+        mesh.rotation.x = -Math.PI / 2;
+        group.add(mesh);
+      }
+    }
+    return group;
+  } // createCheckerboard()
+  scene.add(createCheckerboard());
+
+  // ============================================================
+  //  MASTERBOT (0,0,0) – unzerstörbar
+  // ============================================================
+
+  const masterMat = new THREE.MeshStandardMaterial({
+    color: 0x888888, metalness: 0.3, roughness: 0.7,
+    emissive: 0x222222, emissiveIntensity: 0.2,
+  });
+  const masterBot = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), masterMat);
+  masterBot.position.set(0.5, 0.5, 0.5);
+  scene.add(masterBot);
+
+  const masterEdges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.95, 0.95, 0.95)),
+    new THREE.LineBasicMaterial({ color: 0xaaaaaa })
+  );
+  masterEdges.position.copy(masterBot.position);
+  scene.add(masterEdges);
+
+  const masterLabel = createTextSprite("MB", 0x888888);
+  masterLabel.position.set(0.5, 1.3, 0.5);
+  scene.add(masterLabel);
+
+  // ============================================================
+  //  HILFSFUNKTIONEN
+  // ============================================================
+
+  function createTextSprite(text, color = 0xffffff) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128; canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 128, 64);
+    ctx.font = "bold 32px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
+    ctx.fillText(text, 64, 32);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    sprite.scale.set(0.8, 0.4, 1);
+    return sprite;
+  } // createTextSprite()
+
+  function botColor(prefix) {
+    if (prefix === "R") return 0x66dd88;
+    if (prefix === "TRGT") return 0xff4444;
+    return 0x999999;
+  } // botColor()
+
+  function botEmissive(prefix) {
+    if (prefix === "R") return 0x226633;
+    if (prefix === "TRGT") return 0x441111;
+    return 0x111111;
+  } // botEmissive()
+
+  function botOpacity(prefix) {
+    return prefix === "TRGT" ? 0.9 : 1.0;
+  } // botOpacity()
+
+  function setStatus(msg) {
+    document.getElementById("statusLeft").textContent = msg;
+  } // setStatus()
+
+  // ============================================================
+  //  BOT-MESHES
+  // ============================================================
+
+  const botGroup = new THREE.Group();
+  scene.add(botGroup);
+  const botMeshes = new Map();
+
+  function rebuildBotMeshes() {
+    botMeshes.forEach((mesh) => { botGroup.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); });
+    botMeshes.clear();
+
+    const oldLabels = botGroup.getObjectByName("botLabels");
+    if (oldLabels) botGroup.remove(oldLabels);
+
+    const labelGroup = new THREE.Group();
+    labelGroup.name = "botLabels";
+
+    for (const bot of STATE.bots) {
+      const prefix = bot.prefix || "B";
+      const opacity = botOpacity(prefix);
+      const mat = new THREE.MeshStandardMaterial({
+        color: botColor(prefix), metalness: 0.2, roughness: 0.8,
+        emissive: botEmissive(prefix), emissiveIntensity: 0.1,
+        transparent: opacity < 1, opacity: opacity,
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), mat);
+      mesh.position.set(bot.x + 0.5, bot.y + 0.5, bot.z + 0.5);
+      mesh.userData.botId = bot.id;
+      mesh.userData.botPrefix = prefix;
+      botGroup.add(mesh);
+      botMeshes.set(bot.id, mesh);
+
+      const label = createTextSprite(bot.id, botColor(prefix));
+      label.position.set(bot.x + 0.5, bot.y + 1.3, bot.z + 0.5);
+      labelGroup.add(label);
+    }
+
+    botGroup.add(labelGroup);
+    document.getElementById("botCount").textContent = STATE.bots.length + " Bots";
+  } // rebuildBotMeshes()
+
+  // ============================================================
+  //  STRUKTUR-MESHES (bläulich)
+  // ============================================================
+
+  const structureGroup = new THREE.Group();
+  scene.add(structureGroup);
+  const structMat = new THREE.MeshStandardMaterial({ color: 0x4488ff, transparent: true, opacity: 0.35, metalness: 0.1, roughness: 0.9 });
+
+  function rebuildStructureMeshes() {
+    while (structureGroup.children.length) {
+      const c = structureGroup.children[0];
+      structureGroup.remove(c);
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) c.material.dispose();
+    }
+    for (const v of STATE.structure) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), structMat);
+      mesh.position.set(v.x + 0.5, v.y + 0.5, v.z + 0.5);
+      structureGroup.add(mesh);
+    }
+    updateStructureVisibility();
+  } // rebuildStructureMeshes()
+
+  function updateStructureVisibility() {
+    structureGroup.visible = (STATE.mode === "structure" || STATE.mode === "overlay");
+  } // updateStructureVisibility()
+
+  // ============================================================
+  //  GHOST
+  // ============================================================
+
+  const ghostMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.9, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.4, wireframe: true })
+  );
+  ghostMesh.visible = false;
+  scene.add(ghostMesh);
+
+  function updateGhost() {
+    if (STATE.ghostPos) {
+      ghostMesh.position.set(STATE.ghostPos.x + 0.5, STATE.ghostPos.y + 0.5, STATE.ghostPos.z + 0.5);
+      ghostMesh.visible = true;
+      document.getElementById("ghostInfo").classList.add("visible");
+    } else {
+      ghostMesh.visible = false;
+      document.getElementById("ghostInfo").classList.remove("visible");
+    }
+  } // updateGhost()
+
+  // ============================================================
+  //  INTERAKTION
+  // ============================================================
+
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  function getNextBotId(prefix) {
+    let maxNum = 0;
+    for (const b of STATE.bots) {
+      if ((b.prefix || "B") !== prefix) continue;
+      const num = parseInt(b.id.replace(prefix, ""), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+    return prefix + (maxNum + 1);
+  } // getNextBotId()
+
+  function isPositionFree(x, y, z) {
+    if (x === 0 && y === 0 && z === 0) return false;
+    for (const b of STATE.bots) {
+      if (b.x === x && b.y === y && b.z === z) return false;
+    }
+    return true;
+  } // isPositionFree()
+
+  function findBotAt(x, y, z) {
+    for (const b of STATE.bots) {
+      if (b.x === x && b.y === y && b.z === z) return b;
+    }
+    return null;
+  } // findBotAt()
+
+  function placeBot(x, y, z) {
+    // Prefix bestimmen:
+    // 1. Wenn ein Bot markiert ist, dessen Prefix verwenden
+    // 2. Sonst: Structure-Modus → TRGT, Construct/Overlay → aktuelles Dropdown
+    let prefix;
+    if (STATE.selectedBotId) {
+      const sel = STATE.bots.find(b => b.id === STATE.selectedBotId);
+      prefix = sel ? (sel.prefix || "B") : document.getElementById("prefixSelect").value;
+    } else {
+      if (STATE.mode === "structure") {
+        prefix = "TRGT";
+      } else {
+        prefix = document.getElementById("prefixSelect").value;
+      }
+    }
+    // Dropdown auf den ermittelten Prefix setzen
+    document.getElementById("prefixSelect").value = prefix;
+    const botId = getNextBotId(prefix);
+    STATE.bots.push({ id: botId, x, y, z, prefix });
+    STATE.dirty = true;
+    STATE.ghostPos = null;
+    // Neuen Bot automatisch markieren
+    STATE.selectedBotId = botId;
+    document.getElementById("botIdInput").value = botId;
+    updateGhost();
+    rebuildBotMeshes();
+    highlightSelectedBot();
+    setStatus("Bot " + botId + " placed at (" + x + "," + y + "," + z + ")");
+  } // placeBot()
+
+  function deleteBot(botId) {
+    const idx = STATE.bots.findIndex(b => b.id === botId);
+    if (idx === -1) return;
+    STATE.bots.splice(idx, 1);
+    STATE.dirty = true;
+    if (STATE.selectedBotId === botId) STATE.selectedBotId = null;
+    rebuildBotMeshes();
+    setStatus("Bot " + botId + " deleted");
+  } // deleteBot()
+
+  function highlightSelectedBot() {
+    botMeshes.forEach((mesh, id) => {
+      if (id === STATE.selectedBotId) {
+        mesh.material.emissive.setHex(0x4444ff);
+        mesh.material.emissiveIntensity = 0.3;
+      } else {
+        const prefix = mesh.userData.botPrefix || "B";
+        mesh.material.emissive.setHex(botEmissive(prefix));
+        mesh.material.emissiveIntensity = 0.1;
+      }
+    });
+  } // highlightSelectedBot()
+
+  // Bestimmt die dominante Blickachse der Kamera
+  function getDominantAxis() {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    const ax = Math.abs(dir.x), ay = Math.abs(dir.y), az = Math.abs(dir.z);
+    if (ax >= ay && ax >= az) return "x";
+    if (ay >= ax && ay >= az) return "y";
+    return "z";
+  } // getDominantAxis()
+
+  // Baut eine Liste aller besetzten Positionen + Masterbot
+  function getAllOccupied() {
+    const occ = new Set();
+    occ.add("0,0,0"); // Masterbot
+    for (const b of STATE.bots) {
+      occ.add(b.x + "," + b.y + "," + b.z);
+    }
+    return occ;
+  } // getAllOccupied()
+
+  // Findet die nächste freie Nachbarposition zu einem existierenden Bot/Masterbot
+  // Bevorzugt Nachbarn des markierten Bots (selectedBotId), falls vorhanden
+  function findNearestFreeNeighbor(hitX, hitY, hitZ) {
+    const occ = getAllOccupied();
+    const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    const cx = Math.round(hitX), cy = Math.round(hitY), cz = Math.round(hitZ);
+    const key = cx + "," + cy + "," + cz;
+
+    // 1. Wenn ein Bot markiert ist, zuerst dessen freie Nachbarn prüfen
+    if (STATE.selectedBotId) {
+      const sel = STATE.bots.find(b => b.id === STATE.selectedBotId);
+      if (sel) {
+        let bestSel = null, bestSelDist = Infinity;
+        for (const [dx, dy, dz] of dirs) {
+          const nx = sel.x + dx, ny = sel.y + dy, nz = sel.z + dz;
+          const nk = nx + "," + ny + "," + nz;
+          if (!occ.has(nk)) {
+            const d = (nx-cx)*(nx-cx) + (ny-cy)*(ny-cy) + (nz-cz)*(nz-cz);
+            if (d < bestSelDist) { bestSelDist = d; bestSel = { x: nx, y: ny, z: nz }; }
+          }
+        }
+        if (bestSel) return bestSel;
+      }
+    }
+
+    // 2. Zuerst prüfen: ist die getroffene Position selbst frei und hat einen Nachbarn?
+    if (!occ.has(key)) {
+      for (const [dx, dy, dz] of dirs) {
+        const nk = (cx+dx) + "," + (cy+dy) + "," + (cz+dz);
+        if (occ.has(nk)) return { x: cx, y: cy, z: cz };
+      }
+    }
+
+    // 3. Sonst: alle Nachbarpositionen der getroffenen Zelle durchgehen
+    let best = null, bestDist = Infinity;
+    for (const [dx, dy, dz] of dirs) {
+      const nx = cx + dx, ny = cy + dy, nz = cz + dz;
+      const nk = nx + "," + ny + "," + nz;
+      if (!occ.has(nk)) {
+        for (const [dx2, dy2, dz2] of dirs) {
+          const nk2 = (nx+dx2) + "," + (ny+dy2) + "," + (nz+dz2);
+          if (occ.has(nk2)) {
+            const d = (nx-cx)*(nx-cx) + (ny-cy)*(ny-cy) + (nz-cz)*(nz-cz);
+            if (d < bestDist) { bestDist = d; best = { x: nx, y: ny, z: nz }; }
+            break;
+          }
+        }
+      }
+    }
+    return best;
+  } // findNearestFreeNeighbor()
+
+  // Maus-Pointer für Ghost (3D-fähig)
+  function onPointerMove(event) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+
+    // 1. Versuche, einen existierenden Bot zu treffen
+    const botIntersects = raycaster.intersectObjects(Array.from(botMeshes.values()));
+    if (botIntersects.length > 0) {
+      const hit = botIntersects[0].object;
+      const pos = hit.position;
+      const bx = Math.round(pos.x - 0.5);
+      const by = Math.round(pos.y - 0.5);
+      const bz = Math.round(pos.z - 0.5);
+      const neighbor = findNearestFreeNeighbor(bx, by, bz);
+      STATE.ghostPos = neighbor;
+      updateGhost();
+      return;
+    }
+
+    // 2. Kein Bot getroffen → auf der passenden Grundebene weiter
+    const axis = getDominantAxis();
+    let planeNormal, planeConst = 0;
+    if (axis === "y") {
+      planeNormal = new THREE.Vector3(0, 1, 0);
+    } else if (axis === "x") {
+      planeNormal = new THREE.Vector3(1, 0, 0);
+    } else {
+      planeNormal = new THREE.Vector3(0, 0, 1);
+    }
+
+    const plane = new THREE.Plane(planeNormal, planeConst);
+    const intersectPoint = new THREE.Vector3();
+    const hit = raycaster.ray.intersectPlane(plane, intersectPoint);
+
+    if (hit) {
+      const gx = Math.round(intersectPoint.x - 0.5);
+      const gy = Math.round(intersectPoint.y - 0.5);
+      const gz = Math.round(intersectPoint.z - 0.5);
+      const neighbor = findNearestFreeNeighbor(gx, gy, gz);
+      STATE.ghostPos = neighbor;
+    } else {
+      STATE.ghostPos = null;
+    }
+    updateGhost();
+  } // onPointerMove()
+
+  // Klick
+  function onPointerDown(event) {
+    if (event.button !== 0 && event.button !== 2) return;
+    // Bei gedrückter Shift-Taste nichts platzieren/löschen (nur Orbit)
+    if (event.shiftKey) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+
+    const botIntersects = raycaster.intersectObjects(Array.from(botMeshes.values()));
+    if (botIntersects.length > 0) {
+      const hit = botIntersects[0].object;
+      const botId = hit.userData.botId;
+      if (event.button === 0) {
+        STATE.selectedBotId = botId;
+        document.getElementById("botIdInput").value = botId;
+        highlightSelectedBot();
+        setStatus("Bot " + botId + " selected");
+      } else if (event.button === 2) {
+        deleteBot(botId);
+      }
+      return;
+    }
+
+    if (event.button === 0 && STATE.ghostPos) {
+      placeBot(STATE.ghostPos.x, STATE.ghostPos.y, STATE.ghostPos.z);
+      return;
+    }
+
+    // Ins Leere geklickt → Markierung aufheben
+    if (event.button === 0 && STATE.selectedBotId) {
+      STATE.selectedBotId = null;
+      document.getElementById("botIdInput").value = "";
+      highlightSelectedBot();
+      setStatus("Selection cleared");
+    }
+  } // onPointerDown()
+
+  function onContextMenu(event) { event.preventDefault(); } // onContextMenu()
+
+  // ============================================================
+  //  ORBIT
+  // ============================================================
+
+  const orbit = {
+    target: new THREE.Vector3(0, 0, 0), distance: 12,
+    azimuth: 0.8, elevation: 0.5,
+    dragging: false, lastX: 0, lastY: 0,
+  };
+
+  function updateCamera() {
+    const { target, distance, azimuth, elevation } = orbit;
+    camera.position.set(
+      target.x + distance * Math.cos(elevation) * Math.cos(azimuth),
+      target.y + distance * Math.sin(elevation),
+      target.z + distance * Math.cos(elevation) * Math.sin(azimuth)
+    );
+    camera.lookAt(target);
+  } // updateCamera()
+  updateCamera();
+
+  container.addEventListener("mousedown", (e) => {
+    if (e.button === 1 || e.button === 0 || e.button === 2) {
+      // Mittelklick (1) immer orbiten
+      // Linksklick (0) nur mit Shift
+      // Rechtsklick (2) nur mit Shift
+      if (e.button === 1 || (e.button === 0 && e.shiftKey) || (e.button === 2 && e.shiftKey)) {
+        orbit.dragging = true;
+        orbit.lastX = e.clientX;
+        orbit.lastY = e.clientY;
+        e.preventDefault();
+      }
+    }
+  }); // mousedown
+
+  window.addEventListener("mousemove", (e) => {
+    if (orbit.dragging) {
+      const dx = e.clientX - orbit.lastX;
+      const dy = e.clientY - orbit.lastY;
+      orbit.lastX = e.clientX;
+      orbit.lastY = e.clientY;
+      orbit.azimuth -= dx * 0.005;
+      orbit.elevation += dy * 0.005;
+      orbit.elevation = Math.max(-Math.PI / 2 + 0.001, Math.min(Math.PI / 2 - 0.001, orbit.elevation));
+      updateCamera();
+      return;
+    }
+    onPointerMove(e);
+  }); // mousemove
+
+  window.addEventListener("mouseup", () => { orbit.dragging = false; }); // mouseup
+
+  container.addEventListener("wheel", (e) => {
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    orbit.distance *= Math.exp(dy * 0.0012);
+    orbit.distance = Math.max(0.5, Math.min(100, orbit.distance));
+    updateCamera();
+    e.preventDefault();
+  }, { passive: false }); // wheel
+
+  container.addEventListener("mousedown", onPointerDown);
+  container.addEventListener("contextmenu", onContextMenu);
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.key === "Backspace" || e.key === "Delete") && STATE.selectedBotId) {
+      deleteBot(STATE.selectedBotId);
+      STATE.selectedBotId = null;
+      return;
+    }
+    if ((e.key === " " || e.key === "Enter") && STATE.ghostPos) {
+      e.preventDefault();
+      placeBot(STATE.ghostPos.x, STATE.ghostPos.y, STATE.ghostPos.z);
+      return;
+    }
+    // Pfeiltasten: Kamera orbiten
+    const ARROW_STEP = 0.08;
+    if (e.key === "ArrowLeft") {
+      orbit.azimuth -= ARROW_STEP;
+      updateCamera();
+      e.preventDefault();
+    } else if (e.key === "ArrowRight") {
+      orbit.azimuth += ARROW_STEP;
+      updateCamera();
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      orbit.elevation += ARROW_STEP;
+      orbit.elevation = Math.max(-Math.PI / 2 + 0.001, Math.min(Math.PI / 2 - 0.001, orbit.elevation));
+      updateCamera();
+      e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      orbit.elevation -= ARROW_STEP;
+      orbit.elevation = Math.max(-Math.PI / 2 + 0.001, Math.min(Math.PI / 2 - 0.001, orbit.elevation));
+      updateCamera();
+      e.preventDefault();
+    }
+  }); // keydown
+
+  function resize() {
+    const rect = container.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+  } // resize()
+  window.addEventListener("resize", resize);
+  resize();
+
+  // ============================================================
+  //  XML-PARSER / GENERATOR
+  // ============================================================
+
+  function parseConstructXml(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+    const bots = [];
+    doc.querySelectorAll("cell").forEach((cell) => {
+      const id = cell.querySelector("id")?.textContent || "";
+      const x = parseInt(cell.querySelector("pos x")?.textContent || "0", 10);
+      const y = parseInt(cell.querySelector("pos y")?.textContent || "0", 10);
+      const z = parseInt(cell.querySelector("pos z")?.textContent || "0", 10);
+      const prefix = id.replace(/[0-9]/g, "");
+      bots.push({ id, x, y, z, prefix: prefix || "B" });
+    });
+    return bots;
+  } // parseConstructXml()
+
+  function generateConstructXml(bots) {
+    let xml = '<xml>\n\n';
+    xml += '<masterbot>\n';
+    xml += '  <id>MASTERBOT</id>\n';
+    xml += '  <pos>\n';
+    xml += '    <x>0</x>\n    <y>0</y>\n    <z>0</z>\n';
+    xml += '    <vx>1</vx>\n    <vy>0</vy>\n    <vz>0</vz>\n';
+    xml += '  </pos>\n';
+    xml += '  <mbconnection>f</mbconnection>\n';
+    xml += '</masterbot>\n\n';
+
+    // TRGT-Bots nicht in XML speichern (nur visuelle Marker)
+    const saveBots = bots.filter(b => (b.prefix || "B") !== "TRGT");
+    const sorted = [...saveBots].sort((a, b) => {
+      return (parseInt(a.id.replace(/[^0-9]/g, ""), 10) || 0) -
+             (parseInt(b.id.replace(/[^0-9]/g, ""), 10) || 0);
+    });
+
+    for (const bot of sorted) {
+      const col = bot.prefix === "R" ? "88ff88" : "eeeeff";
+      xml += '<cell>\n';
+      xml += '  <id>' + bot.id + '</id>\n';
+      xml += '  <col>' + col + '</col>\n';
+      xml += '  <pos>\n';
+      xml += '    <x>' + bot.x + '</x>\n    <y>' + bot.y + '</y>\n    <z>' + bot.z + '</z>\n';
+      xml += '    <vx>1</vx>\n    <vy>0</vy>\n    <vz>0</vz>\n';
+      xml += '  </pos>\n';
+      xml += '</cell>\n\n';
+    }
+    xml += '</xml>\n';
+    return xml;
+  } // generateConstructXml()
+
+  // ============================================================
+  //  DATEI-LADEN / SPEICHERN
+  // ============================================================
+
+  async function loadFile(filename) {
+    const mode = STATE.mode;
+
+    if (mode === "construct" || mode === "overlay") {
+      const resp = await fetch("/api/constructs/" + encodeURIComponent(filename));
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Error: " + (json.reason || "unknown")); return; }
+      STATE.bots = parseConstructXml(json.content);
+      STATE.currentFile = filename;
+      STATE.dirty = false;
+      rebuildBotMeshes();
+      setStatus("Loaded: " + filename + " (" + STATE.bots.length + " bots)");
+    }
+
+    if (mode === "structure" || mode === "overlay") {
+      const resp = await fetch("/api/structures/" + encodeURIComponent(filename));
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Error: " + (json.reason || "unknown")); return; }
+      STATE.structure = json.data || [];
+      STATE.currentFile = filename;
+      STATE.dirty = false;
+      rebuildStructureMeshes();
+      setStatus("Loaded: " + filename + " (" + STATE.structure.length + " voxels)");
+    }
+  } // loadFile()
+
+  async function saveFile(filename) {
+    const mode = STATE.mode;
+
+    if (mode === "construct" || mode === "overlay") {
+      const xml = generateConstructXml(STATE.bots);
+      const resp = await fetch("/api/constructs/" + encodeURIComponent(filename), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: xml }),
+      });
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Save error"); return; }
+      STATE.dirty = false;
+      setStatus("Saved: " + filename + " (" + STATE.bots.length + " bots)");
+    }
+
+    if (mode === "structure" || mode === "overlay") {
+      const resp = await fetch("/api/structures/" + encodeURIComponent(filename), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: STATE.structure }),
+      });
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Save error"); return; }
+      STATE.dirty = false;
+      setStatus("Saved: " + filename + " (" + STATE.structure.length + " voxels)");
+    }
+  } // saveFile()
+
+  // ============================================================
+  //  TARGET-DATEI (separate JSON-Struktur für TRGT-Marker)
+  // ============================================================
+
+  async function refreshTargetList() {
+    const select = document.getElementById("targetSelect");
+    select.innerHTML = "";
+    const resp = await fetch("/api/structures");
+    const json = await resp.json();
+    if (!json.ok) return;
+    for (const f of json.files) {
+      const opt = document.createElement("option");
+      opt.value = f;
+      opt.textContent = f;
+      select.appendChild(opt);
+    }
+    if (json.files.length > 0) {
+      select.value = STATE.targetFile;
+      if (!select.value || !json.files.includes(select.value)) {
+        select.value = json.files[0];
+        STATE.targetFile = json.files[0];
+      }
+    }
+  } // refreshTargetList()
+
+  // Lädt eine Target-JSON-Datei und erzeugt TRGT-Bots in STATE.bots
+  async function loadTargetFile(filename) {
+    const resp = await fetch("/api/structures/" + encodeURIComponent(filename));
+    const json = await resp.json();
+    if (!json.ok) { setStatus("Target error: " + (json.reason || "unknown")); return; }
+    const data = json.data || [];
+    STATE.targetFile = filename;
+    STATE.targetDirty = false;
+
+    // TRGT-Bots aus targetData erzeugen (mit IDs)
+    let maxNum = 0;
+    for (const b of STATE.bots) {
+      if ((b.prefix || "B") === "TRGT") {
+        const num = parseInt(b.id.replace("TRGT", ""), 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    }
+    // Alte TRGT-Bots entfernen
+    STATE.bots = STATE.bots.filter(b => (b.prefix || "B") !== "TRGT");
+    // Neue TRGT-Bots aus Datei hinzufügen
+    for (const v of data) {
+      maxNum++;
+      const botId = "TRGT" + maxNum;
+      STATE.bots.push({ id: botId, x: v.x, y: v.y, z: v.z, prefix: "TRGT" });
+    }
+    STATE.dirty = true;
+    rebuildBotMeshes();
+    setStatus("Target loaded: " + filename + " (" + data.length + " TRGT markers)");
+  } // loadTargetFile()
+
+  // Speichert nur die TRGT-Bots als einfaches [{x,y,z}] Array (ohne IDs)
+  async function saveTargetFile(filename) {
+    const trgtBots = STATE.bots.filter(b => (b.prefix || "B") === "TRGT");
+    const data = trgtBots.map(b => ({ x: b.x, y: b.y, z: b.z }));
+    const resp = await fetch("/api/structures/" + encodeURIComponent(filename), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: data }),
+    });
+    const json = await resp.json();
+    if (!json.ok) { setStatus("Target save error"); return; }
+    STATE.targetDirty = false;
+    setStatus("Target saved: " + filename + " (" + data.length + " TRGT markers)");
+  } // saveTargetFile()
+
+  // ============================================================
+  //  UI-EVENTS
+  // ============================================================
+
+  // Dateiliste aktualisieren
+  async function refreshFileList() {
+    const mode = STATE.mode;
+    const select = document.getElementById("fileSelect");
+    select.innerHTML = "";
+
+    let files = [];
+    if (mode === "construct" || mode === "overlay") {
+      const resp = await fetch("/api/constructs");
+      const json = await resp.json();
+      if (json.ok) files = json.files;
+    }
+    if (mode === "structure") {
+      const resp = await fetch("/api/structures");
+      const json = await resp.json();
+      if (json.ok) files = json.files;
+    }
+
+    for (const f of files) {
+      const opt = document.createElement("option");
+      opt.value = f;
+      opt.textContent = f;
+      select.appendChild(opt);
+    }
+
+    // Vorauswahl
+    if (files.length > 0) {
+      select.value = STATE.currentFile;
+      if (!select.value || !files.includes(select.value)) {
+        select.value = files[0];
+        STATE.currentFile = files[0];
+      }
+    }
+  } // refreshFileList()
+
+  // Modus-Wechsel
+  document.getElementById("modeSelect").addEventListener("change", () => {
+    STATE.mode = document.getElementById("modeSelect").value;
+    document.getElementById("structureOverlay").classList.toggle("visible", STATE.mode === "structure" || STATE.mode === "overlay");
+    updateStructureVisibility();
+    refreshFileList();
+    setStatus("Mode: " + STATE.mode);
+  }); // modeSelect change
+
+  // Neue Datei
+  document.getElementById("btnNew").addEventListener("click", async () => {
+    const mode = STATE.mode;
+    const ext = (mode === "construct" || mode === "overlay") ? ".xml" : ".json";
+    const name = prompt("Create new file:", "my_file" + ext);
+    if (!name) return;
+    // Prüfen, ob gültige Endung
+    if (!name.endsWith(ext)) {
+      setStatus("File must end with " + ext);
+      return;
+    }
+    // Leere Datei auf Server anlegen
+    if (mode === "construct" || mode === "overlay") {
+      const emptyXml = generateConstructXml([]);
+      const resp = await fetch("/api/constructs/" + encodeURIComponent(name), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: emptyXml }),
+      });
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Create error"); return; }
+    } else {
+      const resp = await fetch("/api/structures/" + encodeURIComponent(name), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [] }),
+      });
+      const json = await resp.json();
+      if (!json.ok) { setStatus("Create error"); return; }
+    }
+    // Dateiliste neu laden und neue Datei auswählen
+    await refreshFileList();
+    const select = document.getElementById("fileSelect");
+    select.value = name;
+    STATE.currentFile = name;
+    // Leeren Zustand laden
+    STATE.bots = [];
+    STATE.structure = [];
+    STATE.selectedBotId = null;
+    STATE.dirty = false;
+    document.getElementById("botIdInput").value = "";
+    rebuildBotMeshes();
+    rebuildStructureMeshes();
+    setStatus("New file: " + name);
+  }); // btnNew click
+
+  // Laden
+  document.getElementById("btnLoad").addEventListener("click", () => {
+    const file = document.getElementById("fileSelect").value;
+    if (file) loadFile(file);
+  }); // btnLoad click
+
+  // Speichern
+  document.getElementById("btnSave").addEventListener("click", () => {
+    const file = document.getElementById("fileSelect").value;
+    if (file) saveFile(file);
+  }); // btnSave click
+
+  // ---------- Target-Datei ----------
+
+  // Target-Neu
+  document.getElementById("btnTargetNew").addEventListener("click", async () => {
+    const name = prompt("Create new target file:", "target.json");
+    if (!name) return;
+    if (!name.endsWith(".json")) { setStatus("Target must end with .json"); return; }
+    const resp = await fetch("/api/structures/" + encodeURIComponent(name), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: [] }),
+    });
+    const json = await resp.json();
+    if (!json.ok) { setStatus("Create error"); return; }
+    await refreshTargetList();
+    const select = document.getElementById("targetSelect");
+    select.value = name;
+    STATE.targetFile = name;
+    // Alte TRGT-Bots entfernen
+    STATE.bots = STATE.bots.filter(b => (b.prefix || "B") !== "TRGT");
+    STATE.targetDirty = false;
+    STATE.dirty = true;
+    rebuildBotMeshes();
+    setStatus("New target file: " + name);
+  }); // btnTargetNew click
+
+  // Target-Laden
+  document.getElementById("btnTargetLoad").addEventListener("click", () => {
+    const file = document.getElementById("targetSelect").value;
+    if (file) loadTargetFile(file);
+  }); // btnTargetLoad click
+
+  // Target-Speichern
+  document.getElementById("btnTargetSave").addEventListener("click", () => {
+    const file = document.getElementById("targetSelect").value;
+    if (file) saveTargetFile(file);
+  }); // btnTargetSave click
+
+  // Legende ein-/ausklappen
+  document.getElementById("legendToggle").addEventListener("click", () => {
+    const panel = document.getElementById("legendPanel");
+    const arrow = document.querySelector("#legendToggle .arrow");
+    panel.classList.toggle("visible");
+    arrow.classList.toggle("open");
+  }); // legendToggle click
+
+  // Bot-ID manuell ändern (Enter im Textfeld)
+  document.getElementById("botIdInput").addEventListener("change", renameSelectedBot); // botIdInput change
+
+  // "Umben."-Button
+  document.getElementById("btnRename").addEventListener("click", renameSelectedBot); // btnRename click
+
+  function renameSelectedBot() {
+    const newId = document.getElementById("botIdInput").value.trim();
+    if (!STATE.selectedBotId || !newId) return;
+    const bot = STATE.bots.find(b => b.id === STATE.selectedBotId);
+    if (!bot) return;
+    // Prüfen, ob neue ID bereits existiert
+    if (STATE.bots.some(b => b.id === newId && b.id !== STATE.selectedBotId)) {
+      setStatus("ID " + newId + " already taken");
+      return;
+    }
+    const oldId = bot.id;
+    bot.id = newId;
+    bot.prefix = newId.replace(/[0-9]/g, "") || "B";
+    STATE.selectedBotId = newId;
+    STATE.dirty = true;
+    rebuildBotMeshes();
+    setStatus("Bot " + oldId + " → " + newId + " renamed");
+  } // renameSelectedBot()
+
+  // ============================================================
+  //  ANIMATIONSLOOP
+  // ============================================================
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  } // animate()
+  animate();
+
+  // ============================================================
+  //  INIT
+  // ============================================================
+
+  async function init() {
+    await refreshFileList();
+    await refreshTargetList();
+    // Standardmäßig base_25.xml laden
+    const defaultFile = "base_25.xml";
+    const select = document.getElementById("fileSelect");
+    if (select.querySelector('option[value="' + defaultFile + '"]')) {
+      select.value = defaultFile;
+      STATE.currentFile = defaultFile;
+      await loadFile(defaultFile);
+    } else if (select.options.length > 0) {
+      STATE.currentFile = select.value;
+      await loadFile(select.value);
+    }
+  } // init()
+  init();
+
+  </script>
+</body>
+</html>
