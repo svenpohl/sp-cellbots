@@ -1,0 +1,17 @@
+{
+  "name": "sp-cellbots-voxeledit",
+  "version": "1.0.0",
+  "description": "3D VoxelEditor für SP-CellBots – bearbeite XML-Constructs und JSON-Strukturen mit Three.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "echo '✅ VoxelEdit installiert. Starte mit: npm start'"
+  },
+  "keywords": ["cellbots", "voxel", "editor", "threejs", "sp-cellbots"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
