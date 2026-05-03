@@ -146,6 +146,12 @@
 
       <div class="sep"></div>
 
+      <label style="font-size:11px;opacity:0.6;">Dir:</label>
+      <span id="dirDisplay" style="font-size:11px;min-width:50px;display:inline-block;text-align:center;font-family:monospace;color:#aaa;">1,0,0</span>
+      <button id="btnRotate" title="Rotate bot orientation clockwise" style="font-size:14px;padding:2px 8px;cursor:pointer;">↻</button>
+
+      <div class="sep"></div>
+
       <span id="botCount" style="font-size:12px;opacity:0.7;">0 Bots</span>
     </div>
 
@@ -344,6 +350,7 @@
   const botGroup = new THREE.Group();
   scene.add(botGroup);
   const botMeshes = new Map();
+  const arrowMeshes = new Map(); // botId → Pfeil-Mesh für schnelle Rotation
 
   function rebuildBotMeshes() {
     botMeshes.forEach((mesh) => { botGroup.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); });
@@ -352,8 +359,30 @@
     const oldLabels = botGroup.getObjectByName("botLabels");
     if (oldLabels) botGroup.remove(oldLabels);
 
+    const oldArrows = botGroup.getObjectByName("botArrows");
+    if (oldArrows) botGroup.remove(oldArrows);
+
     const labelGroup = new THREE.Group();
     labelGroup.name = "botLabels";
+
+    const arrowGroup = new THREE.Group();
+    arrowGroup.name = "botArrows";
+
+    // Dreieck-Geometrie für Richtungspfeil (flach auf Oberseite, XZ-Ebene)
+    // Spitze zeigt in +X, Basis bei -X
+    // ACHTUNG: scene.scale.z = -1 spiegelt die Z-Achse, daher werden die
+    // Z-Koordinaten der Geometrie negiert. Wir bauen die Geometrie bereits
+    // vorgespiegelt, damit sie nach der scene-Mirroring korrekt aussieht.
+    // D.h. wir tauschen +Z und -Z gegenüber der gewünschten Darstellung.
+    const arrowGeo = new THREE.BufferGeometry();
+    const verts = new Float32Array([
+       0.35, 0, 0,     // Spitze (+X)
+      -0.2,  0, -0.12, // links hinten (im gespiegelten Raum = +Z)
+      -0.2,  0, 0.12   // rechts hinten (im gespiegelten Raum = -Z)
+    ]);
+    arrowGeo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+    arrowGeo.setIndex([0, 1, 2]);
+    arrowGeo.computeVertexNormals();
 
     for (const bot of STATE.bots) {
       const prefix = bot.prefix || "B";
@@ -373,9 +402,34 @@
       const label = createTextSprite(bot.id, botColor(prefix));
       label.position.set(bot.x + 0.5, bot.y + 1.3, bot.z + 0.5);
       labelGroup.add(label);
+
+      // Richtungs-Dreieck auf der Oberseite
+      const vx = (bot.vx !== undefined && bot.vx !== null) ? bot.vx : 1;
+      const vy = (bot.vy !== undefined && bot.vy !== null) ? bot.vy : 0;
+      const vz = (bot.vz !== undefined && bot.vz !== null) ? bot.vz : 0;
+      const arrowMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0x666666,
+        emissiveIntensity: 0.3,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+      });
+      const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+      // Position: auf der Oberseite des Bots, leicht erhöht
+      arrow.position.set(bot.x + 0.5, bot.y + 0.5 + 0.46, bot.z + 0.5);
+      // Ausrichtung: Das Dreieck liegt flach in der XZ-Ebene (Oberseite),
+      // Spitze zeigt standardmäßig in +X. Wir rotieren um Y, damit die
+      // Spitze in Richtung (vx, vz) zeigt.
+      const angle = Math.atan2(vz, vx);
+      arrow.rotation.y = -angle;
+      arrowGroup.add(arrow);
+      arrowMeshes.set(bot.id, arrow);
     }
 
     botGroup.add(labelGroup);
+    botGroup.add(arrowGroup);
     document.getElementById("botCount").textContent = STATE.bots.length + " Bots";
   } // rebuildBotMeshes()
 
@@ -478,7 +532,7 @@
     // Dropdown auf den ermittelten Prefix setzen
     document.getElementById("prefixSelect").value = prefix;
     const botId = getNextBotId(prefix);
-    STATE.bots.push({ id: botId, x, y, z, prefix });
+    STATE.bots.push({ id: botId, x, y, z, vx: 1, vy: 0, vz: 0, prefix });
     STATE.dirty = true;
     STATE.ghostPos = null;
     // Neuen Bot automatisch markieren
@@ -511,7 +565,59 @@
         mesh.material.emissiveIntensity = 0.1;
       }
     });
+    updateDirDisplay();
   } // highlightSelectedBot()
+
+  // Zeigt die aktuelle Orientierung (vx,vy,vz) des selektierten Bots an
+  function updateDirDisplay() {
+    const display = document.getElementById("dirDisplay");
+    if (STATE.selectedBotId) {
+      const bot = STATE.bots.find(b => b.id === STATE.selectedBotId);
+      if (bot) {
+        const vx = (bot.vx !== undefined && bot.vx !== null) ? bot.vx : 1;
+        const vy = (bot.vy !== undefined && bot.vy !== null) ? bot.vy : 0;
+        const vz = (bot.vz !== undefined && bot.vz !== null) ? bot.vz : 0;
+        display.textContent = vx + "," + vy + "," + vz;
+        return;
+      }
+    }
+    display.textContent = "—,—,—";
+  } // updateDirDisplay()
+
+  // Rotiert den selektierten Bot im Uhrzeigersinn durch die 4 Richtungen:
+  // (1,0,0) → (0,0,-1) → (-1,0,0) → (0,0,1) → (1,0,0)
+  function rotateSelectedBot() {
+    if (!STATE.selectedBotId) {
+      setStatus("No bot selected");
+      return;
+    }
+    const bot = STATE.bots.find(b => b.id === STATE.selectedBotId);
+    if (!bot) return;
+    // Aktuelle Richtung auslesen (mit null/undefined-Check, da 0 ein gültiger Wert ist)
+    const vx = (bot.vx !== undefined && bot.vx !== null) ? bot.vx : 1;
+    const vz = (bot.vz !== undefined && bot.vz !== null) ? bot.vz : 0;
+    // Nächste Richtung im Uhrzeigersinn (auf XZ-Ebene)
+    if (vx === 1 && vz === 0) {
+      bot.vx = 0; bot.vz = -1;
+    } else if (vx === 0 && vz === -1) {
+      bot.vx = -1; bot.vz = 0;
+    } else if (vx === -1 && vz === 0) {
+      bot.vx = 0; bot.vz = 1;
+    } else {
+      bot.vx = 1; bot.vz = 0;
+    }
+    bot.vy = 0;
+    STATE.dirty = true;
+    // Nur den Pfeil des Bots aktualisieren, nicht alles neu bauen
+    const arrow = arrowMeshes.get(bot.id);
+    if (arrow) {
+      const angle = Math.atan2(bot.vz, bot.vx);
+      arrow.rotation.y = -angle;
+    }
+    updateDirDisplay();
+    highlightSelectedBot();
+    setStatus("Bot " + bot.id + " rotated to (" + bot.vx + "," + bot.vy + "," + bot.vz + ")");
+  } // rotateSelectedBot()
 
   // Bestimmt die dominante Blickachse der Kamera
   function getDominantAxis() {
@@ -599,7 +705,8 @@
       const pos = hit.position;
       const bx = Math.round(pos.x - 0.5);
       const by = Math.round(pos.y - 0.5);
-      const bz = Math.round(pos.z - 0.5);
+      // Z ist gespiegelt (scene.scale.z = -1), daher negieren
+      const bz = Math.round(-(pos.z - 0.5));
       const neighbor = findNearestFreeNeighbor(bx, by, bz);
       STATE.ghostPos = neighbor;
       updateGhost();
@@ -624,7 +731,8 @@
     if (hit) {
       const gx = Math.round(intersectPoint.x - 0.5);
       const gy = Math.round(intersectPoint.y - 0.5);
-      const gz = Math.round(intersectPoint.z - 0.5);
+      // Z ist gespiegelt (scene.scale.z = -1), daher negieren
+      const gz = Math.round(-(intersectPoint.z - 0.5));
       const neighbor = findNearestFreeNeighbor(gx, gy, gz);
       STATE.ghostPos = neighbor;
     } else {
@@ -793,8 +901,11 @@
       const x = parseInt(cell.querySelector("pos x")?.textContent || "0", 10);
       const y = parseInt(cell.querySelector("pos y")?.textContent || "0", 10);
       const z = parseInt(cell.querySelector("pos z")?.textContent || "0", 10);
+      const vx = parseInt(cell.querySelector("pos vx")?.textContent || "1", 10);
+      const vy = parseInt(cell.querySelector("pos vy")?.textContent || "0", 10);
+      const vz = parseInt(cell.querySelector("pos vz")?.textContent || "0", 10);
       const prefix = id.replace(/[0-9]/g, "");
-      bots.push({ id, x, y, z, prefix: prefix || "B" });
+      bots.push({ id, x, y, z, vx, vy, vz, prefix: prefix || "B" });
     });
     return bots;
   } // parseConstructXml()
@@ -824,7 +935,10 @@
       xml += '  <col>' + col + '</col>\n';
       xml += '  <pos>\n';
       xml += '    <x>' + bot.x + '</x>\n    <y>' + bot.y + '</y>\n    <z>' + bot.z + '</z>\n';
-      xml += '    <vx>1</vx>\n    <vy>0</vy>\n    <vz>0</vz>\n';
+      const svx = (bot.vx !== undefined && bot.vx !== null) ? bot.vx : 1;
+      const svy = (bot.vy !== undefined && bot.vy !== null) ? bot.vy : 0;
+      const svz = (bot.vz !== undefined && bot.vz !== null) ? bot.vz : 0;
+      xml += '    <vx>' + svx + '</vx>\n    <vy>' + svy + '</vy>\n    <vz>' + svz + '</vz>\n';
       xml += '  </pos>\n';
       xml += '</cell>\n\n';
     }
@@ -1118,6 +1232,9 @@
 
   // "Umben."-Button
   document.getElementById("btnRename").addEventListener("click", renameSelectedBot); // btnRename click
+
+  // Rotations-Button
+  document.getElementById("btnRotate").addEventListener("click", rotateSelectedBot); // btnRotate click
 
   function renameSelectedBot() {
     const newId = document.getElementById("botIdInput").value.trim();
