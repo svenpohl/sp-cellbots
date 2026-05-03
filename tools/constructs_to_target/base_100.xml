@@ -1,0 +1,1316 @@
+<xml>
+
+<masterbot>
+  <id>MASTERBOT</id>
+  <pos>
+    <x>0</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+  <mbconnection>f</mbconnection>
+</masterbot>
+
+<cell>
+  <id>B1</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R1</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B2</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R2</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B3</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R3</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B4</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R4</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B5</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R5</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B6</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R6</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B7</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R7</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B8</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R8</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B9</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R9</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B10</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R10</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B11</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R11</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B12</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R12</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B13</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R13</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B14</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R14</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B15</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R15</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B16</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R16</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B17</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R17</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B18</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R18</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B19</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R19</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B20</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R20</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B21</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R21</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B22</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R22</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B23</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R23</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B24</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R24</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B25</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R25</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R26</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R27</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R28</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R29</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R30</id>
+  <col>88ff88</col>
+  <pos>
+    <x>6</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R31</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R32</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R33</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R34</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R35</id>
+  <col>88ff88</col>
+  <pos>
+    <x>7</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R36</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R37</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R38</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R39</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R40</id>
+  <col>88ff88</col>
+  <pos>
+    <x>8</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R41</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R42</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R43</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R44</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R45</id>
+  <col>88ff88</col>
+  <pos>
+    <x>9</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R46</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R47</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R48</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>0</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R49</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>0</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>R50</id>
+  <col>88ff88</col>
+  <pos>
+    <x>10</x>
+    <y>0</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B51</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B52</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B53</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B54</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B55</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B56</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B57</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B58</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B59</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B60</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>2</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B61</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B62</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B63</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B64</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B65</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B66</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B67</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B68</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B69</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B70</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B71</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>-1</y>
+    <z>0</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B72</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>-1</y>
+    <z>1</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B73</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>-1</y>
+    <z>2</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B74</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>-1</y>
+    <z>3</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>B75</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>5</x>
+    <y>-1</y>
+    <z>4</z>
+    <vx>1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+</cell>
+
+</xml>
