@@ -1,0 +1,1318 @@
+[2026-05-03T10:17:58] === stepMorph() called ===
+[2026-05-03T10:17:58] === choosePair round 1 ===
+[2026-05-03T10:17:58] choosePair: unhappyBots=100 movableBots=100 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R20 at (9,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R20 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,4) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R20 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R20 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R20 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R45 at (9,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R45 target=(2,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,0,4) target=(2,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R45 -> (2,1,1) dist=7.68 (path planner OK, checked 23 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R45 from=(9,0,4) to=(2,1,1) dist=7.68
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R45 states=16 pathLen=16
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R45
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R45 as wave 1
+[2026-05-03T10:17:58] choosePair round=1: success=true bot_id=R45 from=(9,0,4) to=(2,1,1) orientation=(1,0,0) path_valid=true path_len=16 error=none moved_to_target=(2,1,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 2 ===
+[2026-05-03T10:17:58] choosePair: filtered 1 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=99 movableBots=98 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,1,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R20 at (9,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R20 target=(4,1,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,4) target=(4,1,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,1,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R20 -> (4,1,1) dist=6.16 (path planner OK, checked 15 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R20 from=(9,-1,4) to=(4,1,1) dist=6.16
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R20 states=15 pathLen=15
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R20
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R20 as wave 2
+[2026-05-03T10:17:58] choosePair round=2: success=true bot_id=R20 from=(9,-1,4) to=(4,1,1) orientation=(1,0,0) path_valid=true path_len=15 error=none moved_to_target=(4,1,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 3 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=98 movableBots=96 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R19 at (9,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R19 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,3) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R19 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R19 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R19 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R18 at (9,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R18 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,2) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R18 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R18 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R18 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R16 at (9,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R15 at (8,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R17 at (9,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (4,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R44 at (9,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R44 target=(4,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,0,3) target=(4,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R44 -> (4,2,1) dist=5.74 (path planner OK, checked 31 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R44 from=(9,0,3) to=(4,2,1) dist=5.74
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R44 states=16 pathLen=16
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R44
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R44 as wave 3
+[2026-05-03T10:17:58] choosePair round=3: success=true bot_id=R44 from=(9,0,3) to=(4,2,1) orientation=(1,0,0) path_valid=true path_len=16 error=none moved_to_target=(4,2,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 4 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=97 movableBots=95 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,2,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R19 at (9,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R19 target=(2,2,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,3) target=(2,2,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,2,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R19 -> (2,2,1) dist=7.87 (path planner OK, checked 19 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R19 from=(9,-1,3) to=(2,2,1) dist=7.87
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R19 states=23 pathLen=23
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R19
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R19 as wave 4
+[2026-05-03T10:17:58] choosePair round=4: success=true bot_id=R19 from=(9,-1,3) to=(2,2,1) orientation=(1,0,0) path_valid=true path_len=23 error=none moved_to_target=(2,2,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 5 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=96 movableBots=94 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R18 at (9,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R18 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,2) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R18 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R18 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R18 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R16 at (9,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R15 at (8,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R17 at (9,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R14 at (8,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R14 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,3) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R14 -> (2,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R14 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R14 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R43 at (9,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R43 target=(2,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,0,2) target=(2,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (2,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R43 -> (2,3,1) dist=7.68 (path planner OK, checked 31 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R43 from=(9,0,2) to=(2,3,1) dist=7.68
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R43 states=24 pathLen=24
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R43
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R43 as wave 5
+[2026-05-03T10:17:58] choosePair round=5: success=true bot_id=R43 from=(9,0,2) to=(2,3,1) orientation=(1,0,0) path_valid=true path_len=24 error=none moved_to_target=(2,3,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 6 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=95 movableBots=93 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (4,3,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R18 at (9,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R18 target=(4,3,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,2) target=(4,3,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: no horizontal neighbors in target structure at (4,3,1), using start orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R18 -> (4,3,1) dist=6.48 (path planner OK, checked 21 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R18 from=(9,-1,2) to=(4,3,1) dist=6.48
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R18 states=17 pathLen=17
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R18
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R18 as wave 6
+[2026-05-03T10:17:58] choosePair round=6: success=true bot_id=R18 from=(9,-1,2) to=(4,3,1) orientation=(1,0,0) path_valid=true path_len=17 error=none moved_to_target=(4,3,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 7 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=94 movableBots=92 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R16 at (9,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R16 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R15 at (8,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R17 at (9,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R14 at (8,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R14 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,3) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R14 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R14 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R14 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R10 at (7,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R10 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,4) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R10 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R10 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R10 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R13 at (8,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R13 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,2) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R13 -> (4,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R13 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R13 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R41 at (9,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R41 target=(4,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,0,0) target=(4,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (4,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(-1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R41 -> (4,4,1) dist=6.48 (path planner OK, checked 33 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R41 from=(9,0,0) to=(4,4,1) dist=6.48
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R41 states=15 pathLen=15
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R41
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R41 as wave 7
+[2026-05-03T10:17:58] choosePair round=7: success=true bot_id=R41 from=(9,0,0) to=(4,4,1) orientation=(1,0,0) path_valid=true path_len=15 error=none moved_to_target=(4,4,1) orientation=(-1,0,0)
+[2026-05-03T10:17:58] === choosePair round 8 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=93 movableBots=91 freeTargets=2
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (3,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R16 at (9,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R16 target=(3,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,0) target=(3,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (3,4,1) -> target-structure neighbor at (4,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R16 -> (3,4,1) dist=7.87 (path planner OK, checked 21 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R16 from=(9,-1,0) to=(3,4,1) dist=7.87
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R16 states=21 pathLen=21
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R16
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R16 as wave 8
+[2026-05-03T10:17:58] choosePair round=8: success=true bot_id=R16 from=(9,-1,0) to=(3,4,1) orientation=(1,0,0) path_valid=true path_len=21 error=none moved_to_target=(3,4,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] === choosePair round 9 ===
+[2026-05-03T10:17:58] choosePair: filtered 2 bots that cannot move in VH mode toward their closest target (no frontal/backward neighbor)
+[2026-05-03T10:17:58] choosePair: unhappyBots=92 movableBots=90 freeTargets=1
+[2026-05-03T10:17:58] choosePair: checking bot=R25 at (10,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R25 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R25 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R24 at (10,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R24 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R24 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R23 at (10,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R23 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R23 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R21 at (10,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R21 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R21 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R22 at (10,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R22 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R22 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R50 at (10,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R50 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R50 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R49 at (10,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R49 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R49 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R46 at (10,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R46 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R46 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R48 at (10,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R48 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R48 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R47 at (10,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R47 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(10,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R47 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R17 at (9,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R17 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R17 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R15 at (8,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R15 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R15 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R14 at (8,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R14 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R14 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R42 at (9,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R42 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(9,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R42 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R13 at (8,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R13 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R13 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R11 at (8,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R11 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R11 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R12 at (8,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R12 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R12 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R40 at (8,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R40 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R40 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R10 at (7,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R10 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R10 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R39 at (8,0,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R39 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,0,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R39 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R9 at (7,-1,3)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R9 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,3) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R9 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R36 at (8,0,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R36 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,0,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R36 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R38 at (8,0,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R38 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,0,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R38 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R37 at (8,0,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R37 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(8,0,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R37 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R8 at (7,-1,2)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R8 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,2) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R8 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R6 at (7,-1,0)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R6 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,0) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R6 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R5 at (6,-1,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R5 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(6,-1,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R5 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R7 at (7,-1,1)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R7 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,-1,1) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: rejected pair bot=R7 -> (2,4,1) (path planner: PATH_NOT_FOUND)
+[2026-05-03T10:17:58] choosePair: checking bot=R35 at (7,0,4)
+[2026-05-03T10:17:58] [DEBUG choosePair] bot=R35 target=(2,4,1) target.vx=undefined target.vy=undefined target.vz=undefined cluster_target_type=array cluster_target_len=9
+[2026-05-03T10:17:58] [DEBUG choosePair] rawTarget.vx=undefined rawTarget.vy=undefined rawTarget.vz=undefined rawTarget keys=x,y,z
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: start=(7,0,4) target=(2,4,1) targetOrientation=(0,0,0) cellsCount=100
+[2026-05-03T10:17:58] _buildWorldAndPlanPath: auto-orientation at target (2,4,1) -> target-structure neighbor at (3,4,1) -> orientation=(1,0,0)
+[2026-05-03T10:17:58] choosePair: valid pair bot=R35 -> (2,4,1) dist=7.07 (path planner OK, checked 29 candidates)
+[2026-05-03T10:17:58] choosePair: selected bot=R35 from=(7,0,4) to=(2,4,1) dist=7.07
+[2026-05-03T10:17:58]   registerMorphStepForExport: bot=R35 states=21 pathLen=21
+[2026-05-03T10:17:58]   -> adding vx/vy/vz to from/to/fullPath for bot=R35
+[2026-05-03T10:17:58] stepMorph: registered move for bot=R35 as wave 9
+[2026-05-03T10:17:58] choosePair round=9: success=true bot_id=R35 from=(7,0,4) to=(2,4,1) orientation=(1,0,0) path_valid=true path_len=21 error=none moved_to_target=(2,4,1) orientation=(1,0,0)
+[2026-05-03T10:17:58] stepMorph: all bots happy after 9 rounds.
