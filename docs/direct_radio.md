@@ -127,4 +127,4 @@ SP-CellBots therefore keeps recovery-oriented operation patterns:
 This fallback philosophy is a core part of making future physical deployments robust.
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md) | **Next chapter:** [Usage & Examples](usage.md)
+**Previous chapter:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md) | **Next chapter:** [Vehicle Kinematics](vehicle_kinematics.md)

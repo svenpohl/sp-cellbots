@@ -6,6 +6,14 @@
 
 ---
 
+- **1.7.2** (03.05.2026)  
+**Sequential Vehicle Kinematics Morph**
+  - Added `SequentialVKMorph` algorithm — morphing under vehicle-kinematics constraints using A* path planning on movement states (position + rotation)
+  - Path planning now supports `find_path_for_bot` and `move_bot_to` with VK-aware rotation insertion
+  - Default construct changed to `base_100.xml` for larger morph experiments
+  - Tested and morphable structures: `base_100`, `25_arch`, `25_cross`
+  - Added dedicated documentation chapter: **[Vehicle Kinematics](vehicle_kinematics.md)**
+
 - **1.7.1** (29.04.2026)  
 **VoxelEdit integration**
   - Added `tools/voxeledit/` – a standalone 3D voxel editor for SP-CellBots

@@ -228,4 +228,4 @@ If you want to move from manual usage and GUI experiments to programmatic contro
 ---
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [Direct Radio](direct_radio.md) | **Next chapter:** [API](api.md)
+**Previous chapter:** [Vehicle Kinematics](vehicle_kinematics.md) | **Next chapter:** [API](api.md)

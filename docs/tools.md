@@ -45,7 +45,11 @@ and use them later within the controller.
 ├── base_30.xml
 ├── blender_python_import_for_replay.py
 ├── blender_python_targetdesign.py
-└── generate.js
+├── constructs_to_target/
+│   ├── constructs_to_target.js
+│   └── base_100.xml
+├── generate.js
+└── voxeledit/
 ```
 
 ---
@@ -119,6 +123,53 @@ const height = 2;   // y-direction (number of layers)
 ```
 
 ---
+
+# 🎯 `constructs_to_target.js`
+
+Converts a **construct XML** (e.g. `base_100.xml` from `cluster_sim/constructs/`) into a **target JSON** file compatible with `botcontroller/structures/`.
+
+This is useful when you have an existing construct and want to use its shape as a morph target – without manually recreating it in VoxelEdit or Blender.
+
+---
+
+## 🚀 Usage
+
+```bash
+cd tools/constructs_to_target
+node constructs_to_target.js <input.xml> <output.json>
+```
+
+### Example
+
+```bash
+node constructs_to_target.js base_100.xml base_100.json
+```
+
+Output:
+```
+OK: 100 Bots aus base_100.xml nach base_100.json konvertiert.
+```
+
+---
+
+### Example of a generated `base_100.json`
+
+```json
+[
+  { "x": 1, "y": 0, "z": 0 },
+  { "x": 6, "y": -1, "z": 0 },
+  { "x": 1, "y": 0, "z": 1 },
+  { "x": 6, "y": -1, "z": 1 },
+  { "x": 1, "y": 0, "z": 2 },
+  { "x": 6, "y": -1, "z": 2 }
+]
+```
+
+Only `<cell>` entries are included – the `<masterbot>` is ignored.  
+The output format matches `botcontroller/structures/*.json` exactly.
+
+---
+
 # VoxelEdit
 VoxelEdit 0.1 - Part of the [SP-CellBot](https://github.com/svenpohl/sp-cellbots) project
 
