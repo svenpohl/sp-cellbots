@@ -824,6 +824,37 @@ function main() {
           result = { ok: true, result: "status", status: responseObject.status || "ok" };
         } else if (answer === "api_version") {
           result = { ok: true, result: "version", version: responseObject.version || "?" };
+        } else if (answer === "api_find_path_for_bot") {
+          // Bewegungsprimitiven (actions) + Zwischenkoordinaten (steps) zurückgeben
+          const actions = responseObject.vehicle_path_dry_run?.actions ?? [];
+          const rawStates = responseObject.vehicle_path_dry_run?.states ?? responseObject.path ?? [];
+          // steps: Koordinaten + Orientierung für jeden Schritt (Start + nach jeder Aktion)
+          const steps = rawStates.map(s => ({
+            x: s.x, y: s.y, z: s.z,
+            vx: s.vx, vy: s.vy, vz: s.vz
+          }));
+          result = {
+            ok: true,
+            result: "path_info",
+            bot_id: responseObject.bot_id,
+            target: responseObject.target,
+            path_found: responseObject.path_found === true,
+            reason: responseObject.reason ?? "",
+            actions: actions,
+            steps: steps,
+            path_length: actions.length
+          };
+        } else if (answer === "api_can_reach_position") {
+          // Nur Erreichbarkeits-Info, keine internen Details
+          result = {
+            ok: true,
+            result: "reachability_info",
+            bot_id: responseObject.bot_id,
+            target: responseObject.target,
+            reachable: responseObject.reachable === true,
+            reason: responseObject.reason ?? "",
+            distance: responseObject.distance
+          };
         } else {
           result = { ok: true, result: answer };
         }

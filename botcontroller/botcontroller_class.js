@@ -39,6 +39,7 @@ const { parse_config_file } = require('../common/config_parser');
 
 //const MorphBFSSimple    = require('./morph/morph_bfs_simple');
 const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
+const MorphVehicleKinematics = require('./morph/morph_vehicle_kinematics');
 
 
 const Logger = require('./logger');
@@ -235,6 +236,7 @@ constructor()
 
    let configPath = path.join(__dirname, 'config.cfg');
    this.config = this.loadconfig(configPath);
+   Logger.setTimezone(this.config.timezone);
    
    this.bots           = [];
    this.botindex       = [];
@@ -325,7 +327,7 @@ constructor()
    this.api_crater_runs = {};
    this.crater_active_id = this.api_crater_default_id;
    this.debug_move_enabled = false;
-   this.debug_vk_exports = true;
+   this.debug_vk_exports = false;
    this.safe_mode = 2;
    this.direct_radio_id_rid_map = {};
    this.direct_radio_rid_id_map = {};
@@ -375,23 +377,29 @@ constructor()
    this.ws_gui = null;
    this.api_server = null;
    
-   // Define supportet morph-Algorithms
-   this.morphAlgorithms = [
-       {
-       id: "bfs_wavefront",
-       name: "BFS Wavefront",
-       description: "Default wavefront morphing with parallel waves and neighborhood checks.",
-       default: true
-       },
-       {
-       id: "bfs_simple",
-       name: "BFS Simple",
-       description: "Simple, serial BFS morphing. Always one bot per step.",
-       default: false
-       }
-       // More algorithms can be added later
-   ];
-   this.morphAlgorithmSelected = "bfs_wavefront";
+    // Define supportet morph-Algorithms
+    this.morphAlgorithms = [
+        {
+        id: "bfs_wavefront",
+        name: "BFS Wavefront",
+        description: "Default wavefront morphing with parallel waves and neighborhood checks.",
+        default: false
+        },
+        {
+        id: "bfs_simple",
+        name: "BFS Simple",
+        description: "Simple, serial BFS morphing. Always one bot per step.",
+        default: false
+        },
+        {
+        id: "vehicle_kinematics",
+//        name: "Morph Vehicle Kinematics ",
+        name : "Sequential Vehicle Kinematics Morph", //  Parallel Vehicle Kinematics Morph
+        description: "Vehicle-kinematics-based morphing using path planning (Preview).",
+        default: true
+        }
+    ];
+    this.morphAlgorithmSelected = "vehicle_kinematics";
 
 
 
@@ -3141,6 +3149,7 @@ createAlgorithm(algoName, startBots, targetBots, params) {
     switch (algoName) {
         //case "simple": return new MorphBFSSimple(startBots, targetBots, params);
         case "wavefront": return new MorphBFSWavefront(startBots, targetBots, params);
+        case "vehicle_kinematics": return new MorphVehicleKinematics(startBots, targetBots, params);
         default: throw new Error("Unknown algorithm: " + algoName);
     }
 } // createAlgorithm
@@ -3218,12 +3227,23 @@ let size      = this.bots.length;
 
 for (let i=0; i<size; i++)
     {
-    let { id, x, y, z } = this.bots[i];    
+    let bot = this.bots[i];
+    // The bot object uses vector_x/vector_y/vector_z for orientation (from botexport.json).
+    // Map them to vx/vy/vz for the morph planner.
+    let { id, x, y, z, vector_x, vector_y, vector_z } = bot;
+    let vx = vector_x;
+    let vy = vector_y;
+    let vz = vector_z;
     
        {
-       startBots.push( { id:id, x:Number(x), y:Number(y), z:Number(z) } ) ;
+       startBots.push( { 
+           id: id, 
+           x: Number(x), y: Number(y), z: Number(z),
+           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0)
+       } ) ;
        }
     }
+
 
 const targetDefinition = this.load_structure_definition(structure);
 const targetBots = targetDefinition.structure;
@@ -3270,6 +3290,22 @@ if ( this.morphAlgorithmSelected == "bfs_simple" )
    algo = this.createAlgorithm("wavefront", startBots, targetBots, params);
 
    } // "bfs_simple"
+  
+ 
+
+if ( this.morphAlgorithmSelected == "vehicle_kinematics" ) 
+   {
+   console.log("Prepare vehicle_kinematics...");
+
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("vehicle_kinematics", startBots, targetBots, params);
+
+   } // "vehicle_kinematics"
   
  
  
@@ -3351,10 +3387,71 @@ const filePath = path.join(__dirname, 'sequences', 'morph.sequence');
     
 fs.writeFileSync(filePath, opcodes, 'utf8');
 
- 
+
+// Store morphLog for later use in onMorphSequenceFinished()
+// (called when the FIN signal is received, i.e. all ACKs processed)
+this.lastMorphLog = morphLog;
+
+
 this.self_assembly_obj.run_sequence( "morph" );
   
-} // morph_finish_handler()
+ } // morph_finish_handler()
+
+
+
+//
+// onMorphSequenceFinished()
+// Called by self_assembly.addsignal() when the FIN signal is received,
+// meaning all ACKs have been processed and the morph sequence is complete.
+// Updates this.bots with final positions and orientations from the morphLog.
+//
+onMorphSequenceFinished()
+{
+console.log("onMorphSequenceFinished: updating bot positions/orientations from morphLog");
+this.notify_frontend_console("Morph sequence finished - persisting final positions/orientations");
+
+if (!this.lastMorphLog || !this.lastMorphLog.waves)
+   {
+   console.log("onMorphSequenceFinished: no morphLog data found, skipping");
+   return;
+   }
+
+let updatedCount = 0;
+
+for (let wave of this.lastMorphLog.waves)
+   {
+   for (let move of wave.moves)
+      {
+      let botindex = move.botindex;
+      if (botindex === undefined || botindex === null) continue;
+      if (!this.bots[botindex]) continue;
+
+      // Update position from move.to
+      if (move.to)
+         {
+         this.bots[botindex].x = move.to.x;
+         this.bots[botindex].y = move.to.y;
+         this.bots[botindex].z = move.to.z;
+
+         // Update orientation (vector_x/y/z) from move.to.vx/vy/vz
+         if (move.to.vx !== undefined)
+            {
+            this.bots[botindex].vector_x = move.to.vx;
+            this.bots[botindex].vector_y = move.to.vy;
+            this.bots[botindex].vector_z = move.to.vz;
+            }
+         }
+
+      updatedCount++;
+      }
+   }
+
+console.log("onMorphSequenceFinished: updated " + updatedCount + " bots");
+this.notify_frontend_console("Morph sequence finished - updated " + updatedCount + " bots");
+
+// Clean up
+this.lastMorphLog = null;
+} // onMorphSequenceFinished()
 
 
 
@@ -3364,6 +3461,7 @@ this.self_assembly_obj.run_sequence( "morph" );
 //
 create_opcode_sequence( morphLog )
 {
+Logger.log("[DEBUG create_opcode_sequence] FUNKTION AUFGERUFEN - morphLog vorhanden: " + (morphLog ? "ja" : "nein") + " waves: " + (morphLog?.waves?.length ?? 0));
 let locallog = false;
 let signal_botids = {};
 
@@ -3490,18 +3588,44 @@ for (let i=0; i<size; i++)
   
     
         let signal = "";
+        // mobility_mode must be declared before it's used for signal_botids orientation storage
+        let mobility_mode = String(this?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
         if (i < (size-1) )
            {
            signal += "sig" + (signalindex);
            
-           signal_botids[signal] = { thebotid:thebotid, to:{x:bot_to.x, y:bot_to.y, z:bot_to.z} };
+           // In vehicle_kinematics mode, also store goal orientation (vx/vy/vz) in signal_botids
+           // so that handle_answer() can update the bot's orientation when the ACK arrives.
+           let signal_to = {x:bot_to.x, y:bot_to.y, z:bot_to.z};
+           if (mobility_mode == "vehicle_kinematics" && bot_to.vx !== undefined)
+              {
+              signal_to.vx = Number(bot_to.vx);
+              signal_to.vy = Number(bot_to.vy);
+              signal_to.vz = Number(bot_to.vz);
+               Logger.log("[DEBUG create_opcode_sequence] signal=" + signal + " thebotid=" + thebotid + " bot_to.vx=" + bot_to.vx + " bot_to.vy=" + bot_to.vy + " bot_to.vz=" + bot_to.vz + " mobility_mode=" + mobility_mode);
+               } else
+                 {
+                 Logger.log("[DEBUG create_opcode_sequence] signal=" + signal + " thebotid=" + thebotid + " KEINE Orientierung gespeichert - bot_to.vx=" + bot_to.vx + " mobility_mode=" + mobility_mode);
+                }
+           signal_botids[signal] = { thebotid:thebotid, to:signal_to };
            signalindex++;
            
            signalbuffer += signal + " ";
            } else
              {
              signal = "FIN";
-             signal_botids[signal] = { thebotid:thebotid, to:{x:bot_to.x, y:bot_to.y, z:bot_to.z} };
+             let signal_to_fin = {x:bot_to.x, y:bot_to.y, z:bot_to.z};
+             if (mobility_mode == "vehicle_kinematics" && bot_to.vx !== undefined)
+                {
+                signal_to_fin.vx = Number(bot_to.vx);
+                signal_to_fin.vy = Number(bot_to.vy);
+                signal_to_fin.vz = Number(bot_to.vz);
+                Logger.log("[DEBUG create_opcode_sequence] signal=FIN thebotid=" + thebotid + " bot_to.vx=" + bot_to.vx + " bot_to.vy=" + bot_to.vy + " bot_to.vz=" + bot_to.vz + " mobility_mode=" + mobility_mode);
+                } else
+                  {
+                  Logger.log("[DEBUG create_opcode_sequence] signal=FIN thebotid=" + thebotid + " KEINE Orientierung gespeichert - bot_to.vx=" + bot_to.vx + " mobility_mode=" + mobility_mode);
+                  }
+             signal_botids[signal] = { thebotid:thebotid, to:signal_to_fin };
              }
     
     
@@ -3513,15 +3637,39 @@ for (let i=0; i<size; i++)
 
 
         let fullPath = morphLog.waves[i].moves[i2].fullPath;
+
         
-        let result = this.calc_move_cmds(fullPath, bots_tmp[bindex].vector_x, bots_tmp[bindex].vector_y, bots_tmp[bindex].vector_z ,bots_tmp);
+        // mobility_mode switch: use calc_move_vk_cmds() for vehicle_kinematics (rotation-aware),
+        // otherwise fall back to calc_move_cmds() (legacy full_edge mode).
+        let result = null;
+        
+        if (mobility_mode == "vehicle_kinematics" && typeof this.calc_move_vk_cmds == "function")
+           {
+           // Extract goal_orientation from morphLog's "to" field (contains vx/vy/vz)
+           let goal_orientation = {
+                                   x: Number(bot_to.vx ?? 0),
+                                   y: Number(bot_to.vy ?? 0),
+                                   z: Number(bot_to.vz ?? 0)
+                                   };
+           result = this.calc_move_vk_cmds(
+                                           fullPath,
+                                           bots_tmp[bindex].vector_x,
+                                           bots_tmp[bindex].vector_y,
+                                           bots_tmp[bindex].vector_z,
+                                           bots_tmp,
+                                           goal_orientation
+                                           );
+           } else
+             {
+             result = this.calc_move_cmds(fullPath, bots_tmp[bindex].vector_x, bots_tmp[bindex].vector_y, bots_tmp[bindex].vector_z ,bots_tmp);
+             }
         
         let movecmds = result.movecmds;
             
            
         if (locallog) console.log("movecmds: ["+movecmds+"]");
 
- 
+
  
  
         
@@ -3533,7 +3681,15 @@ for (let i=0; i<size; i++)
         bots_tmp[bindex].y = bot_to.y;
         bots_tmp[bindex].z = bot_to.z;
 
-        
+        // In vehicle_kinematics mode, also update the orientation (vector_x/y/z)
+        // because calc_move_vk_cmds() may have generated SPINs that change orientation.
+        // The new orientation comes from the morphLog's "to" field (vx/vy/vz).
+        if (mobility_mode == "vehicle_kinematics")
+           {
+           bots_tmp[bindex].vector_x = Number(bot_to.vx ?? bots_tmp[bindex].vector_x ?? 0);
+           bots_tmp[bindex].vector_y = Number(bot_to.vy ?? bots_tmp[bindex].vector_y ?? 0);
+           bots_tmp[bindex].vector_z = Number(bot_to.vz ?? bots_tmp[bindex].vector_z ?? 0);
+           }
         
         
         // Get returnaddress
@@ -4062,7 +4218,10 @@ let stage_dump = {
                  stages: Array.isArray(fullPath) ? fullPath : []
                  };
 
-Logger.log("calc_move_vk_cmds called: path_length=" + stage_dump.path_length + " goal_orientation=" + JSON.stringify(stage_dump.goal_orientation) + " dump_path=" + stage_dump_path);
+if (self.debug_vk_exports === true)
+   {
+   Logger.log("calc_move_vk_cmds called: path_length=" + stage_dump.path_length + " goal_orientation=" + JSON.stringify(stage_dump.goal_orientation) + " dump_path=" + stage_dump_path);
+   }
 vk_debug_write(stage_dump_path, JSON.stringify(stage_dump, null, 2), "utf8");
 
 //return(this.calc_move_cmds(fullPath, vx, vy, vz, bots, goal_orientation));
@@ -4090,8 +4249,18 @@ if (self.debug_vk_exports !== true)
 fs.writeFileSync(file_path, content, encoding);
 } // vk_debug_write()
 
-function get_vk_anchor(stage)
+function get_vk_anchor(stage, exclude_slots)
 {
+let exclude_set = new Set();
+
+if (Array.isArray(exclude_slots))
+   {
+   for (let i=0; i<exclude_slots.length; i++)
+       {
+       exclude_set.add(String(exclude_slots[i]).toUpperCase());
+       }
+   }
+
 let result = {
              slot: "D",
              neighbour: {
@@ -4110,20 +4279,49 @@ let neighbours = self.get_valid_neighbours(
 
 if (Array.isArray(neighbours) && neighbours.length > 0)
    {
-   let tx = neighbours[0].x - stage.x;
-   let ty = neighbours[0].y - stage.y;
-   let tz = neighbours[0].z - stage.z;
-   let slot = self.get_cell_slot_byvector(tx, ty, tz, stage.vx, stage.vy, stage.vz);
+   // Try to find a neighbour whose slot is NOT in exclude_set
+   let best_neighbour = null;
+   let best_slot = "";
 
-   result = {
-            slot: slot,
-            neighbour: {
-                       x: neighbours[0].x,
-                       y: neighbours[0].y,
-                       z: neighbours[0].z
-                       },
-            fallback: false
-            };
+   for (let n=0; n<neighbours.length; n++)
+       {
+       let tx = neighbours[n].x - stage.x;
+       let ty = neighbours[n].y - stage.y;
+       let tz = neighbours[n].z - stage.z;
+       let slot = self.get_cell_slot_byvector(tx, ty, tz, stage.vx, stage.vy, stage.vz);
+
+       if (exclude_set.has(slot))
+          {
+          continue;
+          }
+
+       best_neighbour = neighbours[n];
+       best_slot = slot;
+       break;
+       }
+
+   // If all neighbours are excluded, fall back to the first one
+   if (best_neighbour == null && neighbours.length > 0)
+      {
+      best_neighbour = neighbours[0];
+      let tx = neighbours[0].x - stage.x;
+      let ty = neighbours[0].y - stage.y;
+      let tz = neighbours[0].z - stage.z;
+      best_slot = self.get_cell_slot_byvector(tx, ty, tz, stage.vx, stage.vy, stage.vz);
+      }
+
+   if (best_neighbour != null)
+      {
+      result = {
+               slot: best_slot,
+               neighbour: {
+                          x: best_neighbour.x,
+                          y: best_neighbour.y,
+                          z: best_neighbour.z
+                          },
+               fallback: false
+               };
+      }
    } // if (Array.isArray(neighbours) && neighbours.length > 0)
 
 return(result);
@@ -4143,6 +4341,20 @@ return({
        fallback: false
        });
 } // get_vk_policy_anchor()
+
+function resolve_vk_anchor_safe(stage, preferred_slot, bots, exclude_slots)
+{
+let policy_anchor = get_vk_policy_anchor(stage, preferred_slot);
+let bot_index = self.get_botindex_by_xyz(policy_anchor.neighbour, bots);
+
+if (bot_index != null)
+   {
+   return(policy_anchor);
+   }
+
+Logger.log("resolve_vk_anchor_safe: preferred_slot=" + preferred_slot + " at (" + policy_anchor.neighbour.x + "," + policy_anchor.neighbour.y + "," + policy_anchor.neighbour.z + ") NOT FOUND – falling back to get_vk_anchor()");
+return(get_vk_anchor(stage, exclude_slots));
+} // resolve_vk_anchor_safe()
 
 function get_vk_anchor_policy(step)
 {
@@ -4545,22 +4757,22 @@ if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
                    movesubcmd = "F_D_F";
                    anchor_start_info = get_vk_policy_anchor(current, "F");
                    anchor_stop_info = get_vk_policy_anchor(next, "F");
-                   } else if (dx == current.vx && dz == current.vz)
-                     {
-                     direction = "forward";
-                     movesubcmd = anchor_start_info.slot + "_F_" + anchor_stop_info.slot;
-                     anchor_start_info = get_vk_policy_anchor(current, "D");
-                     anchor_stop_info = get_vk_policy_anchor(next, "D");
-                     } else if (dx == -current.vx && dz == -current.vz)
-                       {
-                       direction = "backward";
-                       movesubcmd = anchor_start_info.slot + "_B_" + anchor_stop_info.slot;
-                       anchor_start_info = get_vk_policy_anchor(current, "D");
-                       anchor_stop_info = get_vk_policy_anchor(next, "D");
-                       } else
-                         {
-                         direction = "unsupported";
-                         }
+                      } else if (dx == current.vx && dz == current.vz)
+                      {
+                      direction = "forward";
+                       movesubcmd = anchor_start_info.slot + "_F_" + anchor_stop_info.slot;
+                       anchor_start_info = resolve_vk_anchor_safe(current, "D", vk_bots, ["B"]);
+                       anchor_stop_info = resolve_vk_anchor_safe(next, "D", vk_bots, ["B"]);
+                      } else if (dx == -current.vx && dz == -current.vz)
+                        {
+                        direction = "backward";
+                        movesubcmd = anchor_start_info.slot + "_B_" + anchor_stop_info.slot;
+                        anchor_start_info = resolve_vk_anchor_safe(current, "D", vk_bots, ["F"]);
+                        anchor_stop_info = resolve_vk_anchor_safe(next, "D", vk_bots, ["F"]);
+                        } else
+                          {
+                          direction = "unsupported";
+                          }
 
               if (movesubcmd !== "")
                  {
@@ -4596,18 +4808,20 @@ if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
 
                  if (validation.ok === true)
                     {
-                    if (direction == "forward" || direction == "backward")
-                       {
-                       anchor_start_info = get_vk_policy_anchor(current, "D");
-                       anchor_stop_info = get_vk_policy_anchor(next, "D");
-                       } else if (direction == "up" || direction == "down")
+                  if (direction == "forward" || direction == "backward")
+                     {
+                     anchor_start_info = resolve_vk_anchor_safe(current, "D", vk_bots, direction === "forward" ? ["B"] : ["F"]);
+                     anchor_stop_info = resolve_vk_anchor_safe(next, "D", vk_bots, direction === "forward" ? ["B"] : ["F"]);
+                     } else if (direction == "up" || direction == "down")
                          {
                          anchor_start_info = get_vk_policy_anchor(current, "F");
                          anchor_stop_info = get_vk_policy_anchor(next, "F");
                          }
 
                     movesubcmd = anchor_start_info.slot + "_" + virtual_move_cmd + "_" + anchor_stop_info.slot;
-                    }
+                    } else
+                      {
+                      }
                  } // if (movesubcmd !== "")
               } else
                 {
@@ -4695,11 +4909,17 @@ movecmds = vk_movesubcmds
 
 let vk_movesubcmds_path = path.join(__dirname, "logs", "calc_move_vk_movesubcmds.json");
 vk_debug_write(vk_movesubcmds_path, JSON.stringify(vk_movesubcmds, null, 2), "utf8");
-Logger.log("calc_move_vk_cmds movesubcmds dumped: " + vk_movesubcmds_path);
+if (self.debug_vk_exports === true)
+    {
+    Logger.log("calc_move_vk_cmds movesubcmds dumped: " + vk_movesubcmds_path);
+    }
 
 let vk_merge_trace_path = path.join(__dirname, "logs", "calc_move_vk_merge_trace.json");
 vk_debug_write(vk_merge_trace_path, JSON.stringify(vk_merge_trace, null, 2), "utf8");
-Logger.log("calc_move_vk_cmds merge trace dumped: " + vk_merge_trace_path);
+if (self.debug_vk_exports === true)
+    {
+    Logger.log("calc_move_vk_cmds merge trace dumped: " + vk_merge_trace_path);
+    }
 
 let vk_merge_trace_lines = [];
 
@@ -4731,7 +4951,10 @@ let vk_merge_trace_text = [
 
 let vk_merge_trace_text_path = path.join(__dirname, "logs", "calc_move_vk_merge_trace.txt");
 vk_debug_write(vk_merge_trace_text_path, vk_merge_trace_text, "utf8");
-Logger.log("calc_move_vk_cmds merge trace text dumped: " + vk_merge_trace_text_path);
+if (self.debug_vk_exports === true)
+    {
+    Logger.log("calc_move_vk_cmds merge trace text dumped: " + vk_merge_trace_text_path);
+    }
 
 let vk_chain_lines = [];
 
@@ -4763,7 +4986,10 @@ let vk_chain_text = [
 
 let vk_chain_text_path = path.join(__dirname, "logs", "calc_move_vk_chain.txt");
 vk_debug_write(vk_chain_text_path, vk_chain_text, "utf8");
-Logger.log("calc_move_vk_cmds chain dumped: " + vk_chain_text_path);
+if (self.debug_vk_exports === true)
+    {
+    Logger.log("calc_move_vk_cmds chain dumped: " + vk_chain_text_path);
+    }
 
 let vk_chain_dump = {
                      timestamp: new Date().toISOString(),
@@ -4774,7 +5000,10 @@ let vk_chain_dump = {
 
 let vk_chain_json_path = path.join(__dirname, "logs", "calc_move_vk_chain.json");
 vk_debug_write(vk_chain_json_path, JSON.stringify(vk_chain_dump, null, 2), "utf8");
-Logger.log("calc_move_vk_cmds chain json dumped: " + vk_chain_json_path);
+if (self.debug_vk_exports === true)
+    {
+    Logger.log("calc_move_vk_cmds chain json dumped: " + vk_chain_json_path);
+    }
 
 
 /* 
@@ -6766,7 +6995,15 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
       this.bots[tmpbotid].y = new_y;
       this.bots[tmpbotid].z = new_z;
       
-      
+      // In vehicle_kinematics mode, also update orientation (vx/vy/vz) from signal_botids
+      // if the orientation was stored in create_opcode_sequence().
+      let signal_to = this.signal_botids[ msgarray.bottmpid ].to;
+      if (signal_to && signal_to.vx !== undefined)
+         {
+         this.bots[tmpbotid].vector_x = Number(signal_to.vx);
+         this.bots[tmpbotid].vector_y = Number(signal_to.vy);
+         this.bots[tmpbotid].vector_z = Number(signal_to.vz);
+         }
 
       this.bots[tmpbotid].adress = this.get_mb_returnaddr( {x:this.mb.x, y:this.mb.y, z:this.mb.z }, {x:new_x, y:new_y, z:new_z }, this.bots );
 
@@ -6956,6 +7193,23 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                this.bots[tmpbotid].x = new_x;
                this.bots[tmpbotid].y = new_y;
                this.bots[tmpbotid].z = new_z;
+
+               // Bug B fix: set orientation from api_ack_entry.orientation when available
+               if (api_ack_entry.orientation)
+                  {
+                  if (api_ack_entry.orientation.vx !== undefined)
+                     {
+                     this.bots[tmpbotid].vector_x = Number(api_ack_entry.orientation.vx);
+                     }
+                  if (api_ack_entry.orientation.vy !== undefined)
+                     {
+                     this.bots[tmpbotid].vector_y = Number(api_ack_entry.orientation.vy);
+                     }
+                  if (api_ack_entry.orientation.vz !== undefined)
+                     {
+                     this.bots[tmpbotid].vector_z = Number(api_ack_entry.orientation.vz);
+                     }
+                  }
 
                this.bots[tmpbotid].adress = this.get_mb_returnaddr(
                                                                   {x:this.mb.x, y:this.mb.y, z:this.mb.z },

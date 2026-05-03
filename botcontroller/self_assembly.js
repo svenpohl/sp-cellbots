@@ -57,9 +57,16 @@ if ( signal == "FIN" )
    {
    // console.log("Finish Morph Process!");
    caller.notify_frontend_console("Finish morph process!");
-   this.assembly_status = 0;   
+   this.assembly_status = 0;
+   
+   // Notify caller that the morph sequence has finished (all ACKs received)
+   // This allows the botcontroller to persist final positions/orientations from morphLog
+   if (typeof caller.onMorphSequenceFinished === "function")
+      {
+      caller.onMorphSequenceFinished();
+      }
    }
-  
+   
 } // addsignal ( signal )
 
 
