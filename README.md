@@ -47,6 +47,7 @@ structures.
 - [CellBot Protocol and OP-Codes](docs/protocol.md)  
 - [CellBot Hardware Blueprint (Virtual)](docs/hardware_blueprint.md)  
 - [Direct Radio](docs/direct_radio.md)  
+- [Vehicle Kinematics](docs/vehicle_kinematics.md)  
 - [Usage & Examples](docs/usage.md)  
 - [API](docs/api.md)  
 - [Morphing](docs/morphing.md)  
@@ -61,11 +62,19 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.1**  
+Current version: **1.7.2**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.2** (03.05.2026)  
+**Sequential Vehicle Kinematics Morph**
+  - Added `SequentialVKMorph` algorithm — morphing under vehicle-kinematics constraints using A* path planning on movement states (position + rotation)
+  - Path planning now supports `find_path_for_bot` and `move_bot_to` with VK-aware rotation insertion
+  - Default construct changed to `base_100.xml` for larger morph experiments
+  - Tested and morphable structures: `base_100`, `25_arch`, `25_cross`
+  - Added dedicated documentation chapter: **[Vehicle Kinematics](docs/vehicle_kinematics.md)**
 
 - **1.7.1** (29.04.2026)  
 **VoxelEdit integration**
