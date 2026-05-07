@@ -121,13 +121,19 @@ Latest changes:
 
 ## 📖 How to cite
 
-If you use SP-CellBots in your work, please cite one (or both) of the following:
+If you use SP-CellBots in your work, please cite one (or more) of the following:
 
 - **Software (GitHub / CITATION.cff):**  
   Use the repository citation metadata (GitHub “Cite this repository” / `CITATION.cff`).
-- **Paper (Zenodo DOI):**  
+
+- **Core concept and opcode protocol:**  
+  Pohl, S. (2026). *A Modular and Secure Opcode Protocol for Programmable Matter*. Zenodo.  
   [https://doi.org/10.5281/zenodo.19509605](https://doi.org/10.5281/zenodo.19509605)
 
+- **Applied benchmark / follow-up study:**  
+  Pohl, S. (2026). *A Qualitative Benchmark Comparison of Full-Edge and Vehicle Kinematics in SP-CellBots*. Zenodo.  
+  [https://doi.org/10.5281/zenodo.20074691](https://doi.org/10.5281/zenodo.20074691)
+  
 ---
 
 ## 🚧 Planned Features
