@@ -62,11 +62,21 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.2**  
+Current version: **1.7.3**  
 Developed and tested on **Node.js v23.11.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.3** (12.05.2026)  
+**Hybrid Kinematics mobility mode (API preview)**
+  - Added `mobility_mode = hybrid_kinematics` as the new default mode (preview)
+  - For morph demos, set `mobility_mode = full_edge` in `config.cfg` of both botcontroller and cluster_sim
+  - In this mode, SP-CellBots can move in 3D including ceiling (upside-down) positions — path planning supports horizontal, vertical, wall, step, and climb primitives
+  - Mode is currently only active for the LLM-facing API command `move_bot_to` (NOT for morphing)
+  - Primary demo: `"node api.js move_bot_to B26 4 2 3"`
+  - Fixed several inconsistencies in vehicle-kinematics movement primitives
+  - Extended `tools/voxeledit/` with new features and added test constructs for 300-bot morphing experiments
 
 - **1.7.2** (03.05.2026)  
 **Sequential Vehicle Kinematics Morph**
