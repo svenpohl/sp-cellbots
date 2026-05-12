@@ -162,6 +162,9 @@
       <button id="btnTargetNew" style="border-color:#884444;">New</button>
       <button id="btnTargetLoad" style="border-color:#884444;">Load</button>
       <button id="btnTargetSave" class="primary" style="background:#6a2a2a;border-color:#8a3a3a;">Save</button>
+      <label style="font-size:11px;color:#ff6666;margin-left:8px;user-select:none;">
+        <input type="checkbox" id="chkSaveOrientation" /> Save orientation
+      </label>
     </div>
   </div>
 
@@ -196,6 +199,7 @@
   <!-- Status bar -->
   <div id="statusbar">
     <span id="statusLeft">Ready</span>
+    <span id="botCoord" style="color:#88ccff;font-family:monospace;display:none;"></span>
     <span id="statusRight"><a href="https://github.com/svenpohl/sp-cellbots" target="_blank" style="color:#888;text-decoration:none;">Part of the SP-CellBots Project</a></span>
   </div>
 
@@ -342,6 +346,20 @@
   function setStatus(msg) {
     document.getElementById("statusLeft").textContent = msg;
   } // setStatus()
+
+  // Zeigt die Koordinate des selektierten Bots unten rechts an (oder versteckt sie)
+  function updateBotCoordDisplay() {
+    const el = document.getElementById("botCoord");
+    if (STATE.selectedBotId) {
+      const bot = STATE.bots.find(b => b.id === STATE.selectedBotId);
+      if (bot) {
+        el.textContent = "(" + bot.x + ", " + bot.y + ", " + bot.z + ")";
+        el.style.display = "inline";
+        return;
+      }
+    }
+    el.style.display = "none";
+  } // updateBotCoordDisplay()
 
   // ============================================================
   //  BOT-MESHES
@@ -551,6 +569,7 @@
     STATE.dirty = true;
     if (STATE.selectedBotId === botId) STATE.selectedBotId = null;
     rebuildBotMeshes();
+    updateBotCoordDisplay();
     setStatus("Bot " + botId + " deleted");
   } // deleteBot()
 
@@ -760,6 +779,7 @@
         STATE.selectedBotId = botId;
         document.getElementById("botIdInput").value = botId;
         highlightSelectedBot();
+        updateBotCoordDisplay();
         setStatus("Bot " + botId + " selected");
       } else if (event.button === 2) {
         deleteBot(botId);
@@ -777,6 +797,7 @@
       STATE.selectedBotId = null;
       document.getElementById("botIdInput").value = "";
       highlightSelectedBot();
+      updateBotCoordDisplay();
       setStatus("Selection cleared");
     }
   } // onPointerDown()
@@ -1049,21 +1070,35 @@
     }
     // Alte TRGT-Bots entfernen
     STATE.bots = STATE.bots.filter(b => (b.prefix || "B") !== "TRGT");
-    // Neue TRGT-Bots aus Datei hinzufügen
+    // Neue TRGT-Bots aus Datei hinzufügen (mit Orientierung falls vorhanden)
     for (const v of data) {
       maxNum++;
       const botId = "TRGT" + maxNum;
-      STATE.bots.push({ id: botId, x: v.x, y: v.y, z: v.z, prefix: "TRGT" });
+      const bot = { id: botId, x: v.x, y: v.y, z: v.z, prefix: "TRGT" };
+      // Orientierungsvektoren aus Datei übernehmen, falls vorhanden
+      if (v.vx !== undefined && v.vx !== null) bot.vx = v.vx;
+      if (v.vy !== undefined && v.vy !== null) bot.vy = v.vy;
+      if (v.vz !== undefined && v.vz !== null) bot.vz = v.vz;
+      STATE.bots.push(bot);
     }
     STATE.dirty = true;
     rebuildBotMeshes();
     setStatus("Target loaded: " + filename + " (" + data.length + " TRGT markers)");
   } // loadTargetFile()
 
-  // Speichert nur die TRGT-Bots als einfaches [{x,y,z}] Array (ohne IDs)
+  // Speichert nur die TRGT-Bots als [{x,y,z}] Array (optional mit vx,vy,vz)
   async function saveTargetFile(filename) {
+    const saveOri = document.getElementById("chkSaveOrientation").checked;
     const trgtBots = STATE.bots.filter(b => (b.prefix || "B") === "TRGT");
-    const data = trgtBots.map(b => ({ x: b.x, y: b.y, z: b.z }));
+    const data = trgtBots.map(b => {
+      const entry = { x: b.x, y: b.y, z: b.z };
+      if (saveOri) {
+        entry.vx = (b.vx !== undefined && b.vx !== null) ? b.vx : 1;
+        entry.vy = (b.vy !== undefined && b.vy !== null) ? b.vy : 0;
+        entry.vz = (b.vz !== undefined && b.vz !== null) ? b.vz : 0;
+      }
+      return entry;
+    });
     const resp = await fetch("/api/structures/" + encodeURIComponent(filename), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1072,7 +1107,7 @@
     const json = await resp.json();
     if (!json.ok) { setStatus("Target save error"); return; }
     STATE.targetDirty = false;
-    setStatus("Target saved: " + filename + " (" + data.length + " TRGT markers)");
+    setStatus("Target saved: " + filename + " (" + data.length + " TRGT markers" + (saveOri ? " + orientation" : "") + ")");
   } // saveTargetFile()
 
   // ============================================================
