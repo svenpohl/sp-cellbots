@@ -37,6 +37,8 @@ const net  = require('net');
 const path = require('path');
 const fs   = require('fs').promises;
 
+const Logger = require('./logger');
+
 // for webguisim
 const WebSocket = require('ws');
 const http = require('http');
@@ -60,6 +62,11 @@ masterbot_class_obj = new masterbot_class( { QUIET } );
 // Load config.cfg
 const configPath = path.join(__dirname, 'config.cfg');
 const config = masterbot_class_obj.loadconfig(configPath);
+
+// Timezone aus Config setzen
+if (config.timezone) {
+  Logger.setTimezone(config.timezone);
+}
 
  
 await masterbot_class_obj.init("constructs/" + config.construct);
