@@ -285,6 +285,21 @@ else if (mobility_mode == "vehicle_kinematics")
                                                                     );
    path_result = path_vehicle_dry_run;
    } // if
+else if (mobility_mode == "hybrid_kinematics")
+   {
+   path_vehicle_dry_run = controller.apicall_calc_hybrid_kinematics_path(
+                                                                    src,
+                                                                    dest,
+                                                                    bots_s,
+                                                                    bots_f,
+                                                                    {
+                                                                    orientation: bot_snapshot?.orientation ?? null,
+                                                                    goal_orientation: goal_orientation,
+                                                                    include_start: true
+                                                                    }
+                                                                    );
+   path_result = path_vehicle_dry_run;
+   } // if
 else
    {
    path_result = controller.apicall_calc_single_path(src, dest, bots_s, bots_f);
@@ -296,23 +311,25 @@ if (Array.isArray(path_result))
    } // if
 else if (path_result && typeof path_result == "object")
    {
-   path = Array.isArray(path_result.path) ? path_result.path : null;
-   if (!path && Array.isArray(path_result.states))
-      {
-      path = path_result.states;
-      } // if
+   // Prefer states/states_full over path for vehicle_kinematics/hybrid_kinematics
+   // because the VK planner stores the full path with orientation in states.
+   path = Array.isArray(path_result.states) ? path_result.states : null;
    if (!path && Array.isArray(path_result.states_full))
       {
       path = path_result.states_full;
       } // if
+   if (!path && Array.isArray(path_result.path))
+      {
+      path = path_result.path;
+      } // if
    path_debug_rejections = Array.isArray(path_result.debug_rejections) ? path_result.debug_rejections : [];
-   if (path_vehicle_dry_run == null && mobility_mode == "vehicle_kinematics")
+   if (path_vehicle_dry_run == null && (mobility_mode == "vehicle_kinematics" || mobility_mode == "hybrid_kinematics"))
       {
       path_vehicle_dry_run = path_result;
       } // if
    } // else if
 
-if (!path)
+if (!path || (Array.isArray(path) && path.length === 0))
    {
    return({
           ok: true,
@@ -366,11 +383,12 @@ return({
        excluded_bot_ids: excluded_bot_ids,
        vehicle_path_dry_run: path_vehicle_dry_run,
        path_debug_rejections: path_debug_rejections,
-       path_visualized: path_visualized,
-       marker_count: marker_count,
-       path_length: path.length,
-       path: path
-       });
+        path_visualized: path_visualized,
+        marker_count: marker_count,
+        path_length: path.length,
+        path: path,
+        actions: (path_result && typeof path_result == "object" && Array.isArray(path_result.actions)) ? path_result.actions : []
+        });
 } // apicall_find_path_for_bot()
 
 
@@ -670,17 +688,52 @@ if (path_ret.path_found !== true)
           planned_raw_cmd: null,
           path: []
           });
+    } // if
+
+// Sicherheitscheck: path_ret.path muss ein Array mit mindestens 2 Elementen sein,
+// sonst können translate_path_to_primitive_paths und calc_move_*_cmds nicht arbeiten.
+// (Der path_found-check oben garantiert nicht, dass path_ret.path ein Array ist,
+//  da der Path-Planner für hybrid_kinematics/vehicle_kinematics ein Objekt
+//  mit .states/.states_full/.path zurückgeben kann.)
+if (!Array.isArray(path_ret.path) || path_ret.path.length < 2)
+   {
+   return({
+          ok: true,
+          answer: (should_execute_move ? "api_move_bot_to" : "api_diagnose_move_bot_to"),
+          bot_id: bot_id,
+          execution_mode: "plan-only",
+          target: {
+                   x: target_x,
+                   y: target_y,
+                   z: target_z
+                   },
+          executable: false,
+          executed: false,
+          reason: "PATH_TOO_SHORT_OR_INVALID",
+          current_state: bot_snapshot,
+          carried_payload_bot_id: carried_payload_bot_id,
+          planning_excluded_bot_ids: excluded_bot_ids,
+          mobility_mode: mobility_mode,
+          goal_orientation: normalized_goal_orientation,
+          path_found: false,
+          path_length: 0,
+          planned_moves: [],
+          planned_primitives: [],
+          planned_movecmds_legacy: "",
+          planned_raw_cmd: null,
+          path: []
+          });
    } // if
 
 let bots_tmp_translate = controller.apicall_build_active_bots_tmp(false, excluded_bot_ids);
 let planned_moves = apicall_translate_path_to_primitive_paths(
-                                                              controller,
-                                                              path_ret.path ?? [],
-                                                              Number(bot_snapshot.orientation.x),
-                                                              Number(bot_snapshot.orientation.y),
-                                                              Number(bot_snapshot.orientation.z),
-                                                              bots_tmp_translate
-                                                              );
+                                                               controller,
+                                                               path_ret.path,
+                                                               Number(bot_snapshot.orientation.x),
+                                                               Number(bot_snapshot.orientation.y),
+                                                               Number(bot_snapshot.orientation.z),
+                                                               bots_tmp_translate
+                                                               );
 let planned_primitives = apicall_add_anchors_to_primitive_paths(
                                                                 controller,
                                                                 planned_moves,
@@ -707,24 +760,36 @@ let calc_move_debug_payload = {
 if (mobility_mode == "vehicle_kinematics" && typeof controller.calc_move_vk_cmds == "function")
    {
    legacy_move_ret = controller.calc_move_vk_cmds(
-                                                  path_ret.path ?? [],
-                                                  Number(bot_snapshot.orientation.x),
-                                                  Number(bot_snapshot.orientation.y),
-                                                  Number(bot_snapshot.orientation.z),
-                                                  bots_tmp,
-                                                  normalized_goal_orientation
-                                                  );
-   } else
-     {
-     legacy_move_ret = controller.calc_move_cmds(
-                                                 path_ret.path ?? [],
-                                                 Number(bot_snapshot.orientation.x),
-                                                 Number(bot_snapshot.orientation.y),
-                                                 Number(bot_snapshot.orientation.z),
-                                                 bots_tmp,
-                                                 normalized_goal_orientation
-                                                 );
-     } // else
+                                                    path_ret.path ?? [],
+                                                    Number(bot_snapshot.orientation.x),
+                                                    Number(bot_snapshot.orientation.y),
+                                                    Number(bot_snapshot.orientation.z),
+                                                    bots_tmp,
+                                                    normalized_goal_orientation
+                                                    );
+   } else if (mobility_mode == "hybrid_kinematics" && typeof controller.calc_move_hybrid_cmds == "function")
+      {
+      let hybrid_actions = Array.isArray(path_ret?.actions) ? path_ret.actions : [];
+      legacy_move_ret = controller.calc_move_hybrid_cmds(
+                                                       path_ret.path ?? [],
+                                                       Number(bot_snapshot.orientation.x),
+                                                       Number(bot_snapshot.orientation.y),
+                                                       Number(bot_snapshot.orientation.z),
+                                                       bots_tmp,
+                                                       normalized_goal_orientation,
+                                                       hybrid_actions
+                                                       );
+      } else
+        {
+        legacy_move_ret = controller.calc_move_cmds(
+                                                    path_ret.path ?? [],
+                                                    Number(bot_snapshot.orientation.x),
+                                                    Number(bot_snapshot.orientation.y),
+                                                    Number(bot_snapshot.orientation.z),
+                                                    bots_tmp,
+                                                    normalized_goal_orientation
+                                                    );
+        } // else
 let planned_movecmds_legacy = legacy_move_ret?.movecmds ?? "";
 let planned_raw_cmd = null;
 let raw_ret = null;
@@ -754,7 +819,7 @@ if (normalized_goal_orientation)
                              z: Number(normalized_goal_orientation.z ?? 0)
                              };
    }
-else if (mobility_mode == "vehicle_kinematics" && Array.isArray(path_ret.path) && path_ret.path.length > 0)
+else if ((mobility_mode == "vehicle_kinematics" || mobility_mode == "hybrid_kinematics") && Array.isArray(path_ret.path) && path_ret.path.length > 0)
    {
    let path_goal_stage = path_ret.path[path_ret.path.length - 1];
 
@@ -1040,7 +1105,59 @@ if (should_execute_move === true && planned_raw_cmd)
             controller.apicall_gui_refresh();
          } // if
       } // if
-   } // if
+
+   // After a successful move (with or without ACK), apply the target orientation
+   // from ack_target_orientation to the bot's local state.
+   // This ensures the BotController world model reflects the final orientation
+   // even when no explicit rotation was part of the path (e.g. hybrid_kinematics
+   // where the path planner only moves, but the goal_orientation is set separately).
+   if (
+       should_execute_move === true &&
+       (raw_ret?.accepted ?? false) === true &&
+       ack_target_orientation &&
+       live_botindex != null
+      )
+      {
+      let current_vx = Number(controller.bots[live_botindex].vector_x ?? 0);
+      let current_vy = Number(controller.bots[live_botindex].vector_y ?? 0);
+      let current_vz = Number(controller.bots[live_botindex].vector_z ?? 0);
+      let target_vx = Number(ack_target_orientation.x ?? 0);
+      let target_vy = Number(ack_target_orientation.y ?? 0);
+      let target_vz = Number(ack_target_orientation.z ?? 0);
+
+      // Only update if the orientation actually differs from the current one.
+      // This avoids unnecessary writes when no goal_orientation was specified.
+      if (
+          current_vx !== target_vx ||
+          current_vy !== target_vy ||
+          current_vz !== target_vz
+         )
+         {
+         controller.bots[live_botindex].vector_x = target_vx;
+         controller.bots[live_botindex].vector_y = target_vy;
+         controller.bots[live_botindex].vector_z = target_vz;
+
+         if (String(carried_payload_bot_id ?? "").trim() != "")
+            {
+            controller.apicall_sync_payload_from_carrier(
+                                                       bot_id,
+                                                       {
+                                                       x: Number(target_x),
+                                                       y: Number(target_y),
+                                                       z: Number(target_z)
+                                                       },
+                                                       {
+                                                       x: target_vx,
+                                                       y: target_vy,
+                                                       z: target_vz
+                                                       }
+                                                       );
+            } // if
+
+          controller.apicall_gui_refresh();
+          } // if
+       } // if
+   } // if (should_execute_move === true && planned_raw_cmd)
 
 move_diagnostic_summary = apicall_build_move_diagnostic_summary(
                                                                 controller,
@@ -1172,10 +1289,10 @@ if (Array.isArray(path_debug_rejections))
 
 if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim() != "")
    {
-   if (invalid_primitive_count > 0)
+   if (invalid_primitive_count > 0 && planned_raw_cmd == null)
       {
       legacy_translation_status = "warning_invalid_primitives_but_legacy_present";
-      legacy_translation_warning = "Legacy translation produced a MOVE string although one or more anchored primitives are invalid.";
+      legacy_translation_warning = "Legacy translation produced a MOVE string although one or more anchored primitives are invalid and no raw_cmd was built.";
       final_diagnostic_reason = "LEGACY_TRANSLATION_CONFLICT";
       } // if
    else

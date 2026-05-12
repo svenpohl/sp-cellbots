@@ -1,4 +1,5 @@
 const { calc_vehicle_kinematics_path } = require('./api_vehicle_kinematics_path_runtime');
+const { calc_hybrid_kinematics_path } = require('./api_hybrid_kinematics_path_runtime');
 
 
 function apicall_create_sparse_grid(controller)
@@ -1208,12 +1209,59 @@ let goal = {
            };
 let options = {
               max_search_steps: Number(vehicle_options?.max_search_steps ?? 100000),
-              max_debug_rejections: Number(vehicle_options?.max_debug_rejections ?? 120),
+               max_debug_rejections: Number(vehicle_options?.max_debug_rejections ?? 5000),
               include_start: vehicle_options?.include_start !== false
               };
 
 return(calc_vehicle_kinematics_path(start, goal, world, options));
 } // apicall_calc_vehicle_kinematics_path()
+
+
+function apicall_calc_hybrid_kinematics_path(controller, src, dest, bots_s, bots_f, vehicle_options = {})
+{
+let start_orientation = vehicle_options?.orientation ?? { x: 0, y: 0, z: 1 };
+let world = {
+            isOccupied: (x, y, z) => (
+                                     bots_s.get(Number(x), Number(y), Number(z)) !== null
+                                     ),
+            isFree: (x, y, z) => {
+              let occupied = (bots_s.get(Number(x), Number(y), Number(z)) !== null);
+              let forbidden = false;
+
+              if (bots_f)
+                 {
+                 forbidden = (bots_f.get(Number(x), Number(y), Number(z)) !== null);
+                 } // if
+
+              return(!occupied && !forbidden);
+            },
+            forbidden: bots_f
+            };
+let start = {
+            x: Number(src?.x ?? 0),
+            y: Number(src?.y ?? 0),
+            z: Number(src?.z ?? 0),
+            vx: Number(start_orientation?.x ?? 0),
+            vy: Number(start_orientation?.y ?? 0),
+            vz: Number(start_orientation?.z ?? 1)
+            };
+let goal = {
+           x: Number(dest?.x ?? 0),
+           y: Number(dest?.y ?? 0),
+           z: Number(dest?.z ?? 0),
+           vx: Number(vehicle_options?.goal_orientation?.x ?? start.vx),
+           vy: Number(vehicle_options?.goal_orientation?.y ?? start.vy),
+           vz: Number(vehicle_options?.goal_orientation?.z ?? start.vz)
+           };
+let options = {
+              max_search_steps: Number(vehicle_options?.max_search_steps ?? 100000),
+              max_debug_rejections: Number(vehicle_options?.max_debug_rejections ?? 120),
+              include_start: vehicle_options?.include_start !== false,
+              debug_log: true
+              };
+
+return(calc_hybrid_kinematics_path(start, goal, world, options));
+} // apicall_calc_hybrid_kinematics_path()
 
 
 module.exports = {
@@ -1226,5 +1274,6 @@ module.exports = {
                  apicall_is_valid_wrapped_double_step,
                  apicall_calc_single_path,
                  apicall_calc_single_path_payload,
-                 apicall_calc_vehicle_kinematics_path
+                 apicall_calc_vehicle_kinematics_path,
+                 apicall_calc_hybrid_kinematics_path
                  };

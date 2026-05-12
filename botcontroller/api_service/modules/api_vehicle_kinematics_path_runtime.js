@@ -22,13 +22,22 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
     }),
     primitives: [
     
-  {
-                    name: "MOVE_XP_BWD",
-                    match: { dir: [-1, 0, 0] },
+     { 
+                    name: "MOVE_XP_FWD",
+                    match: { dir: [1, 0, 0] },
                     pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" } ],
-                    effect: { pos_delta: [1, 0, 0], dir: [-1, 0, 0] },
+                    effect: { pos_delta: [1, 0, 0], dir: [1, 0, 0] },
+                    cost: 1,
+                },  
+                { 
+                    name: "MOVE_XP_BWD",
+                    match: { dir: [1, 0, 0] },
+                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" } ],
+                    effect: { pos_delta: [-1, 0, 0], dir: [1, 0, 0] },
                     cost: 1,
                 },
+                
+                
                 {
                     name: "MOVE_XN_FWD",
                     match: { dir: [-1, 0, 0] },
@@ -38,11 +47,12 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 },
                 {
                     name: "MOVE_XN_BWD",
-                    match: { dir: [1, 0, 0] },
-                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" }],
-                    effect: { pos_delta: [-1, 0, 0], dir: [1, 0, 0] },
+                    match: { dir: [-1, 0, 0] },
+                    pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" }],
+                    effect: { pos_delta: [1, 0, 0], dir: [-1, 0, 0] },
                     cost: 1,
                 },
+                
                 {
                     name: "MOVE_ZP_FWD",
                     match: { dir: [0, 0, 1] },
@@ -52,11 +62,12 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 },
                 {
                     name: "MOVE_ZP_BWD",
-                    match: { dir: [0, 0, -1] },
-                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" }],
-                    effect: { pos_delta: [0, 0, 1], dir: [0, 0, -1] },
+                    match: { dir: [0, 0, 1] },
+                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" }],
+                    effect: { pos_delta: [0, 0, -1], dir: [0, 0, 1] },
                     cost: 1,
                 },
+                
                 {
                     name: "MOVE_ZN_FWD",
                     match: { dir: [0, 0, -1] },
@@ -66,9 +77,9 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 },
                 {
                     name: "MOVE_ZN_BWD",
-                    match: { dir: [0, 0, 1] },
-                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" }],
-                    effect: { pos_delta: [0, 0, -1], dir: [0, 0, 1] },
+                    match: { dir: [0, 0, -1] },
+                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" }],
+                    effect: { pos_delta: [0, 0, 1], dir: [0, 0, -1] },
                     cost: 1,
                 },
                  

@@ -121,6 +121,99 @@ return({
 } // apicall_morph_start()
 
 
+function apicall_morph_start_headless(controller, algo, structure, output_file, socket)
+{
+let normalized_algo = String(algo ?? "").trim();
+let normalized_structure = String(structure ?? "").trim();
+let communication_mode = String(controller?.config?.communication_mode ?? "mesh_opcode").trim().toLowerCase();
+let structures_ret = apicall_morph_get_structures(controller);
+let algos_ret = apicall_morph_get_algos(controller);
+let selected_algo = null;
+
+if (normalized_algo == "")
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start_headless",
+          error: "MORPH_ALGO_MISSING"
+          });
+   } // if
+
+if (normalized_structure == "")
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start_headless",
+          error: "MORPH_STRUCTURE_MISSING",
+          algo: normalized_algo
+          });
+   } // if
+
+selected_algo = (algos_ret.list ?? []).find((entry) => String(entry?.id ?? "").trim() == normalized_algo) ?? null;
+
+if (!selected_algo)
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start_headless",
+          error: "MORPH_ALGO_NOT_FOUND",
+          algo: normalized_algo,
+          available_algos: algos_ret.list ?? []
+          });
+   } // if
+
+if (!(structures_ret.list ?? []).includes(normalized_structure))
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start_headless",
+          error: "MORPH_STRUCTURE_NOT_FOUND",
+          algo: normalized_algo,
+          structure: normalized_structure,
+          available_structures: structures_ret.list ?? []
+          });
+   } // if
+
+if (communication_mode == "direct_radio")
+   {
+   return({
+          ok: false,
+          answer: "api_morph_start_headless",
+          error: "MORPH_ONLY_IMPLEMENTED_IN_MESH_MODE",
+          communication_mode: communication_mode,
+          algo: normalized_algo,
+          structure: normalized_structure
+          });
+   } // if
+
+// Start headless morph with a callback that sends the result via socket
+controller.headless_prepare_morph(
+                                 normalized_structure,
+                                 normalized_algo,
+                                 output_file,
+                                 function(morphLog, success, outputPath) {
+                                 let ret = {
+                                           ok: true,
+                                           answer: "api_morph_start_headless",
+                                           success: success,
+                                           algo: normalized_algo,
+                                           structure: normalized_structure,
+                                           output_file: outputPath || null
+                                           };
+                                 if (success && morphLog)
+                                    {
+                                    ret.wave_count = Array.isArray(morphLog.waves) ? morphLog.waves.length : 0;
+                                    ret.move_count = morphLog.waves ? morphLog.waves.reduce((sum, w) => sum + (Array.isArray(w.moves) ? w.moves.length : 0), 0) : 0;
+                                    }
+                                 const answer = JSON.stringify(ret) + "\n";
+                                 socket.write(answer, () => { socket.end(); });
+                                 }
+                                 );
+
+return(null); // null = accepted, response will be sent via callback
+} // apicall_morph_start_headless()
+
+
 function apicall_update_morph_status(controller, patch = {})
 {
 let now_iso = new Date().toISOString();
@@ -158,6 +251,7 @@ module.exports = {
                  apicall_morph_get_structures,
                  apicall_morph_get_algos,
                  apicall_morph_start,
+                 apicall_morph_start_headless,
                  apicall_update_morph_status,
                  apicall_get_morph_status
                  };

@@ -155,6 +155,21 @@ if (cmd === "morph_start")
    return(true);
    } // if
 
+if (cmd === "headless")
+   {
+   let ret = controller.apicall_morph_start_headless(decodedobject.algo, decodedobject.structure, decodedobject.output_file ?? "", socket);
+   if (ret !== null)
+      {
+      // Validation error - send response immediately
+      controller.append_api_action_log("headless", { algo: decodedobject.algo, structure: decodedobject.structure, output_file: decodedobject.output_file ?? "" }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "" });
+      await write_and_close(socket, ret);
+      return(true);
+      }
+   // null = accepted, response will be sent via callback (socket stays open)
+   controller.append_api_action_log("headless", { algo: decodedobject.algo, structure: decodedobject.structure, output_file: decodedobject.output_file ?? "" }, { ok: true, answer: "api_morph_start_headless", accepted: true });
+   return(true); // return true to prevent UNKNOWN_API_COMMAND fallthrough; socket is closed by callback
+   } // if
+
 if (cmd === "morph_check_progress")
    {
    let ret = controller.apicall_get_morph_status();
