@@ -348,49 +348,6 @@
 </cell>
 
 
-
-<cell>
-<id>B26</id>
-<col>eeeeff</col>
-<pos>
-<x>2</x>
-<y>1</y>
-<z>0</z>
-<vx>0</vx>
-<vy>0</vy>
-<vz>1</vz>
-</pos>
-</cell>
-
-
-<cell>
-<id>B27</id>
-<col>eeeeff</col>
-<pos>
-<x>4</x>
-<y>1</y>
-<z>0</z>
-<vx>0</vx>
-<vy>0</vy>
-<vz>1</vz>
-</pos>
-</cell>
-
-
-<cell>
-<id>B28</id>
-<col>eeeeff</col>
-<pos>
-<x>5</x>
-<y>1</y>
-<z>4</z>
-<vx>-1</vx>
-<vy>0</vy>
-<vz>0</vz>
-</pos>
-</cell>
-
  
-
 
 </xml>
