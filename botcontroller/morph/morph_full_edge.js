@@ -1,10 +1,24 @@
 /**
- * MorphVehicleKinematics
+ * MorphFullEdge
  * -----------------------
- * Vehicle-kinematics-based morphing algorithm for programmable matter / cellbot cluster transformation.
+ * Full-edge-based morphing algorithm for programmable matter / cellbot cluster transformation.
  *
- * This module uses the A*-based vehicle kinematics path planner (embedded redundantly)
- * instead of the classic BFS + MOVEMENT_RULES approach used by MorphBFSWavefront.
+ * NOTE: This approach (deriving a FullEdge class from the VehicleKinematics class by
+ * replacing movement primitives) is currently PAUSED / ON HOLD.
+ *
+ * The core challenge is that FullEdge kinematics requires fundamentally different
+ * movement primitives compared to VehicleKinematics:
+ *   - VK uses oriented bots with a front slot (F-slot) for STEP_UP/STEP_DOWN maneuvers
+ *   - FullEdge bots have no orientation and can anchor via any of their 6 connectors
+ *   - This requires a much larger set of primitives covering all 6 directions for
+ *     MOVE, STEP (around anchor bots), and WALL (vertical climb) movements
+ *
+ * The current implementation is a clone of MorphVehicleKinematics that behaves 100%
+ * identically. The movement primitives in _calcVehicleKinematicsPath() were intended
+ * to be customized for full-edge kinematics, but the primitive set proved insufficient
+ * for navigating through dense clusters.
+ *
+ * This file is kept for reference and future development. Do not use in production.
  *
  * Structure:
  *   - All functions are included in this single file for maximum transparency and experimental flexibility.
@@ -16,12 +30,12 @@
  *   - Fully self-contained class with start/target injection
  *   - Step-wise or batch morphing (run/step)
  *   - Progress tracking and logging (morphLog)
- *   - Vehicle-kinematics-based path planning using A* with 30+ movement primitives
+ *   - Full-edge-based path planning using A* with customizable movement primitives
  *   - Reserve-Bots (R* IDs) are preferred as donor bots, but wouldSplitCluster is checked for ALL bots
  *   - Ready for future refactoring or modularization if needed
  *
  * Author: Sven Pohl
- * Date: [2026-04-30]
+ * Date: [2026-05-03]
  * Version: [v1.0]
  */
 
@@ -30,7 +44,7 @@ const fs = require('fs');
 const path = require('path');
 const config_parser = require('../../common/config_parser.js');
 
-class MorphVehicleKinematics extends MorphBase
+class MorphFullEdge extends MorphBase
 {
 
     constructor(startBots, targetBots, params)
@@ -38,7 +52,7 @@ class MorphVehicleKinematics extends MorphBase
         super(startBots, targetBots, params);
 
         this.DEBUG = true;
-        this.LOGLEVEL = 0; // 0=off, 1=error, 2=info, 3=verbose
+        this.LOGLEVEL = 3; // 0=off, 1=error, 2=info, 3=verbose
 
         // Read timezone from config.cfg (default to UTC if not set)
         try {
@@ -50,12 +64,12 @@ class MorphVehicleKinematics extends MorphBase
         }
 
         // Debug log file - cleared on each new morph run
-        this.debugLogPath = path.join(__dirname, 'morph_vehicle_kinematics.log');
+        this.debugLogPath = path.join(__dirname, 'morph_full_edge.log');
         fs.writeFileSync(this.debugLogPath, '', 'utf8');
 
         // Valid path log file - cleared on each new morph run
         // Contains ONLY paths verified by _calcVehicleKinematicsPath()
-        this.validPathLogPath = path.join(__dirname, 'morph_vehicle_kinematics_validpath.log');
+        this.validPathLogPath = path.join(__dirname, 'morph_full_edge_validpath.log');
         fs.writeFileSync(this.validPathLogPath, '', 'utf8');
 
         this.progress = 0;
@@ -130,7 +144,7 @@ class MorphVehicleKinematics extends MorphBase
 
         this.wavecnt = 0;
 
-        this.log("Construct MorphVehicleKinematics");
+        this.log("Construct MorphFullEdge");
     } // constructor()
 
 
@@ -1232,83 +1246,80 @@ class MorphVehicleKinematics extends MorphBase
     //
     _calcVehicleKinematicsPath(start, goal, world, options = {})
     {
+    // console.log("FULL EDGE ...")
         const DIR_XP = Object.freeze({ x: 1, y: 0, z: 0 });
         const DIR_XN = Object.freeze({ x: -1, y: 0, z: 0 });
         const DIR_ZP = Object.freeze({ x: 0, y: 0, z: 1 });
         const DIR_ZN = Object.freeze({ x: 0, y: 0, z: -1 });
-
-        const primitives = Object.freeze({
+/*
+        const primitives_fe = Object.freeze({
             meta: Object.freeze({
                 cell_states: ["free", "occupied"],
             }),
             primitives: [
-               
-                 { 
+            */
+            
+ const primitives = Object.freeze({
+            meta: Object.freeze({
+                cell_states: ["free", "occupied"],
+            }),
+            primitives: [            
+                {
                     name: "MOVE_XP_FWD",
                     match: { dir: [1, 0, 0] },
-                    pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" } ],
+                    pre: [{ cell: [1, 0, 0], is: "free" }  ],
                     effect: { pos_delta: [1, 0, 0], dir: [1, 0, 0] },
                     cost: 1,
-                },  
-                { 
+                },             
+                {
                     name: "MOVE_XP_BWD",
-                    match: { dir: [1, 0, 0] },
-                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" } ],
-                    effect: { pos_delta: [-1, 0, 0], dir: [1, 0, 0] },
+                    match: { dir: [-1, 0, 0] },
+                    pre: [{ cell: [1, 0, 0], is: "free" }  ],
+                    effect: { pos_delta: [1, 0, 0], dir: [-1, 0, 0] },
                     cost: 1,
                 },
-                
-                
                 {
                     name: "MOVE_XN_FWD",
                     match: { dir: [-1, 0, 0] },
-                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" }],
+                    pre: [{ cell: [-1, 0, 0], is: "free" }  ],
                     effect: { pos_delta: [-1, 0, 0], dir: [-1, 0, 0] },
                     cost: 1,
                 },
                 {
                     name: "MOVE_XN_BWD",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" }],
-                    effect: { pos_delta: [1, 0, 0], dir: [-1, 0, 0] },
+                    match: { dir: [1, 0, 0] },
+                    pre: [{ cell: [-1, 0, 0], is: "free" }  ],
+                    effect: { pos_delta: [-1, 0, 0], dir: [1, 0, 0] },
                     cost: 1,
                 },
-                
                 {
                     name: "MOVE_ZP_FWD",
                     match: { dir: [0, 0, 1] },
-                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" }],
+                    pre: [{ cell: [0, 0, 1], is: "free" }  ],
                     effect: { pos_delta: [0, 0, 1], dir: [0, 0, 1] },
                     cost: 1,
                 },
                 {
                     name: "MOVE_ZP_BWD",
-                    match: { dir: [0, 0, 1] },
-                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" }],
-                    effect: { pos_delta: [0, 0, -1], dir: [0, 0, 1] },
+                    match: { dir: [0, 0, -1] },
+                    pre: [{ cell: [0, 0, 1], is: "free" } ],
+                    effect: { pos_delta: [0, 0, 1], dir: [0, 0, -1] },
                     cost: 1,
                 },
-                
                 {
                     name: "MOVE_ZN_FWD",
                     match: { dir: [0, 0, -1] },
-                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" }],
+                    pre: [{ cell: [0, 0, -1], is: "free" }  ],
                     effect: { pos_delta: [0, 0, -1], dir: [0, 0, -1] },
                     cost: 1,
                 },
                 {
                     name: "MOVE_ZN_BWD",
-                    match: { dir: [0, 0, -1] },
-                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" }],
-                    effect: { pos_delta: [0, 0, 1], dir: [0, 0, -1] },
+                    match: { dir: [0, 0, 1] },
+                    pre: [{ cell: [0, 0, -1], is: "free" }  ],
+                    effect: { pos_delta: [0, 0, -1], dir: [0, 0, 1] },
                     cost: 1,
                 },
-                 
-                 
-                
-                
-                
-                
                 {
                     name: "STEP_DOWN_XP",
                     match: { dir: [-1, 0, 0] },
@@ -1365,13 +1376,13 @@ class MorphVehicleKinematics extends MorphBase
                     effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, 1], pos_delta: [0, 1, 1], dir: [0, 0, 1] },
                     cost: 2,
                 },
-                {
+                
+                
+                 {
                     name: "WALL_DOWN_XP",
                     match: { dir: [1, 0, 0] },
                     pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [1, 0, 0], is: "occupied" },
-                        { cell: [1, -1, 0], is: "occupied" },
+                        { cell: [0, -1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, -1, 0], dir: [1, 0, 0] },
                     cost: 2,
@@ -1380,9 +1391,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_DOWN_XN",
                     match: { dir: [-1, 0, 0] },
                     pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [-1, 0, 0], is: "occupied" },
-                        { cell: [-1, -1, 0], is: "occupied" },
+                        { cell: [0, -1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, -1, 0], dir: [-1, 0, 0] },
                     cost: 2,
@@ -1391,9 +1400,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_DOWN_ZP",
                     match: { dir: [0, 0, 1] },
                     pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [0, 0, 1], is: "occupied" },
-                        { cell: [0, -1, 1], is: "occupied" },
+                        { cell: [0, -1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, -1, 0], dir: [0, 0, 1] },
                     cost: 2,
@@ -1402,9 +1409,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_DOWN_ZN",
                     match: { dir: [0, 0, -1] },
                     pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [0, 0, -1], is: "occupied" },
-                        { cell: [0, -1, -1], is: "occupied" },
+                        { cell: [0, -1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, -1, 0], dir: [0, 0, -1] },
                     cost: 2,
@@ -1413,9 +1418,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_UP_XP",
                     match: { dir: [1, 0, 0] },
                     pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [1, 0, 0], is: "occupied" },
-                        { cell: [1, 1, 0], is: "occupied" },
+                        { cell: [0, 1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, 1, 0], dir: [1, 0, 0] },
                     cost: 2,
@@ -1424,9 +1427,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_UP_XN",
                     match: { dir: [-1, 0, 0] },
                     pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [-1, 0, 0], is: "occupied" },
-                        { cell: [-1, 1, 0], is: "occupied" },
+                        { cell: [0, 1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, 1, 0], dir: [-1, 0, 0] },
                     cost: 2,
@@ -1435,9 +1436,7 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_UP_ZP",
                     match: { dir: [0, 0, 1] },
                     pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [0, 0, 1], is: "occupied" },
-                        { cell: [0, 1, 1], is: "occupied" },
+                        { cell: [0, 1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, 1, 0], dir: [0, 0, 1] },
                     cost: 2,
@@ -1446,72 +1445,14 @@ class MorphVehicleKinematics extends MorphBase
                     name: "WALL_UP_ZN",
                     match: { dir: [0, 0, -1] },
                     pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [0, 0, -1], is: "occupied" },
-                        { cell: [0, 1, -1], is: "occupied" },
+                        { cell: [0, 1, 0], is: "free" } 
                     ],
                     effect: { pos_delta: [0, 1, 0], dir: [0, 0, -1] },
                     cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_XP_TO_ZN",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_XP_TO_ZP",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_XN_TO_ZP",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_XN_TO_ZN",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_ZP_TO_XP",
-                    match: { dir: [0, 0, 1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_ZP_TO_XN",
-                    match: { dir: [0, 0, 1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_ZN_TO_XN",
-                    match: { dir: [0, 0, -1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_ZN_TO_XP",
-                    match: { dir: [0, 0, -1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
+                }
+                
             ],
         });
-
         const primitiveList = primitives.primitives.slice();
         const primitiveByName = new Map(primitiveList.map((primitive) => [primitive.name, primitive]));
         const primitiveOrder = primitiveList.map((primitive) => primitive.name);
@@ -1783,8 +1724,7 @@ class MorphVehicleKinematics extends MorphBase
                 }
                 return contacts;
             })();
-            const hasTargetContact = !canCheckTerrain || targetOrthogonalContacts.length > 0;
-
+            // Check pre-conditions from the primitive definition
             for (let i = 0; i < (primitive.pre ?? []).length; i++) {
                 const pre = primitive.pre[i];
                 const rel = Array.isArray(pre?.cell) ? pre.cell : [0, 0, 0];
@@ -1838,7 +1778,28 @@ class MorphVehicleKinematics extends MorphBase
                 };
             }
 
-            if (!hasTargetContact) {
+            // --- Orthogonal contact check (Ansatz C) ---
+            // Check if the CURRENT position (before the move) has orthogonal contact to the cluster.
+            // This allows a bot at the edge of the cluster to move away, because its current position
+            // still has contact. The target position does NOT need contact - the bot creates contact
+            // at the target by moving there.
+            const currentOrthogonalContacts = (() => {
+                if (!canCheckTerrain) return [];
+                const contacts = [];
+                for (let i = 0; i < orthogonalOffsets.length; i++) {
+                    const offset = orthogonalOffsets[i];
+                    const cx = Number(currentState.x) + offset.x;
+                    const cy = Number(currentState.y) + offset.y;
+                    const cz = Number(currentState.z) + offset.z;
+                    if (isTerrainOccupied(cx, cy, cz)) {
+                        contacts.push({ x: cx, y: cy, z: cz });
+                    }
+                }
+                return contacts;
+            })();
+            const hasCurrentContact = !canCheckTerrain || currentOrthogonalContacts.length > 0;
+
+            if (!hasCurrentContact) {
                 return {
                     ok: false,
                     error: "ERR_NO_CONTACT",
@@ -1846,18 +1807,18 @@ class MorphVehicleKinematics extends MorphBase
                     contact: null,
                     gate_debug: {
                         kind: primitive.kind ?? "primitive",
-                        reason_code: "no_orthogonal_contact",
-                        target: {
-                            x: targetX,
-                            y: targetY,
-                            z: targetZ,
-                            free: targetFree,
+                        reason_code: "no_orthogonal_contact_at_current_position",
+                        current: {
+                            x: Number(currentState.x),
+                            y: Number(currentState.y),
+                            z: Number(currentState.z),
                         },
-                        orthogonal_contacts: targetOrthogonalContacts,
+                        orthogonal_contacts: currentOrthogonalContacts,
                         can_use: false,
                     },
                 };
             }
+            // --- End of orthogonal contact check ---
 
             const nextHeading = primitive.effect?.dir
                 ? normalizeVehicleHeading({ vx: primitive.effect.dir[0], vy: primitive.effect.dir[1], vz: primitive.effect.dir[2] })
@@ -2370,7 +2331,7 @@ class MorphVehicleKinematics extends MorphBase
     } // run()
 
 
-} // class MorphVehicleKinematics
+} // class MorphFullEdge
 
 
-module.exports = MorphVehicleKinematics;
+module.exports = MorphFullEdge;

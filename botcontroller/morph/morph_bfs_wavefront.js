@@ -24,6 +24,8 @@
  */
 
 const MorphBase = require('./morph_base');
+const fs = require('fs');
+const path = require('path');
 class MorphBFSWavefront extends MorphBase 
 {
 
@@ -645,6 +647,10 @@ constructor(startBots, targetBots, params)
     // Max attempts to find a new, untried pair – 10-30 is usually sufficient!
     this.wavecnt = 0;
        
+    // Valid path log file - cleared on each new morph run
+    // Contains ONLY paths verified by planPath3D() during stepMorph()
+    this.validPathLogPath = path.join(__dirname, 'morph_full_edge_validpath.log');
+    fs.writeFileSync(this.validPathLogPath, '', 'utf8');
        
        
 
@@ -923,6 +929,44 @@ wouldSplitCluster(bot, collection = this.cells) {
 } // wouldSplitCluster
 
 
+//
+// countOrthogonalNeighbors
+// Counts how many of the 6 orthogonal positions around (x, y, z) are occupied
+// by bots in the given collection.
+//
+// Used to determine if a target is "deep inside" the cluster (many neighbors),
+// which means it should be filled first to prevent blocking inner positions.
+//
+// @param {number} x - X coordinate
+// @param {number} y - Y coordinate
+// @param {number} z - Z coordinate
+// @param {Array|Object} collection - Bot collection
+// @returns {number} - Number of occupied orthogonal neighbors (0-6)
+//
+countOrthogonalNeighbors(x, y, z, collection = this.cells)
+{
+    let count = 0;
+    const directions = [
+        { x: 1, y: 0, z: 0 },
+        { x: -1, y: 0, z: 0 },
+        { x: 0, y: 1, z: 0 },
+        { x: 0, y: -1, z: 0 },
+        { x: 0, y: 0, z: 1 },
+        { x: 0, y: 0, z: -1 }
+    ];
+
+    for (const dir of directions) {
+        const nx = x + dir.x;
+        const ny = y + dir.y;
+        const nz = z + dir.z;
+        if (this.getAllBots(collection).some(b => b.x === nx && b.y === ny && b.z === nz)) {
+            count++;
+        }
+    }
+    return count;
+} // countOrthogonalNeighbors
+
+
  
 
 
@@ -950,10 +994,20 @@ choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets 
   );
 
   // 2. Find all free targets (positions in cluster_target not already occupied, with cluster contact)
-  const freeTargets = this.getAllBots(this.cluster_target).filter(t =>
+  let freeTargets = this.getAllBots(this.cluster_target).filter(t =>
     !this.getAllBots(collection).some(b => b.x === t.x && b.y === t.y && b.z === t.z) &&
     this.hasContact(t.x, t.y, t.z, collection)
   );
+
+  // 2b. Sort free targets by neighbor count (descending) - "Zuschütten"-Heuristik.
+  //     Targets with the most orthogonal neighbors are filled first.
+  //     This prevents blocking the entrance to inner positions by filling
+  //     the "deepest" positions first (most surrounded by existing bots).
+  freeTargets.sort((a, b) => {
+    const neighborsA = this.countOrthogonalNeighbors(a.x, a.y, a.z, collection);
+    const neighborsB = this.countOrthogonalNeighbors(b.x, b.y, b.z, collection);
+    return neighborsB - neighborsA; // most neighbors first
+  });
 
   // 3. For each bot, compute the minimum distance to any free target
   let botCandidates = unhappyBots.map(bot => {
@@ -973,15 +1027,28 @@ choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets 
     return { bot, minDist, bestTarget };
   });
 
-  // 4. Sort by greatest distance, select the top N bots (here: 4, adjustable)
-  botCandidates.sort((a, b) => b.minDist - a.minDist);
-  let topBots = botCandidates.slice(0, 4); // You can adjust the number here
+  // 4. Sort: Reserve-Bots (R*) first, then by greatest distance
+  //    (analogous to vehicle_kinematics choosePair)
+  botCandidates.sort((a, b) => {
+    const aIsReserve = String(a.bot.id ?? "").startsWith("R");
+    const bIsReserve = String(b.bot.id ?? "").startsWith("R");
+    if (aIsReserve && !bIsReserve) return -1; // R* bots first
+    if (!aIsReserve && bIsReserve) return 1;
+    return b.minDist - a.minDist; // then by greatest distance
+  });
 
-  // 5. For these top bots, check all possible targets and collect all valid bot–target pairs
-  let possiblePairs = [];
-  for (const candidate of topBots) {
+  // 5. Iterate through ALL candidates (not just top 4) to find valid bot-target pairs.
+  //    The sorting ensures Reserve-Bots and bots with greatest distance are checked first.
+  //    We stop as soon as we find the first valid pair (which is the best one due to sorting).
+  //    (analogous to vehicle_kinematics choosePair)
+  let selectedPair = null;
+  for (const candidate of botCandidates) {
     const bot = candidate.bot;
+    if (selectedPair) break; // Found a valid pair, stop searching
+
     for (const target of freeTargets) {
+      if (selectedPair) break;
+
       const pairId = `${bot.x},${bot.y},${bot.z}-${target.x},${target.y},${target.z}`;
       if (attemptedPairs.has(pairId)) continue;
       const targetCoordString = `${target.x},${target.y},${target.z}`;
@@ -995,15 +1062,16 @@ choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets 
           (bot.y - target.y) ** 2 +
           (bot.z - target.z) ** 2
         );
-        possiblePairs.push({ bot, target, dist });
+        selectedPair = { bot, target, dist };
+        break; // Found a valid pair for this bot, stop checking more targets
       }
     }
   }
 
-  // 6. Choose the pair with the largest distance (or random among top pairs, if desired)
-  if (possiblePairs.length > 0) {
-    possiblePairs.sort((a, b) => b.dist - a.dist);
-    const { bot, target, dist } = possiblePairs[0];
+  // 6. Use the selected pair (first valid one found, which is the best due to sorting)
+  //    (analogous to vehicle_kinematics choosePair)
+  if (selectedPair) {
+    const { bot, target, dist } = selectedPair;
     this.bot_id = bot.id;
     this.bot_start = { x: bot.x, y: bot.y, z: bot.z };
     this.bot_target = { x: target.x, y: target.y, z: target.z };
@@ -1510,6 +1578,16 @@ if (skip) {
 // If we reach here: the path is valid, collision-free with targets and other paths in this wave!
 wavepaths.push({ path: newPath, botStart: this.bot_start, botTarget: this.bot_target, botId: this.bot_id }); // botId added
 pathsFoundInWave++; // Increase the number of found paths for this wave
+
+// Log valid path to morph_full_edge_validpath.log
+try {
+    const tz = this.timezone || 'UTC';
+    const timestamp = new Date().toLocaleString('sv-SE', { timeZone: tz }).replace(' ', 'T').substring(0, 19);
+    const line = `[${timestamp}] VALID PATH: bot=${this.bot_id} from=(${this.bot_start.x},${this.bot_start.y},${this.bot_start.z}) to=(${newPathTargetX},${newPathTargetY},${newPathTargetZ}) pathLen=${newPath.length}\n`;
+    fs.appendFileSync(this.validPathLogPath, line, 'utf8');
+} catch (e) {
+    // silently ignore file write errors
+}
 
 // IMPORTANT: Set the bot in 'plannedCells' to its TARGET POSITION.
 // This simulates the bot's move for subsequent path planning in the same wave.
