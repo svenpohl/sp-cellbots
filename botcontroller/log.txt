@@ -1,1 +1,3 @@
-[INFO] 2026-04-04T12:32:24.040Z - Start Botcontroller
+[INFO] 2026-05-12T18:22:12+02:00 - Start Botcontroller
+[INFO] 2026-05-12T18:22:28+02:00 - calc_move_hybrid_cmds fullPath logged: /Users/svenpohl/Documents/sven/2026/dev/cellbots/complexe/cellbots19/botcontroller/logs/calc_move_hybrid_cmds_fullpath.json
+[INFO] 2026-05-12T18:22:28+02:00 - calc_move_hybrid_cmds hybrid_actions+opcodes logged: /Users/svenpohl/Documents/sven/2026/dev/cellbots/complexe/cellbots19/botcontroller/logs/calc_move_hybrid_actions_log.json

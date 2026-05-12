@@ -160,7 +160,8 @@ const {
       apicall_is_valid_wrapped_double_step: runtime_is_valid_wrapped_double_step,
       apicall_calc_single_path: runtime_calc_single_path,
       apicall_calc_single_path_payload: runtime_calc_single_path_payload,
-      apicall_calc_vehicle_kinematics_path: runtime_calc_vehicle_kinematics_path
+      apicall_calc_vehicle_kinematics_path: runtime_calc_vehicle_kinematics_path,
+      apicall_calc_hybrid_kinematics_path: runtime_calc_hybrid_kinematics_path
       } = require('./api_service/modules/api_path_core_runtime');
 const {
       apicall_get_normalized_crater_id: runtime_get_normalized_crater_id,
@@ -3323,7 +3324,133 @@ algo.run( this,  this.morph_finish_handler.bind(this) );
 } // prepare_morph( structure )
 
 
+//
+// headless_prepare_morph()
+// Like prepare_morph(), but:
+// - Does NOT start sequence execution (no create_opcode_sequence, no run_sequence)
+// - Calls callback(morphLog, success, outputPath) when done
+// - If output_file is set, writes morphLog to that file (in logs/ dir)
+// - If output_file is empty, only returns the result via callback
+//
+headless_prepare_morph( structure, algo_selected, output_file, callback )
+{
+this.apicall_update_morph_status(
+                                 {
+                                 running: true,
+                                 phase: "preparing",
+                                 progress: 0,
+                                 structure: String(structure ?? "").trim() || null,
+                                 algo: String(algo_selected ?? "").trim() || null,
+                                 success: null,
+                                 started_at: new Date().toISOString(),
+                                 finished_at: null,
+                                 message: "Headless Prepare Morph"
+                                 }
+                                 );
+
+// Set to global space
+this.morphAlgorithmSelected = algo_selected;
+
+let startBots = [];
+let size      = this.bots.length;
+
+for (let i=0; i<size; i++)
+    {
+    let bot = this.bots[i];
+    let { id, x, y, z, vector_x, vector_y, vector_z } = bot;
+    let vx = vector_x;
+    let vy = vector_y;
+    let vz = vector_z;
+
+       {
+       startBots.push( {
+           id: id,
+           x: Number(x), y: Number(y), z: Number(z),
+           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0)
+       } ) ;
+       }
+    }
+
+
+const targetDefinition = this.load_structure_definition(structure);
+const targetBots = targetDefinition.structure;
+
+this.structure_roles = {
+                       carrier: targetDefinition.carrier,
+                       reserve: targetDefinition.reserve,
+                       x: targetDefinition.x,
+                       forbidden: targetDefinition.forbidden,
+                       inactive: targetDefinition.inactive
+                       };
+
+
+
  
+
+let params = {};
+let algo = null;
+
+if ( this.morphAlgorithmSelected == "bfs_wavefront" )
+   {
+   console.log("Headless prepare bfs_wavefront...");
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("wavefront", startBots, targetBots, params);
+
+   } // "bfs_wavefront"
+ 
+
+
+if ( this.morphAlgorithmSelected == "bfs_simple" )
+   {
+   console.log("Headless prepare bfs_simple...");
+
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 1,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("wavefront", startBots, targetBots, params);
+
+   } // "bfs_simple"
+  
+ 
+
+
+if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
+   {
+   console.log("Headless prepare vehicle_kinematics...");
+
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("vehicle_kinematics", startBots, targetBots, params);
+
+   } // "vehicle_kinematics"
+  
+
+
+
+
+
+this.notify_frontend_console("Headless Prepare Morph");
+
+// Run algorithm with headless finish handler
+algo.run( this,  function(morphLog, success) {
+                    this.headless_morph_finish_handler(morphLog, success, output_file, callback);
+                    }.bind(this) );
+
+
+
+} // headless_prepare_morph( structure )
 
 
 //
@@ -3397,6 +3524,77 @@ this.self_assembly_obj.run_sequence( "morph" );
   
  } // morph_finish_handler()
 
+
+//
+// headless_morph_finish_handler()
+// Called by headless_prepare_morph() when the algorithm finishes.
+// Does NOT start sequence execution - only writes morphLog to file (if requested)
+// and calls the callback.
+//
+headless_morph_finish_handler( morphLog, success, output_file, callback )
+{
+console.log("Headless morphing calculation complete!");
+this.notify_frontend_console("Headless morphing calculation complete!");
+
+let outputPath = null;
+
+if (success === false)
+   {
+   console.log("Headless morphing stuck! No more moves possible, but not all bots are happy!");
+   this.notify_frontend_console("Headless morphing stuck! No more moves possible, but not all bots are happy!");
+   this.apicall_update_morph_status(
+                                    {
+                                    running: false,
+                                    phase: "stuck",
+                                    success: false,
+                                    finished_at: new Date().toISOString(),
+                                    message: "Headless morphing stuck! No more moves possible, but not all bots are happy!"
+                                    }
+                                    );
+
+   // Still write the morphLog if output_file is set (partial result)
+   if (output_file && output_file != "" && morphLog)
+      {
+      outputPath = path.join(__dirname, 'logs', output_file);
+      fs.writeFileSync(outputPath, JSON.stringify(morphLog, null, 2));
+      console.log("Headless morphLog (stuck) written to: " + outputPath);
+      }
+
+   if (typeof callback === "function")
+      {
+      callback(morphLog, false, outputPath);
+      }
+
+   return;
+   } // if (success === false)
+
+console.log("Headless morphing calculation success!");
+this.notify_frontend_console("Headless morphing calculation success!");
+this.apicall_update_morph_status(
+                                 {
+                                 running: false,
+                                 phase: "calculation_success",
+                                 progress: 100,
+                                 success: true,
+                                 finished_at: new Date().toISOString(),
+                                 message: "Headless morphing calculation success!"
+                                 }
+                                 );
+
+// Write morphLog to file if output_file is specified
+if (output_file && output_file != "")
+   {
+   outputPath = path.join(__dirname, 'logs', output_file);
+   fs.writeFileSync(outputPath, JSON.stringify(morphLog, null, 2));
+   console.log("Headless morphLog written to: " + outputPath);
+   }
+
+// Call the callback with the result
+if (typeof callback === "function")
+   {
+   callback(morphLog, true, outputPath);
+   }
+} // headless_morph_finish_handler()
 
 
 //
@@ -4230,6 +4428,10 @@ vk_debug_write(stage_dump_path, JSON.stringify(stage_dump, null, 2), "utf8");
 
 let movecmds = "";
 
+// =====================================================================
+// NEUE OPCODE-TABELLE (09.05.2026) - in calc_move_hybrid_cmds() definiert
+// =====================================================================
+
 let lastneighbour= null;
 let final_lastanchor= null;
 let final_lastanchorneighbour = null;
@@ -5006,209 +5208,6 @@ if (self.debug_vk_exports === true)
     }
 
 
-/* 
-
-
-         
-
-const moveMap = {
-  "E,1,0,0": "F",
-  "E,0,-1,0": "D",
-  "E,-1,0,0": "B",
-  "E,0,1,0": "T",
-  "E,0,0,-1": "R",
-  "E,0,0,1": "L",
-
-  "S,1,0,0": "L",
-  "S,0,-1,0": "D",
-  "S,-1,0,0": "R",
-  "S,0,1,0": "T",
-  "S,0,0,-1": "F",
-  "S,0,0,1": "B",
-
-  "W,1,0,0": "B",
-  "W,0,-1,0": "D",
-  "W,-1,0,0": "F",
-  "W,0,1,0": "T",
-  "W,0,0,-1": "L",
-  "W,0,0,1": "R",
-  
-  "N,1,0,0": "R",
-  "N,0,-1,0": "D",
-  "N,-1,0,0": "L",
-  "N,0,1,0": "T",
-  "N,0,0,-1": "B",
-  "N,0,0,1": "F"
-     
-};
-
-
-let orientation = "";
-
-if (vx ==  1 && vy ==  0 && vz ==  0) orientation = "E";
-if (vx ==  0 && vy ==  0 && vz == -1) orientation = "S";
-if (vx == -1 && vy ==  0 && vz ==  0) orientation = "W";
-if (vx ==  0 && vy ==  0 && vz ==  1) orientation = "N";
-
-
-// Create raw moves
-let rawMoves = "";
-
-let bot_x = fullPath[0].x;
-let bot_y = fullPath[0].y;
-let bot_z = fullPath[0].z;
-
-
-let size = fullPath.length;
-
-for (let i=0; i<size-1; i++)
-    {
-    
-        
-    
-    let diffx = fullPath[i+1].x - fullPath[i].x;
-    let diffy = fullPath[i+1].y - fullPath[i].y;
-    let diffz = fullPath[i+1].z - fullPath[i].z;
-    
-
-    let moveMapIndex = orientation + "," + diffx + "," + diffy + "," + diffz ;
-
-    let result = moveMap[ moveMapIndex ] ;
-    
-    if (!result) {
-    console.warn('WARN: no mapping for:', moveMapIndex, '(orientation:', orientation, ')');  
-    }
-    
-    rawMoves += moveMap[ moveMapIndex ];
-
-    } // for i..size
-
-
-
-    
-    
-size = rawMoves.length;
-
-
-let lastneighbour = {};
-let final_lastanchor = "";
-let final_lastanchorneighbour = null;
-//    
-// Iterate all SubMoves, e.g. 'F' or 'FT'...    
-//
-for (let i=0; i<size; i++)
-    {
-    
-    //
-    // Get first anchor slot
-    //
-
-    let neighbours = this.get_valid_neighbours( {x:bot_x, y:bot_y, z:bot_z },{x:this.mb.x, y:this.mb.y, z:this.mb.z }, bots );
-
-
-    let tx = neighbours[0].x - bot_x;
-    let ty = neighbours[0].y - bot_y;
-    let tz = neighbours[0].z - bot_z;
-    
-    lastneighbour = {x:neighbours[0].x, y:neighbours[0].y, z:neighbours[0].z };
-    
-     
-    let move = this.get_cell_slot_byvector(tx,ty,tz, vx,vy,vz);
-    
-
-    movecmds += move + "_";
-     
-     
-    
-    let MoveSubCmd = rawMoves[i];
-    let check = "";
-    let lastanchor = "";
-    let teststruct = null;
-    
-    
-    // check if last valid connection slot 
-    teststruct   = this.test_virtual_botmove( {x:bot_x, y:bot_y, z:bot_z } , MoveSubCmd ,  bots);
-    check        = teststruct.check;
-    lastanchor   = teststruct.lastanchor;
- 
-    
-    
-    // must check again with next movecmds
-    if (check === false)
-       {
-       
-       i++;
-       MoveSubCmd += rawMoves[i];
-    
-       // check ist last valid connection slot          
-       teststruct   = this.test_virtual_botmove( {x:bot_x, y:bot_y, z:bot_z } , MoveSubCmd ,  bots);
-       check        = teststruct.check;
-       lastanchor   = teststruct.lastanchor;
-       
-        
-       //console.log("second i: "+i + " : MoveSubCmd:" + MoveSubCmd + " check: [" + check +"]" );
-        
-       } // if check === false
-    
-    //   
-    // Here Path should be valid
-    //
-    if (check === false)
-       {  
-       
-       console.log('\x1b[1m\x1b[31m%s\x1b[0m', 'No valid move found!');
-       //process.exit(1);
-       } else
-         {
-         // check if last valid connection slot
-         movecmds += MoveSubCmd + "_" + lastanchor ;
-         final_lastanchor = lastanchor;
-         final_lastanchorneighbour = teststruct.lastanchorneighbour;
-         
-         
-         if (i < (size-1) ) 
-            {
-            movecmds += ";";
-                        
-            } else
-              {
-              
-              //console.log( "teststruct.lastanchorneighbour :" + JSON.stringify(teststruct.lastanchorneighbour, null, 2)  );
-              //console.log( "last anchor: " + lastanchor );
-              
-              }
-         
-         //
-         // Set tmpbot virtual to new target coordinate
-         //
-         let botindex = this.get_botindex_by_xyz(  {x:bot_x, y:bot_y, z:bot_z }, bots  );
-         
-         if ( botindex != null )
-            {
-
-            bots[botindex].x = teststruct.lastpos.x;
-            bots[botindex].y = teststruct.lastpos.y;
-            bots[botindex].z = teststruct.lastpos.z;
-            
-            bot_x            = teststruct.lastpos.x;
-            bot_y            = teststruct.lastpos.y;
-            bot_z            = teststruct.lastpos.z;
-
-            } else
-              {
-              console.warn("botindex is null");
-              }
-         
-
-         } // else
-       
-    
-    
-    
-    } // for i..size        
-    
-    
- */
  
 
 let ret = {
@@ -5232,6 +5231,277 @@ return(ret);
 
 // ---
 } // calc_move_vk_cmds()
+
+//
+// calc_move_hybrid_cmds()
+// Hybrid-kinematics entry point for the MOVE translation chain.
+// Copy of calc_move_vk_cmds() with CLIMB primitives for hybrid mode.
+//
+
+calc_move_hybrid_cmds(fullPath, vx, vy, vz, bots, goal_orientation = null, hybrid_actions = null)
+{
+const self = this;
+self.debug_hybrid_exports = true;
+
+// Log fullPath + orientation at the very start (before any early return)
+if (self.debug_hybrid_exports === true)
+   {
+   let fullpath_log_path = path.join(__dirname, "logs", "calc_move_hybrid_cmds_fullpath.json");
+   let fullpath_log = {
+       timestamp: new Date().toISOString(),
+       start_orientation: { x: Number(vx), y: Number(vy), z: Number(vz) },
+       goal_orientation: goal_orientation ? { x: Number(goal_orientation.x), y: Number(goal_orientation.y), z: Number(goal_orientation.z) } : null,
+       path_length: Array.isArray(fullPath) ? fullPath.length : 0,
+       bots_count: Array.isArray(bots) ? bots.length : 0,
+       hybrid_actions: Array.isArray(hybrid_actions) ? hybrid_actions : [],
+       fullPath: Array.isArray(fullPath) ? fullPath : []
+   };
+   fs.writeFileSync(fullpath_log_path, JSON.stringify(fullpath_log, null, 2), "utf8");
+   Logger.log("calc_move_hybrid_cmds fullPath logged: " + fullpath_log_path);
+   }
+
+if (Array.isArray(hybrid_actions) && hybrid_actions.length > 0)
+   {
+   console.log("calc_move_hybrid_cmds hybrid_actions:", JSON.stringify(hybrid_actions));
+   } else
+     {
+     console.log("calc_move_hybrid_cmds hybrid_actions: EMPTY (path_found via fullPath length=" + (Array.isArray(fullPath) ? fullPath.length : 0) + ")");
+     }
+
+// =====================================================================
+// NEUE OPCODE-TABELLE (09.05.2026)
+// Übersetzt Path-Planner Actions direkt in Opcodes, ohne Merge-Logik.
+// Status: EXPERIMENTELL - alte Merge-Logik bleibt erhalten.
+// =====================================================================
+// Jedes Primitiv aus api_hybrid_kinematics_path_runtime.js bekommt
+// einen festen oder dynamischen Opcode.
+// Für FWD/BWD: Anker werden via resolve_hybrid_anchor_safe() bestimmt.
+// =====================================================================
+
+// Opcode-Tabelle: Primitive-Name -> { opcode: String/Funktion, type: String }
+// type: "fixed" = immer gleicher Opcode
+//       "dynamic_fwd" = FWD mit dynamischen Ankern
+//       "dynamic_bwd" = BWD mit dynamischen Ankern
+const HYBRID_OPCODE_TABLE = {
+  // --- MOVE (horizontale Translation) - hartverdratet für Test (kein Kopfüber) ---
+  "MOVE_XP_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in XP direction" },
+  "MOVE_XP_BWD": { opcode: "D_B_D", type: "fixed", desc: "backward in XP direction" },
+  "MOVE_XN_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in XN direction" },
+  "MOVE_XN_BWD": { opcode: "D_B_D", type: "fixed", desc: "backward in XN direction" },
+  "MOVE_ZP_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in ZP direction" },
+  "MOVE_ZP_BWD": { opcode: "D_B_D", type: "fixed", desc: "backward in ZP direction" },
+  "MOVE_ZN_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in ZN direction" },
+  "MOVE_ZN_BWD": { opcode: "D_B_D", type: "fixed", desc: "backward in ZN direction" },
+
+  // --- ROT (Rotationen) ---
+  "ROT_LEFT_XP_TO_ZN":  { opcode: "D_SR_D", type: "fixed", desc: "spin left" },
+  "ROT_RIGHT_XP_TO_ZP": { opcode: "D_SL_D", type: "fixed", desc: "spin right" },
+  "ROT_LEFT_XN_TO_ZP":  { opcode: "D_SR_D", type: "fixed", desc: "spin left" },
+  "ROT_RIGHT_XN_TO_ZN": { opcode: "D_SL_D", type: "fixed", desc: "spin right" },
+  "ROT_LEFT_ZP_TO_XP":  { opcode: "D_SR_D", type: "fixed", desc: "spin left" },
+  "ROT_RIGHT_ZP_TO_XN": { opcode: "D_SL_D", type: "fixed", desc: "spin right" },
+  "ROT_LEFT_ZN_TO_XN":  { opcode: "D_SR_D", type: "fixed", desc: "spin left" },
+  "ROT_RIGHT_ZN_TO_XP": { opcode: "D_SL_D", type: "fixed", desc: "spin right" },
+
+  // --- WALL_UP (vertikale Aufwärtsbewegung an der Wand) ---
+  "WALL_UP_XP": { opcode: "F_T_F", type: "fixed", desc: "wall up XP" },
+  "WALL_UP_XN": { opcode: "F_T_F", type: "fixed", desc: "wall up XN" },
+  "WALL_UP_ZP": { opcode: "F_T_F", type: "fixed", desc: "wall up ZP" },
+  "WALL_UP_ZN": { opcode: "F_T_F", type: "fixed", desc: "wall up ZN" },
+
+  // --- WALL_DOWN (vertikale Abwärtsbewegung an der Wand) ---
+  "WALL_DOWN_XP": { opcode: "F_D_F", type: "fixed", desc: "wall down XP" },
+  "WALL_DOWN_XN": { opcode: "F_D_F", type: "fixed", desc: "wall down XN" },
+  "WALL_DOWN_ZP": { opcode: "F_D_F", type: "fixed", desc: "wall down ZP" },
+  "WALL_DOWN_ZN": { opcode: "F_D_F", type: "fixed", desc: "wall down ZN" },
+
+  // --- STEP_UP (T+F merged) ---
+  "STEP_UP_XP": { opcode: "F_TF_D", type: "fixed", desc: "step up XP" },
+  "STEP_UP_XN": { opcode: "F_TF_D", type: "fixed", desc: "step up XN" },
+  "STEP_UP_ZP": { opcode: "F_TF_D", type: "fixed", desc: "step up ZP" },
+  "STEP_UP_ZN": { opcode: "F_TF_D", type: "fixed", desc: "step up ZN" },
+
+  // --- STEP_DOWN (F+D merged) ---
+  "STEP_DOWN_XP": { opcode: "D_BD_F", type: "fixed", desc: "step down XP" },
+  "STEP_DOWN_XN": { opcode: "D_BD_F", type: "fixed", desc: "step down XN" },
+  "STEP_DOWN_ZP": { opcode: "D_BD_F", type: "fixed", desc: "step down ZP" },
+  "STEP_DOWN_ZN": { opcode: "D_BD_F", type: "fixed", desc: "step down ZN" },
+
+  // --- CLIMB_UP (F+T diagonal) ---
+  "CLIMB_UP_XP": { opcode: "T_BT_F", type: "fixed", desc: "climb up XP" },
+  "CLIMB_UP_XN": { opcode: "T_BT_F", type: "fixed", desc: "climb up XN" },
+  "CLIMB_UP_ZP": { opcode: "T_BT_F", type: "fixed", desc: "climb up ZP" },
+  "CLIMB_UP_ZN": { opcode: "T_BT_F", type: "fixed", desc: "climb up ZN" },
+
+  // --- CLIMB_DOWN (D+F diagonal) ---
+  "CLIMB_DOWN_XP": { opcode: "F_DF_T", type: "fixed", desc: "climb down XP" },
+  "CLIMB_DOWN_XN": { opcode: "F_DF_T", type: "fixed", desc: "climb down XN" },
+  "CLIMB_DOWN_ZP": { opcode: "F_DF_T", type: "fixed", desc: "climb down ZP" },
+  "CLIMB_DOWN_ZN": { opcode: "F_DF_T", type: "fixed", desc: "climb down ZN" },
+
+  // --- CEILING (horizontale Fahrt an der Decke, Kopf über) ---
+  "MOVE_XP_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward XP" },
+  "MOVE_XP_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward XP" },
+  "MOVE_XN_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward XN" },
+  "MOVE_XN_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward XN" },
+  "MOVE_ZP_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward ZP" },
+  "MOVE_ZP_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward ZP" },
+  "MOVE_ZN_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward ZN" },
+  "MOVE_ZN_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward ZN" },
+};
+
+// Neue Opcode-Liste für das Logging
+let hybrid_actions_opcodes = [];
+
+// Nur ausführen wenn hybrid_actions vorhanden sind
+if (Array.isArray(hybrid_actions) && hybrid_actions.length > 0)
+   {
+   console.log("=== HYBRID ACTIONS -> OPCODES (NEU) ===");
+   for (let ha_i = 0; ha_i < hybrid_actions.length; ha_i++)
+       {
+       let action_name = hybrid_actions[ha_i];
+       let entry = HYBRID_OPCODE_TABLE[action_name];
+       let opcode = "";
+       let opcode_ok = false;
+
+       if (entry && entry.type === "fixed")
+          {
+          opcode = entry.opcode;
+          opcode_ok = true;
+          }
+
+       hybrid_actions_opcodes.push({
+           index: ha_i,
+           action: action_name,
+           opcode: opcode,
+           ok: opcode_ok
+       });
+
+       console.log("  [" + ha_i + "] " + action_name + " -> " + (opcode_ok ? opcode : "??? (unbekannt)"));
+       }
+   console.log("=== ENDE HYBRID ACTIONS -> OPCODES ===");
+   }
+
+// Logge hybrid_actions + neue Opcodes in Log-Datei (wenn debug aktiv)
+if (self.debug_hybrid_exports === true && Array.isArray(hybrid_actions))
+   {
+   let hybrid_actions_log_path = path.join(__dirname, "logs", "calc_move_hybrid_actions_log.json");
+   let hybrid_actions_log = {
+       timestamp: new Date().toISOString(),
+       actions: hybrid_actions,
+       opcodes: hybrid_actions_opcodes,
+       path_length: Array.isArray(fullPath) ? fullPath.length : 0
+   };
+   fs.writeFileSync(hybrid_actions_log_path, JSON.stringify(hybrid_actions_log, null, 2), "utf8");
+   Logger.log("calc_move_hybrid_cmds hybrid_actions+opcodes logged: " + hybrid_actions_log_path);
+   }
+// =====================================================================
+// ENDE NEUE OPCODE-TABELLE
+// =====================================================================
+
+// Wenn hybrid_actions vorhanden sind, die neuen Opcodes in movecmds setzen
+// und per early return zurückgeben (alte VK-Merge-Logik überspringen).
+if (Array.isArray(hybrid_actions_opcodes) && hybrid_actions_opcodes.length > 0)
+   {
+   let new_movecmds = hybrid_actions_opcodes
+       .filter(item => item.ok === true && item.opcode !== "")
+       .map(item => item.opcode)
+       .join(";");
+
+   if (new_movecmds !== "")
+      {
+      console.log("=== VERWENDE NEUE OPCODES (statt Merge-Logik) ===");
+      console.log("  movecmds: " + new_movecmds);
+
+      // Der letzte Opcode enthält den End-Anker (alles nach dem letzten '_').
+      // Z.B. "D_F_D" -> End-Anker "D", "F_TF_D" -> End-Anker "D".
+      let last_opcode = hybrid_actions_opcodes[hybrid_actions_opcodes.length - 1]?.opcode || "";
+      let last_parts = last_opcode.split("_");
+      let final_lastanchor = last_parts.length >= 3 ? last_parts[2] : "D";
+
+      // Zielkoordinate aus fullPath (letztes Element)
+      let last_path = fullPath[fullPath.length - 1];
+
+      // Anker-Position via get_next_target_coor() berechnen
+      let anchor_pos = self.get_next_target_coor(
+          last_path.x, last_path.y, last_path.z,
+          vx, vy, vz, final_lastanchor
+      );
+
+      // lastneighbour = erster gültiger Nachbar am Ziel (für ACK-Route)
+      let neighbours = self.get_valid_neighbours(
+          {x: last_path.x, y: last_path.y, z: last_path.z},
+          null, bots
+      );
+      let lastneighbour = neighbours.length > 0 ? neighbours[0] : anchor_pos;
+
+      // Early return - alte VK-Merge-Logik komplett überspringen
+      return({
+             movecmds: new_movecmds,
+             lastneighbour: lastneighbour,
+             final_lastanchor: final_lastanchor,
+             final_lastanchorneighbour: anchor_pos
+             });
+      }
+   }
+
+let stage_dump_path = path.join(__dirname, "logs", "calc_move_hybrid_stages.json");
+let stage_dump = {
+                 timestamp: new Date().toISOString(),
+                 start_orientation: {
+                                     x: Number(vx),
+                                     y: Number(vy),
+                                     z: Number(vz)
+                                     },
+                 goal_orientation: goal_orientation ?? null,
+                 path_length: Array.isArray(fullPath) ? fullPath.length : 0,
+                 bots_count: Array.isArray(bots) ? bots.length : 0,
+                 stages: Array.isArray(fullPath) ? fullPath : []
+                 };
+
+if (self.debug_hybrid_exports === true)
+   {
+   Logger.log("calc_move_hybrid_cmds called: path_length=" + stage_dump.path_length + " goal_orientation=" + JSON.stringify(stage_dump.goal_orientation) + " dump_path=" + stage_dump_path);
+   }
+fs.writeFileSync(stage_dump_path, JSON.stringify(stage_dump, null, 2), "utf8");
+
+//return(this.calc_move_cmds(fullPath, vx, vy, vz, bots, goal_orientation));
+
+// ---
+
+let lastneighbour= null;
+let final_lastanchor= null;
+let final_lastanchorneighbour = null;
+
+// Alte Merge-Logik entfernt (09.05.2026) - ersetzt durch HYBRID_OPCODE_TABLE
+// Die Funktionen get_hybrid_anchor_policy, get_hybrid_step_primitive,
+// get_hybrid_step_merge_info, get_hybrid_merged_movesubcmd, build_hybrid_macro_steps
+// und der gesamte hybrid_macro_build-Block wurden entfernt.
+// Die Opcode-Übersetzung erfolgt jetzt direkt über hybrid_actions -> HYBRID_OPCODE_TABLE.
+// Auch die zugehörigen Debug-Logging-Blöcke (hybrid_movesubcmds, hybrid_merge_trace)
+// wurden entfernt, da diese Arrays von der alten Merge-Logik befüllt wurden.
+
+let ret = {
+           movecmds: movecmds,
+           lastneighbour: lastneighbour,
+           final_lastanchor: final_lastanchor,
+           final_lastanchorneighbour: final_lastanchorneighbour
+           };
+
+let calc_move_cmds_return_path = path.join(__dirname, "logs", "calc_move_cmds_return.json");
+if (self.debug_hybrid_exports === true)
+   {
+   fs.writeFileSync(calc_move_cmds_return_path, JSON.stringify(ret, null, 2), "utf8");
+   Logger.log("calc_move_cmds return dumped: " + calc_move_cmds_return_path);
+   } // if (self.debug_hybrid_exports === true)
+
+// console.log("ret: calc_move_cmds");
+// console.log( ret );
+
+return(ret);
+
+// ---
+} // calc_move_hybrid_cmds()
 
 
 
@@ -6434,6 +6704,12 @@ apicall_calc_vehicle_kinematics_path(src, dest, bots_s, bots_f, vehicle_options 
 {
 return(runtime_calc_vehicle_kinematics_path(this, src, dest, bots_s, bots_f, vehicle_options));
 } // apicall_calc_vehicle_kinematics_path()
+
+
+apicall_calc_hybrid_kinematics_path(src, dest, bots_s, bots_f, vehicle_options = {})
+{
+return(runtime_calc_hybrid_kinematics_path(this, src, dest, bots_s, bots_f, vehicle_options));
+} // apicall_calc_hybrid_kinematics_path()
 
 
 apicall_find_path_for_bot(bot_id, x, y, z, show = false, planning_options = {})

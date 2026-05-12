@@ -225,8 +225,25 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "headless") {
+    return {
+      cmd: "headless",
+      algo: process.argv[3] ?? "",
+      structure: process.argv[4] ?? "",
+      output_file: process.argv[5] ?? ""
+    };
+  } // if
+
   if (cmd == "morph_check_progress") {
     return { cmd: "morph_check_progress" };
+  } // if
+
+  // Alias: get_bot_position → get_bot_by_id (LLM-friendly naming)
+  if (cmd == "get_bot_position") {
+    return {
+      cmd: "get_bot_by_id",
+      bot_id: process.argv[3] ?? ""
+    };
   } // if
 
   if (cmd == "get_bot_by_id") {
@@ -820,6 +837,18 @@ function main() {
           if (responseObject.orientation) {
             result.orientation = { x: responseObject.orientation.x, y: responseObject.orientation.y, z: responseObject.orientation.z };
           }
+        } else if (answer === "api_morph_start_headless") {
+          result = {
+            ok: responseObject.success === true,
+            result: responseObject.success === true ? "morph_complete" : "morph_failed",
+            algo: responseObject.algo,
+            structure: responseObject.structure,
+            output_file: responseObject.output_file
+          };
+          if (responseObject.success === true) {
+            result.wave_count = responseObject.wave_count;
+            result.move_count = responseObject.move_count;
+          }
         } else if (answer === "api_get_status") {
           result = { ok: true, result: "status", status: responseObject.status || "ok" };
         } else if (answer === "api_version") {
@@ -862,6 +891,9 @@ function main() {
       } else {
         result = { ok: false, result: "failed" };
         if (reason) result.reason = reason;
+        // Include error details from the response for better diagnostics
+        if (responseObject.error) result.error = responseObject.error;
+        if (responseObject.details) result.details = responseObject.details;
       } // if
 
       process.stdout.write(JSON.stringify(result) + "\n");
