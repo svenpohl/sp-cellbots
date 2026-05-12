@@ -1,0 +1,15 @@
+calc_move_hybrid_cmds merge_trace
+path_length=11
+goal_orientation=null
+
+00 | single | - | - | - | from=(3,1,0)[ZP] | next=(3,1,1)[ZP] | to=(3,1,1)[ZP]
+01 | single | - | - | - | from=(3,1,1)[ZP] | next=(3,1,1)[PX] | to=(3,1,1)[PX]
+02 | single | - | - | - | from=(3,1,1)[PX] | next=(2,1,1)[PX] | to=(2,1,1)[PX]
+03 | single | - | - | - | from=(2,1,1)[PX] | next=(2,1,1)[ZP] | to=(2,1,1)[ZP]
+04 | merged | climb_up | horizontal_then_vertical | FT | from=(2,1,1)[ZP] | next=(2,1,2)[ZP] | to=(2,2,2)[ZP]
+06 | single | - | - | - | from=(2,2,2)[ZP] | next=(2,3,2)[ZP] | to=(2,3,2)[ZP]
+07 | merged | step_up | vertical_then_horizontal | TF | from=(2,3,2)[ZP] | next=(2,4,2)[ZP] | to=(2,4,3)[ZP]
+09 | single | - | - | - | from=(2,4,3)[ZP] | next=(2,4,3)[XN] | to=(2,4,3)[XN]
+10 | single | - | - | - | from=(2,4,3)[XN] | next=(3,4,3)[XN] | to=(3,4,3)[XN]
+11 | single | - | - | - | from=(3,4,3)[XN] | next=(4,4,3)[XN] | to=(4,4,3)[XN]
+12 | single | - | - | - | from=(4,4,3)[XN] | next=(4,4,3)[ZP] | to=(4,4,3)[ZP]

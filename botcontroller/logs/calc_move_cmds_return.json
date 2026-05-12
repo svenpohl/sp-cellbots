@@ -1,0 +1,14 @@
+{
+  "movecmds": "D_F_D;D_SR_D;D_B_D;D_SL_D;D_FT_D;F_T_F;F_TF_D;D_SL_D;D_B_D;D_B_D;D_SR_D",
+  "lastneighbour": {
+    "x": 3,
+    "y": 0,
+    "z": 0
+  },
+  "final_lastanchor": "D",
+  "final_lastanchorneighbour": {
+    "x": 4,
+    "y": 3,
+    "z": 3
+  }
+}

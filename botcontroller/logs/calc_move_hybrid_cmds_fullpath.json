@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-05-12T16:22:28.627Z",
+  "start_orientation": {
+    "x": 1,
+    "y": 0,
+    "z": 0
+  },
+  "goal_orientation": null,
+  "path_length": 3,
+  "bots_count": 45,
+  "hybrid_actions": [
+    "MOVE_XP_FWD",
+    "MOVE_XP_FWD"
+  ],
+  "fullPath": [
+    {
+      "x": 1,
+      "y": 1,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "dir": "PX",
+      "support_mode": "floor"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "dir": "PX",
+      "support_mode": "floor"
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "dir": "PX",
+      "support_mode": "floor"
+    }
+  ]
+}

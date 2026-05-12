@@ -1,0 +1,15 @@
+calc_move_hybrid_cmds chain
+path_length=11
+goal_orientation=null
+
+00 | translation | forward | none | from=(3,1,0)[ZP] | to=(3,1,1)[ZP] | anchor=D->D | move=D_F_D
+01 | rotation | stay | SR | from=(3,1,1)[ZP] | to=(3,1,1)[PX] | anchor=D->D | move=D_SR_D
+02 | translation | backward | none | from=(3,1,1)[PX] | to=(2,1,1)[PX] | anchor=D->D | move=D_B_D
+03 | rotation | stay | SL | from=(2,1,1)[PX] | to=(2,1,1)[ZP] | anchor=D->D | move=D_SL_D
+04 | translation | climb_up | none | from=(2,1,1)[ZP] | to=(2,2,2)[ZP] | anchor=F->D | move=D_FT_D | merged=FT
+05 | translation | up | none | from=(2,2,2)[ZP] | to=(2,3,2)[ZP] | anchor=F->F | move=F_T_F
+06 | translation | step_up | none | from=(2,3,2)[ZP] | to=(2,4,3)[ZP] | anchor=F->D | move=F_TF_D | merged=TF
+07 | rotation | stay | SL | from=(2,4,3)[ZP] | to=(2,4,3)[XN] | anchor=D->D | move=D_SL_D
+08 | translation | backward | none | from=(2,4,3)[XN] | to=(3,4,3)[XN] | anchor=D->D | move=D_B_D
+09 | translation | backward | none | from=(3,4,3)[XN] | to=(4,4,3)[XN] | anchor=D->D | move=D_B_D
+10 | rotation | stay | SR | from=(4,4,3)[XN] | to=(4,4,3)[ZP] | anchor=D->D | move=D_SR_D

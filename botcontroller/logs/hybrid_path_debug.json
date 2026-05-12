@@ -1,0 +1,4749 @@
+{
+  "timestamp": "2026-05-12T15:51:23.312Z",
+  "error": "PATH_NOT_FOUND",
+  "dominant_block_reason": "ERR_PRIMITIVE_DIR_MISMATCH",
+  "error_stats": {
+    "ERR_PRIMITIVE_DIR_MISMATCH": 12348,
+    "ERR_PRECONDITION_BLOCKED": 3040
+  },
+  "expanded_nodes": 343,
+  "generated_nodes": 16464,
+  "start_state": {
+    "x": 4,
+    "y": 1,
+    "z": 3,
+    "vx": -1,
+    "vy": 0,
+    "vz": 0,
+    "dir": "XN",
+    "support_mode": "floor"
+  },
+  "goal_state": {
+    "x": 4,
+    "y": 2,
+    "z": 0,
+    "vx": 0,
+    "vy": 0,
+    "vz": -1,
+    "dir": "ZN",
+    "support_mode": "floor"
+  },
+  "best_partial": {
+    "states": [
+      {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "dir": "XN",
+        "support_mode": "floor"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "dir": "ZN",
+        "support_mode": "floor"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "dir": "ZN",
+        "support_mode": "floor"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 1,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "dir": "ZN",
+        "support_mode": "floor"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "dir": "ZN",
+        "support_mode": "floor"
+      }
+    ],
+    "actions": [
+      "ROT_RIGHT_XN_TO_ZN",
+      "MOVE_ZN_FWD",
+      "MOVE_ZN_FWD",
+      "MOVE_ZN_FWD"
+    ],
+    "terminal_state": {
+      "x": 4,
+      "y": 1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "dir": "ZN",
+      "support_mode": "floor"
+    },
+    "total_cost": 5
+  },
+  "path_analysis": {
+    "steps": [
+      {
+        "step": 0,
+        "pos": [
+          4,
+          1,
+          3
+        ],
+        "dir": "XN",
+        "support": "floor",
+        "action": null
+      },
+      {
+        "step": 1,
+        "pos": [
+          4,
+          1,
+          3
+        ],
+        "dir": "ZN",
+        "support": "floor",
+        "action": "ROT_RIGHT_XN_TO_ZN"
+      },
+      {
+        "step": 2,
+        "pos": [
+          4,
+          1,
+          2
+        ],
+        "dir": "ZN",
+        "support": "floor",
+        "action": "MOVE_ZN_FWD"
+      },
+      {
+        "step": 3,
+        "pos": [
+          4,
+          1,
+          1
+        ],
+        "dir": "ZN",
+        "support": "floor",
+        "action": "MOVE_ZN_FWD"
+      },
+      {
+        "step": 4,
+        "pos": [
+          4,
+          1,
+          0
+        ],
+        "dir": "ZN",
+        "support": "floor",
+        "action": "MOVE_ZN_FWD"
+      }
+    ],
+    "distance_to_goal": {
+      "terminal": [
+        4,
+        1,
+        0
+      ],
+      "goal": [
+        4,
+        2,
+        0
+      ],
+      "delta": [
+        0,
+        1,
+        0
+      ],
+      "manhattan": 1
+    },
+    "blocked_from_terminal": []
+  },
+  "debug_rejections": [
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_FWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 3,
+        "y": 1,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_BWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 5,
+        "y": 1,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 5,
+        "y": 0,
+        "z": 3
+      },
+      "contact": {
+        "x": 5,
+        "y": 0,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 2,
+        "pre_cell": {
+          "x": 5,
+          "y": 0,
+          "z": 3,
+          "free": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 3,
+        "y": 2,
+        "z": 3
+      },
+      "contact": {
+        "x": 3,
+        "y": 1,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 3,
+          "y": 1,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 5,
+        "y": 2,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 3,
+        "y": 0,
+        "z": 3
+      },
+      "contact": {
+        "x": 3,
+        "y": 1,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 3,
+          "y": 1,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 0,
+          "z": 3,
+          "free": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_XN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "contact": {
+        "x": 3,
+        "y": 1,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 3,
+          "y": 1,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_XP_TO_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_XP_TO_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_ZP_TO_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_ZP_TO_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_ZN_TO_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": -1,
+        "vy": 0,
+        "vz": 0,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_ZN_TO_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_FWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 1,
+        "z": 2
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_BWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 1,
+        "z": 4
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "contact": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 2,
+        "pre_cell": {
+          "x": 4,
+          "y": 0,
+          "z": 4,
+          "free": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 2
+      },
+      "contact": {
+        "x": 4,
+        "y": 1,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 1,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 4
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 3,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 2
+      },
+      "contact": {
+        "x": 4,
+        "y": 1,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 1,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 0,
+          "z": 3,
+          "free": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_UP_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 1,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 1,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_XP_TO_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_XP_TO_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_XN_TO_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_XN_TO_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_LEFT_ZP_TO_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 3,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "ROT_RIGHT_ZP_TO_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_XN_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_FWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZP_BWD_CEILING",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_FWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 1,
+        "z": 1
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "MOVE_ZN_BWD_CEILING",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 1,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 1,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 0,
+        "z": 3
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 2,
+        "pre_cell": {
+          "x": 4,
+          "y": 0,
+          "z": 3,
+          "free": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_DOWN_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 1
+      },
+      "contact": {
+        "x": 4,
+        "y": 1,
+        "z": 1
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 1,
+          "z": 1,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "STEP_UP_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZP",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 2,
+        "z": 3
+      },
+      "contact": {
+        "x": 4,
+        "y": 2,
+        "z": 2
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 2,
+          "z": 2,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_UP_ZN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZN",
+      "error": "ERR_PRECONDITION_BLOCKED",
+      "target": {
+        "x": 4,
+        "y": 0,
+        "z": 1
+      },
+      "contact": {
+        "x": 4,
+        "y": 1,
+        "z": 1
+      },
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "precondition_blocked",
+        "pre_index": 0,
+        "pre_cell": {
+          "x": 4,
+          "y": 1,
+          "z": 1,
+          "free": true,
+          "occupied": false
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "CLIMB_DOWN_ZP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XP",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "from": {
+        "x": 4,
+        "y": 1,
+        "z": 2,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1,
+        "support": null,
+        "edge": null
+      },
+      "primitive": "WALL_DOWN_XN",
+      "error": "ERR_PRIMITIVE_DIR_MISMATCH",
+      "target": null,
+      "contact": null,
+      "expected_support": null,
+      "actual_support": null,
+      "composite": null,
+      "failed_step_index": null,
+      "failed_primitive": null,
+      "step_error": null,
+      "macro_trace": null,
+      "gate_debug": {
+        "kind": "primitive",
+        "reason_code": "wrong_heading",
+        "current_heading": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "required_heading": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ]
+}

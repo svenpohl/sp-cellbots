@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-05-10T10:53:25.080Z",
+  "start_orientation": {
+    "x": 0,
+    "y": 0,
+    "z": 1
+  },
+  "goal_orientation": null,
+  "path_length": 0,
+  "bots_count": 44,
+  "stages": []
+}
