@@ -7,10 +7,12 @@ This project is licensed under the [MIT License](./LICENSE).
 It is based on a fictional hardware model: the **SP-CellBot**, a modular unit capable of moving across identical elements, stacking, and forming fixed connections in order to *morph* into arbitrary 
 structures. 
 
-> ⚠️ Note: The term "CellBots" is used here in a descriptive, non-commercial context and is not affiliated with any external research groups or trademarks.
+**Features:**
 
-<div align="center"><strong>„Morph. Code. Forge.“</strong></div>
-
+- **Mobility Modes:** `vehicle_kinematics`, `full_edge` and `hybrid_kinematics` — each with dedicated path planning and movement primitives  
+- **Rich API:** Numerous manipulation and diagnostic tools, optimized for LLM-driven control via Codex, Deepseek or Gemini CLI  
+- **Structure Morphing:** Support for `full_edge` and sequential VK morphing algorithms  
+- **Cryptographic Signatures:** ED25519-based message signing to protect against unauthorized access (pre-configured; generate your own keys before practical deployment)
 
 <table>
   <tr>
@@ -62,67 +64,25 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.3**  
-Developed and tested on **Node.js v23.11.0**.  
+Current version: **1.7.4**  
+Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
 
-- **1.7.3** (12.05.2026)  
-**Hybrid Kinematics mobility mode (API preview)**
-  - Added `mobility_mode = hybrid_kinematics` as the new default mode (preview)
-  - For morph demos, set `mobility_mode = full_edge` in `config.cfg` of both botcontroller and cluster_sim
-  - In this mode, SP-CellBots can move in 3D including ceiling (upside-down) positions — path planning supports horizontal, vertical, wall, step, and climb primitives
-  - Mode is currently only active for the LLM-facing API command `move_bot_to` (NOT for morphing)
-  - Primary demo: `"node api.js move_bot_to B26 4 2 3"`
-  - Fixed several inconsistencies in vehicle-kinematics movement primitives
-  - Extended `tools/voxeledit/` with new features and added test constructs for 300-bot morphing experiments
+- **1.7.4** (17.05.2026)  
+**Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
+  - **B-Slot Payload:** In `vehicle_kinematics` mode, a carried payload bot is now always attached to the carrier's back (B-Slot). This leaves the F-Slot free for climbing walls and stairs, making payload transport and terrain navigation compatible  
+  - **World model sync:** BotController and ClusterSim correctly update the payload's **position and orientation** after carrier moves and rotations (90° and 180°), even when the payload started with a different facing direction  
+  - **API CLI in BotController WebGUI:** The BotController WebGUI (`http://localhost:3010`) now has a built-in **API CLI panel** — type `node api.js` commands directly into the browser, see JSON responses live. Click any bot in the 3D view to auto-fill its ID into the command. Includes a dropdown of example commands for quick experimentation  
+  - **Primary demo:** `node api.js structurescan` then switch to BotController WebGUI and try the API CLI examples
 
-- **1.7.2** (03.05.2026)  
-**Sequential Vehicle Kinematics Morph**
-  - Added `SequentialVKMorph` algorithm — morphing under vehicle-kinematics constraints using A* path planning on movement states (position + rotation)
-  - Path planning now supports `find_path_for_bot` and `move_bot_to` with VK-aware rotation insertion
-  - Default construct changed to `base_100.xml` for larger morph experiments
-  - Tested and morphable structures: `base_100`, `25_arch`, `25_cross`
-  - Added dedicated documentation chapter: **[Vehicle Kinematics](docs/vehicle_kinematics.md)**
-
-- **1.7.1** (29.04.2026)  
-**VoxelEdit integration**
-  - Added `tools/voxeledit/` – a standalone 3D voxel editor for SP-CellBots
-  - Three.js-based editor with Construct (XML), Structure (JSON), and Overlay modes
-  - Place, delete, rename, and visually edit bot positions in a 3D viewport
-  - Separate target-file workflow for TRGT markers
-  - Express server on port 5175, start with `cd tools/voxeledit && node server.js`
-
-- **1.7** (28.04.2026)  
-**Vehicle Kinematics mobility mode (preview)**
-  - Added `mobility_mode = vehicle_kinematics` as the new default mode (preview)
-  - In this mode, SP-CellBots can only drive forward/backward in a straight line, and can climb walls/stairs only in that direction — path planning accounts for this constraint
-  - Mode is currently only active for the LLM-facing API command `move_bot_to` (NOT for morphing)
-  - Goal: preparation for simpler, more realistic hardware as a stepping stone toward `full_edge` mobility
-  - Primary demo: `node api.js structurescan` + `node api.js move_bot_to B26 5 2 4 0 0 -1`
-  - Test batch sequence: `node api.js batch ./tests/batch02.json`
-  - Additional changes: minor bugfixes and sequential batch processing in `api.js`
-
-- **1.6** (18.04.2026)  
-**Direct-Radio transition layer and API architecture refactor**
-  - Added preparation for a simpler hardware transition path with **direct radio communication** (`communication_mode = direct_radio`) while keeping `mesh_opcode` as default reference mode
-  - Added configurable **Radio IDs (`rid`)** and static radio mapping flow for direct addressing in both ClusterSim and BotController
-  - Introduced and documented the new **NBH / RNBH OP-codes** for direct-radio neighborhood discovery, enabling precise bot relocalization (position/orientation sync) without mesh route addressing
-  - Refactored BotController API implementation from a monolithic `botcontroller_class.js` block into structured runtime/service modules for better maintainability and faster extension
-  - Migrated and stabilized core API command paths for `direct_radio`, including scan, level-2 scan, movement, rotation, targeted resync (`search_bot`), and crater build/fill execution flows
-  - Added dedicated documentation chapter: **[Direct Radio](docs/direct_radio.md)**
-  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
-
-- **1.5** (04.04.2026)  
-**API V1 becomes practically usable**
-  - Expanded the BotController API into a much more complete control layer for humans, scripts, and LLM tooling
-  - Added high-level transport helpers such as **`move_carrier_to`** and **`diagnose_move_carrier_to`**
-  - Added small Morph API building blocks such as **`morph_get_structures`**, **`morph_get_algos`**, **`morph_start`**, and **`morph_check_progress`**
-  - Improved payload-aware path planning, payload synchronization after carrier rotations, and bundled rotation execution with cleaner ACK routing
-  - Extended diagnostics and recovery behavior around MOVE planning, payload transport, and morph progress tracking
-  - Fixed several smaller consistency and simulator/controller sync issues discovered during direct LLM-driven testing
-  - LLM testing and interactive API control during this phase were performed with **Codex GPT-5.4**
+- **1.7.3** (12.05.2026) — **Hybrid Kinematics mobility mode (API preview)**
+- **1.7.2** (03.05.2026) — **Sequential Vehicle Kinematics Morph**
+- **1.7.1** (29.04.2026) — **VoxelEdit integration**
+- **1.7** (28.04.2026) — **Vehicle Kinematics mobility mode (preview)**
+- **1.6** (18.04.2026) — **Direct-Radio transition layer and API architecture refactor**
+- **1.5** (04.04.2026) — **API V1 becomes practically usable**
 
 👉 Full changelog is available at:  
 ➡️ [docs/changelog.md](docs/changelog.md)
@@ -160,6 +120,7 @@ If you use SP-CellBots in your work, please cite one (or more) of the following:
 
 Pull requests are welcome!
 
+<div align="center"><strong>„Morph. Code. Forge.“</strong></div>
 
 ## 💛 Support / Donate
 
