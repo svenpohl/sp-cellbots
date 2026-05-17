@@ -169,6 +169,22 @@ if (cmd === "get_api_messages")
    return(true);
    } // if
 
+if (cmd === "get_payload_link")
+   {
+   let payload_link = controller.apicall_get_payload_link_for_carrier(decodedobject.carrier_bot_id);
+   let carried_payload_bot_id = controller.apicall_get_carried_payload_bot_id(decodedobject.carrier_bot_id);
+   controller.append_api_action_log("get_payload_link", { carrier_bot_id: decodedobject.carrier_bot_id }, { ok: true, answer: "api_get_payload_link", has_link: payload_link !== null });
+   await write_and_close(socket, {
+                                  ok: true,
+                                  answer: "api_get_payload_link",
+                                  carrier_bot_id: decodedobject.carrier_bot_id,
+                                  has_link: payload_link !== null,
+                                  payload_link: payload_link,
+                                  carried_payload_bot_id: carried_payload_bot_id
+                                  });
+   return(true);
+   } // if
+
 return(false);
 } // handle_readonly_api_command()
 

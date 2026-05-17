@@ -1,4 +1,4 @@
-function apicall_grab_bot(controller, bot_id)
+function apicall_grab_bot(controller, bot_id, slot = null)
 {
 let safe_prepare_ret = controller.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = controller.apicall_get_bot_snapshot(bot_id);
@@ -11,6 +11,9 @@ let ack_retaddr = "";
 let payload_bot_id = null;
 let front_rel_vector = null;
 let front_target = null;
+let effective_slot = "";
+let mobility_mode = "";
+let grab_opcode = "";
 
 if (safe_prepare_ret?.ok !== true)
    {
@@ -50,9 +53,23 @@ if (target_address == "")
           });
    } // if
 
+// Determine effective grab slot:
+// - If slot parameter is provided and non-empty, use it
+// - Default: "B" in vehicle_kinematics mode, "F" otherwise
+mobility_mode = String(controller.mobility_mode ?? "").trim();
+if (slot && String(slot).trim() != "")
+   {
+   effective_slot = String(slot).trim().toUpperCase();
+   } else
+     {
+     effective_slot = (mobility_mode === "vehicle_kinematics") ? "B" : "F";
+     } // else
+
+grab_opcode = "G" + effective_slot;
+
 ack_retaddr = controller.apicall_build_stationary_ack_returnaddr(bot_snapshot, null);
 front_rel_vector = controller.get_cell_relation_vector_byslot(
-                                                       "F",
+                                                       effective_slot,
                                                        Number(bot_snapshot.orientation.x),
                                                        Number(bot_snapshot.orientation.y),
                                                        Number(bot_snapshot.orientation.z)
@@ -65,15 +82,15 @@ if (front_rel_vector)
                   z: Number(bot_snapshot.position.z) + Number(front_rel_vector.z)
                   };
    } // if
-payload_bot_id = controller.apicall_get_front_neighbor_bot_id(bot_snapshot);
+payload_bot_id = controller.apicall_get_neighbor_bot_id_by_slot(bot_snapshot, effective_slot);
 
 if (ack_retaddr != "")
    {
    ack_id = controller.apicall_generate_ack_id(bot_id);
-   planned_raw_cmd = target_address + "#MOVE#GF;ALIFE;" + ack_id + "#" + ack_retaddr;
+   planned_raw_cmd = target_address + "#MOVE#" + grab_opcode + ";ALIFE;" + ack_id + "#" + ack_retaddr;
    } else
      {
-     planned_raw_cmd = target_address + "#MOVE#GF";
+     planned_raw_cmd = target_address + "#MOVE#" + grab_opcode;
      } // else
 
 if (ack_id !== null)
@@ -83,8 +100,9 @@ if (ack_id !== null)
                                    {
                                    bot_id: bot_id,
                                    mode: "grab",
-                                   payload_bot_id: payload_bot_id,
-                                   to: {
+                                    payload_bot_id: payload_bot_id,
+                                    slot: effective_slot,
+                                    to: {
                                        x: Number(bot_snapshot.position.x),
                                        y: Number(bot_snapshot.position.y),
                                        z: Number(bot_snapshot.position.z)
@@ -101,6 +119,20 @@ if (ack_id !== null)
                                    );
    } // if
 
+// Register payload link IMMEDIATELY, before sending the command.
+// The RALIFE-ACK from GB;ALIFE;... arrives as a move-ACK, not a grab-ACK.
+// The move-ACK handler calls apicall_sync_payload_from_carrier which needs
+// the payload_link to be already set with the correct slot.
+if (payload_bot_id)
+   {
+   controller.apicall_register_payload_link(
+                                            bot_id,
+                                            payload_bot_id,
+                                            effective_slot,
+                                            true
+                                            );
+   } // if
+
 raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
 controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
 controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
@@ -108,20 +140,11 @@ controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd },
 if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
    {
    controller.apicall_mark_ack_received(ack_id, "send_failed");
+   controller.apicall_clear_payload_link(bot_id);
    } // if
 
 if ((raw_ret.accepted ?? false) === true && ack_id === null)
    {
-   if (payload_bot_id)
-      {
-      controller.apicall_register_payload_link(
-                                               bot_id,
-                                               payload_bot_id,
-                                               "F",
-                                               true
-                                               );
-      } // if
-
    controller.apicall_gui_refresh();
    } // if
 
@@ -129,6 +152,8 @@ return({
        ok: true,
        answer: "api_grab_bot",
        bot_id: bot_id,
+       slot: effective_slot,
+       grab_opcode: grab_opcode,
        executable: true,
        executed: (raw_ret?.accepted ?? false) === true,
        current_state: bot_snapshot,
@@ -231,6 +256,14 @@ if (ack_id !== null)
                                    );
    } // if
 
+// Clear the payload link immediately (synchronously) so the BotController world model
+// reflects the released state even before the ACK arrives.
+// This prevents subsequent commands (e.g. move_bot_to) from still seeing a payload.
+if (String(payload_bot_id ?? "").trim() != "")
+   {
+   controller.apicall_clear_payload_link(bot_id);
+   } // if
+
 raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
 controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
 controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
@@ -238,6 +271,16 @@ controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd },
 if ((raw_ret.accepted ?? false) !== true && ack_id !== null)
    {
    controller.apicall_mark_ack_received(ack_id, "send_failed");
+   // Re-register the payload link if the command failed, so the world model stays consistent.
+   if (String(payload_bot_id ?? "").trim() != "")
+      {
+      controller.apicall_register_payload_link(
+                                               bot_id,
+                                               payload_bot_id,
+                                               "B",
+                                               true
+                                               );
+      } // if
    } // if
 
 if ((raw_ret.accepted ?? false) === true && ack_id === null)
@@ -388,7 +431,7 @@ if (current_payload_bot_id && String(current_payload_bot_id) != normalized_paylo
 
 if (!current_payload_bot_id)
    {
-   current_front_payload_bot_id = controller.apicall_get_front_neighbor_bot_id(carrier_snapshot);
+   current_front_payload_bot_id = controller.apicall_get_neighbor_bot_id_by_slot(carrier_snapshot, "F");
 
    if (String(current_front_payload_bot_id ?? "") != normalized_payload_bot_id)
       {
@@ -904,7 +947,7 @@ if (!carrier_snapshot)
    return({
           ok: false,
           answer: "api_diagnose_move_carrier_to",
-          error: "CARRIER_BOT_NOT_FOUND",
+          error: "CARRIER_BOT_NOT_FOUND: Bot '" + String(normalized_carrier_bot_id) + "' does not exist in the system. Check the bot ID and try again.",
           carrier_bot_id: normalized_carrier_bot_id
           });
    } // if

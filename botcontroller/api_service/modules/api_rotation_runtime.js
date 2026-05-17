@@ -633,10 +633,51 @@ return({
 } // apicall_rotate_bot_to()
 
 
+//
+// Determines the single-step VK rotation direction (R or L) from an old heading
+// to a new heading. Returns null if the headings are identical or not a valid
+// 90-degree rotation in the XY plane.
+//
+function apicall_get_vk_rotation_direction(old_vx, old_vy, old_vz, new_vx, new_vy, new_vz)
+{
+let ox = Number(old_vx ?? 0);
+let oy = Number(old_vy ?? 0);
+let oz = Number(old_vz ?? 0);
+let nx = Number(new_vx ?? 0);
+let ny = Number(new_vy ?? 0);
+let nz = Number(new_vz ?? 0);
+
+// RIGHT cycle: (1,0,0) → (0,0,-1) → (-1,0,0) → (0,0,1) → back to (1,0,0)
+if (
+   (ox ==  1 && oz ==  0 && nx ==  0 && nz == -1) ||
+   (ox ==  0 && oz == -1 && nx == -1 && nz ==  0) ||
+   (ox == -1 && oz ==  0 && nx ==  0 && nz ==  1) ||
+   (ox ==  0 && oz ==  1 && nx ==  1 && nz ==  0)
+   )
+   {
+   return("R");
+   } // if
+
+// LEFT cycle: (1,0,0) → (0,0,1) → (-1,0,0) → (0,0,-1) → back to (1,0,0)
+if (
+   (ox ==  1 && oz ==  0 && nx ==  0 && nz ==  1) ||
+   (ox ==  0 && oz ==  1 && nx == -1 && nz ==  0) ||
+   (ox == -1 && oz ==  0 && nx ==  0 && nz == -1) ||
+   (ox ==  0 && oz == -1 && nx ==  1 && nz ==  0)
+   )
+   {
+   return("L");
+   } // if
+
+return(null);
+} // apicall_get_vk_rotation_direction()
+
+
 module.exports = {
                  apicall_rotate_orientation,
                  apicall_build_stationary_ack_returnaddr,
                  apicall_rotate_bot,
                  apicall_execute_rotation_plan,
-                 apicall_rotate_bot_to
+                 apicall_rotate_bot_to,
+                 apicall_get_vk_rotation_direction
                  };

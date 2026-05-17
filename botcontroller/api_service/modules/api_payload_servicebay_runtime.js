@@ -1,16 +1,17 @@
-function apicall_get_front_neighbor_bot_id(controller, bot_snapshot)
+function apicall_get_neighbor_bot_id_by_slot(controller, bot_snapshot, slot = "F")
 {
 if (!bot_snapshot)
    {
    return(null);
    } // if
 
+let normalized_slot = String(slot ?? "F").trim().toUpperCase();
 let rel_vector = controller.get_cell_relation_vector_byslot(
-                                                     "F",
-                                                     Number(bot_snapshot.orientation.x),
-                                                     Number(bot_snapshot.orientation.y),
-                                                     Number(bot_snapshot.orientation.z)
-                                                     );
+                                                      normalized_slot,
+                                                      Number(bot_snapshot.orientation.x),
+                                                      Number(bot_snapshot.orientation.y),
+                                                      Number(bot_snapshot.orientation.z)
+                                                      );
 
 if (!rel_vector)
    {
@@ -58,15 +59,16 @@ return(null);
 } // apicall_get_front_neighbor_bot_id()
 
 
-function apicall_get_payload_target_from_carrier_state(controller, position, orientation)
+function apicall_get_payload_target_from_carrier_state(controller, position, orientation, relative_slot = "F")
 {
 if (!position || !orientation)
    {
    return(null);
    } // if
 
+let normalized_slot = String(relative_slot ?? "F").trim().toUpperCase();
 let rel_vector = controller.get_cell_relation_vector_byslot(
-                                                     "F",
+                                                     normalized_slot,
                                                      Number(orientation.x),
                                                      Number(orientation.y),
                                                      Number(orientation.z)
@@ -95,10 +97,13 @@ if (normalized_carrier_bot_id == "" || normalized_payload_bot_id == "")
    return(null);
    } // if
 
+let normalized_slot = String(relative_slot ?? "F").trim().toUpperCase();
+// console.log("[DEBUG] apicall_register_payload_link carrier=" + normalized_carrier_bot_id + " payload=" + normalized_payload_bot_id + " slot=" + normalized_slot + " attached=" + attached);
+
 let payload_link = {
                    carrier_bot_id: normalized_carrier_bot_id,
                    payload_bot_id: normalized_payload_bot_id,
-                   relative_slot: String(relative_slot ?? "F").trim().toUpperCase(),
+                   relative_slot: normalized_slot,
                    attached: attached === true
                    };
 
@@ -198,7 +203,6 @@ function apicall_get_payload_link_for_carrier(controller, carrier_bot_id)
 {
 let normalized_carrier_bot_id = String(carrier_bot_id ?? "").trim();
 let payload_link = null;
-let legacy_payload_bot_id = null;
 
 if (normalized_carrier_bot_id == "")
    {
@@ -212,21 +216,9 @@ if (payload_link)
    return(payload_link);
    } // if
 
-legacy_payload_bot_id = controller.api_grab_state_map[normalized_carrier_bot_id] ?? null;
-
-if (String(legacy_payload_bot_id ?? "").trim() == "")
-   {
-   return(null);
-   } // if
-
-return(
-      controller.apicall_register_payload_link(
-                                               normalized_carrier_bot_id,
-                                               legacy_payload_bot_id,
-                                               "F",
-                                               true
-                                               )
-      );
+// Legacy fallback removed - api_payload_links is always populated by modern code paths.
+// The old fallback created incorrect links with hardcoded "F" slot.
+return(null);
 } // apicall_get_payload_link_for_carrier()
 
 
@@ -243,7 +235,7 @@ return(String(payload_link.payload_bot_id ?? "").trim() || null);
 } // apicall_get_carried_payload_bot_id()
 
 
-function apicall_sync_payload_from_carrier(controller, carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [])
+function apicall_sync_payload_from_carrier(controller, carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [], carrier_old_orientation = null)
 {
 let payload_link = controller.apicall_get_payload_link_for_carrier(carrier_bot_id);
 let payload_bot_id = payload_link?.payload_bot_id ?? null;
@@ -266,7 +258,10 @@ if (!payload_bot_id)
    return(false);
    } // if
 
-let payload_target = controller.apicall_get_payload_target_from_carrier_state(carrier_position, carrier_orientation);
+let relative_slot = payload_link?.relative_slot ?? "F";
+let payload_target = controller.apicall_get_payload_target_from_carrier_state(carrier_position, carrier_orientation, relative_slot);
+
+// console.log("[DEBUG] apicall_sync_payload_from_carrier carrier=" + carrier_bot_id + " payload=" + payload_bot_id + " relative_slot=" + relative_slot + " target=" + JSON.stringify(payload_target) + " carrier_pos=" + JSON.stringify(carrier_position) + " carrier_ori=" + JSON.stringify(carrier_orientation));
 
 if (!payload_target)
    {
@@ -320,6 +315,7 @@ let payload_orientation_target = {
                                  z: old_vz
                                  };
 
+// Apply rotation plan if provided (for multi-step/incremental rotations)
 for (let i = 0; i < normalized_rotation_plan.length; i++)
     {
     let next_orientation = controller.apicall_rotate_orientation(
@@ -340,6 +336,94 @@ for (let i = 0; i < normalized_rotation_plan.length; i++)
                                  z: Number(next_orientation.z)
                                  };
     } // for
+
+// If no rotation plan was applied and the payload orientation hasn't changed yet,
+// apply the carrier's rotation to the payload's old orientation.
+// This correctly handles cases where the payload started with a different orientation
+// than the carrier (e.g. B38 grabbed with (0,0,-1) while carrier had (1,0,0)).
+if (
+    normalized_rotation_plan.length === 0 &&
+    carrier_orientation &&
+    carrier_old_orientation &&
+    (
+     Number(payload_orientation_target.x) === old_vx &&
+     Number(payload_orientation_target.y) === old_vy &&
+     Number(payload_orientation_target.z) === old_vz
+    )
+   )
+   {
+   let rotation_dir = controller.apicall_get_vk_rotation_direction(
+                                                              Number(carrier_old_orientation.x ?? 0),
+                                                              Number(carrier_old_orientation.y ?? 0),
+                                                              Number(carrier_old_orientation.z ?? 0),
+                                                              Number(carrier_orientation.x ?? 0),
+                                                              Number(carrier_orientation.y ?? 0),
+                                                              Number(carrier_orientation.z ?? 0)
+                                                              );
+
+   if (rotation_dir !== null)
+      {
+      // 90-degree rotation: apply once
+      let rotated = controller.apicall_rotate_orientation(
+                                                    Number(old_vx),
+                                                    Number(old_vy),
+                                                    Number(old_vz),
+                                                    rotation_dir
+                                                    );
+
+      if (rotated)
+         {
+         payload_orientation_target = {
+                                      x: Number(rotated.x),
+                                      y: Number(rotated.y),
+                                      z: Number(rotated.z)
+                                      };
+         } // if
+      }
+   else
+      {
+      // rotation_dir is null -> either 180-degree rotation or no rotation.
+      // Check if the carrier flipped 180 degrees: old == -new
+      let cox = Number(carrier_old_orientation.x ?? 0);
+      let coy = Number(carrier_old_orientation.y ?? 0);
+      let coz = Number(carrier_old_orientation.z ?? 0);
+      let cnx = Number(carrier_orientation.x ?? 0);
+      let cny = Number(carrier_orientation.y ?? 0);
+      let cnz = Number(carrier_orientation.z ?? 0);
+
+      if (
+          cox === -cnx && coy === -cny && coz === -cnz
+         )
+         {
+         // 180-degree rotation: apply "R" twice to the payload's old orientation
+         let rotated1 = controller.apicall_rotate_orientation(
+                                                       Number(old_vx),
+                                                       Number(old_vy),
+                                                       Number(old_vz),
+                                                       "R"
+                                                       );
+
+         if (rotated1)
+            {
+            let rotated2 = controller.apicall_rotate_orientation(
+                                                          Number(rotated1.x),
+                                                          Number(rotated1.y),
+                                                          Number(rotated1.z),
+                                                          "R"
+                                                          );
+
+            if (rotated2)
+               {
+               payload_orientation_target = {
+                                            x: Number(rotated2.x),
+                                            y: Number(rotated2.y),
+                                            z: Number(rotated2.z)
+                                            };
+               } // if
+            } // if
+         } // if
+      } // else
+   } // if
 
 controller.update_keyindex(oldx, oldy, oldz, payload_target.x, payload_target.y, payload_target.z);
 controller.bots[payload_index].x = Number(payload_target.x);
@@ -733,7 +817,7 @@ return({
 
 
 module.exports = {
-                  apicall_get_front_neighbor_bot_id,
+                  apicall_get_neighbor_bot_id_by_slot,
                   apicall_get_payload_target_from_carrier_state,
                   apicall_register_payload_link,
                   apicall_clear_payload_link,

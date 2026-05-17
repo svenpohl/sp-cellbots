@@ -193,10 +193,10 @@ if (cmd === "rotate_bot_to")
 
 if (cmd === "grab_bot")
    {
-   let ret = controller.apicall_grab_bot(decodedobject.bot_id);
+   let ret = controller.apicall_grab_bot(decodedobject.bot_id, decodedobject.slot);
    ret = await attach_ack_wait_if_needed(controller, ret);
-   controller.append_api_action_log("grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
-   controller.append_api_bot_history(decodedobject.bot_id, "grab_bot", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   controller.append_api_action_log("grab_bot", { bot_id: decodedobject.bot_id, slot: decodedobject.slot ?? "" }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
+   controller.append_api_bot_history(decodedobject.bot_id, "grab_bot", { bot_id: decodedobject.bot_id, slot: decodedobject.slot ?? "" }, { ok: ret.ok, answer: ret.answer, executed: ret.executed ?? false, planned_raw_cmd: ret.planned_raw_cmd ?? null });
    await write_and_close(socket, ret);
    return(true);
    } // if
@@ -263,6 +263,27 @@ if (cmd === "diagnose_move_carrier_to")
    controller.append_api_action_log("diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
    controller.append_api_bot_history(decodedobject.carrier_bot_id, "diagnose_move_carrier_to", { carrier_bot_id: decodedobject.carrier_bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, vx: decodedobject.vx, vy: decodedobject.vy, vz: decodedobject.vz, release_after: decodedobject.release_after ?? false }, { ok: ret.ok, answer: ret.answer, error: ret.error ?? "", executable: ret.executable ?? false });
    await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "register_payload_link")
+   {
+   let ret = controller.apicall_register_payload_link(
+                                                  decodedobject.carrier_bot_id,
+                                                  decodedobject.payload_bot_id,
+                                                  decodedobject.slot ?? "B",
+                                                  decodedobject.attached !== false
+                                                  );
+   controller.append_api_action_log("register_payload_link", { carrier_bot_id: decodedobject.carrier_bot_id, payload_bot_id: decodedobject.payload_bot_id, slot: decodedobject.slot ?? "B", attached: decodedobject.attached !== false }, { ok: ret?.ok ?? true, answer: "api_register_payload_link" });
+   await write_and_close(socket, {
+                                  ok: true,
+                                  answer: "api_register_payload_link",
+                                  carrier_bot_id: decodedobject.carrier_bot_id,
+                                  payload_bot_id: decodedobject.payload_bot_id,
+                                  slot: decodedobject.slot ?? "B",
+                                  attached: decodedobject.attached !== false,
+                                  payload_link: ret
+                                  });
    return(true);
    } // if
 

@@ -175,6 +175,7 @@ let bot = controller.bots[botindex];
 let bots_s = controller.apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids);
 let bots_f = controller.apicall_build_forbidden_grid();
 let carried_payload_bot_id = String(planning_options?.carried_payload_bot_id ?? "").trim();
+if (typeof Logger !== "undefined") Logger.log("[DEBUG find_path_for_bot] bot_id=" + bot_id + " carried_payload_bot_id='" + carried_payload_bot_id + "' mobility_mode=" + String(controller?.config?.mobility_mode ?? "?").trim().toLowerCase() + " target=" + x + "," + y + "," + z);
 let goal_orientation = planning_options?.goal_orientation ?? null;
 let bot_snapshot = controller.apicall_get_bot_snapshot(bot_id);
 let src = {
@@ -258,17 +259,37 @@ if (carried_payload_bot_id != "")
 
 if (carried_payload_bot_id != "")
    {
-   path_result = controller.apicall_calc_single_path_payload(
-                                                             src,
-                                                             dest,
-                                                             bots_s,
-                                                             bots_f,
-                                                             {
-                                                             carrier_bot_id: bot_id,
-                                                             payload_bot_id: carried_payload_bot_id,
-                                                             orientation: bot_snapshot?.orientation ?? null
-                                                             }
-                                                             );
+   if (mobility_mode == "vehicle_kinematics")
+      {
+      path_vehicle_dry_run = controller.apicall_calc_vehicle_kinematics_payload_path(
+                                                                               src,
+                                                                               dest,
+                                                                               bots_s,
+                                                                               bots_f,
+                                                                               {
+                                                                               orientation: bot_snapshot?.orientation ?? null,
+                                                                               goal_orientation: goal_orientation,
+                                                                               include_start: true,
+                                                                               carrier_bot_id: bot_id,
+                                                                               payload_bot_id: carried_payload_bot_id
+                                                                               }
+                                                                               );
+      path_result = path_vehicle_dry_run;
+      } // if
+   else
+      {
+      path_result = controller.apicall_calc_single_path_payload(
+                                                                src,
+                                                                dest,
+                                                                bots_s,
+                                                                bots_f,
+                                                                {
+                                                                carrier_bot_id: bot_id,
+                                                                payload_bot_id: carried_payload_bot_id,
+                                                                orientation: bot_snapshot?.orientation ?? null
+                                                                }
+                                                                );
+      } // else
    } // if
 else if (mobility_mode == "vehicle_kinematics")
    {
@@ -1087,6 +1108,15 @@ if (should_execute_move === true && planned_raw_cmd)
 
             if (String(carried_payload_bot_id ?? "").trim() != "")
                {
+               let noack_carrier_old = null;
+               if (bot_snapshot && bot_snapshot.orientation)
+                  {
+                  noack_carrier_old = {
+                                      x: Number(bot_snapshot.orientation.x),
+                                      y: Number(bot_snapshot.orientation.y),
+                                      z: Number(bot_snapshot.orientation.z)
+                                      };
+                  } // if
                controller.apicall_sync_payload_from_carrier(
                                                           bot_id,
                                                           {
@@ -1098,12 +1128,49 @@ if (should_execute_move === true && planned_raw_cmd)
                                                           x: Number(ack_target_orientation.x),
                                                           y: Number(ack_target_orientation.y),
                                                           z: Number(ack_target_orientation.z)
-                                                          }
+                                                          },
+                                                          [],
+                                                          noack_carrier_old
                                                           );
                } // if
 
             controller.apicall_gui_refresh();
          } // if
+      } // if
+
+   // When ACK is pending (ack_id !== null), the position update happens in the ACK handler.
+   // But we still need to sync the payload position immediately so the BotController world
+   // model reflects the correct payload location even before the ACK arrives.
+   if (
+       (raw_ret.accepted ?? false) === true &&
+       ack_id !== null &&
+       String(carried_payload_bot_id ?? "").trim() != ""
+      )
+      {
+      let preack_carrier_old = null;
+      if (live_botindex !== null)
+         {
+         preack_carrier_old = {
+                              x: Number(controller.bots[live_botindex].vector_x),
+                              y: Number(controller.bots[live_botindex].vector_y),
+                              z: Number(controller.bots[live_botindex].vector_z)
+                              };
+         } // if
+      controller.apicall_sync_payload_from_carrier(
+                                                   bot_id,
+                                                   {
+                                                   x: Number(target_x),
+                                                   y: Number(target_y),
+                                                   z: Number(target_z)
+                                                   },
+                                                   {
+                                                   x: Number(ack_target_orientation.x),
+                                                   y: Number(ack_target_orientation.y),
+                                                   z: Number(ack_target_orientation.z)
+                                                   },
+                                                   [],
+                                                   preack_carrier_old
+                                                   );
       } // if
 
    // After a successful move (with or without ACK), apply the target orientation
@@ -1139,6 +1206,10 @@ if (should_execute_move === true && planned_raw_cmd)
 
          if (String(carried_payload_bot_id ?? "").trim() != "")
             {
+            // Pass carrier_old_orientation=null here so the sync does NOT
+            // re-apply the rotation (the pre-ACK sync already handled it).
+            // It will copy the carrier's new orientation instead, which is
+            // correct after the first rotation was applied.
             controller.apicall_sync_payload_from_carrier(
                                                        bot_id,
                                                        {

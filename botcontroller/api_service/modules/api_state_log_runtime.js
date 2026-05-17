@@ -102,6 +102,7 @@ controller.api_ack_map[normalized_ack_id] = {
                                              bot_id: ack_payload.bot_id ?? "",
                                              mode: ack_payload.mode ?? "move",
                                              payload_bot_id: ack_payload.payload_bot_id ?? null,
+                                             slot: ack_payload.slot ?? null,
                                              to: ack_payload.to ?? null,
                                              orientation: ack_payload.orientation ?? null,
                                              planned_raw_cmd: ack_payload.planned_raw_cmd ?? "",
