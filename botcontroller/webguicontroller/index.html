@@ -24,13 +24,16 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
       padding: 0;
     }
     strong a {
-      font-size: 2rem;
-      color: #192bf3;
+      font-size: 1.2rem;
+      color: #888888;
       text-decoration: none;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      margin-left: 16px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.75;
+      transition: opacity 0.2s;
     }
+    strong a:hover { opacity: 1; }
     button {
       background: #f1f3fa;
       border: 1px solid #b8bde3;
@@ -106,13 +109,26 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
 
 
     #canvas3d {
-    width: 600px;
+    width: 80vw;
+    max-width: 1200px;
     height: 500px;
-    background: #16181d;   /* dunkler Hintergrund für 3D */
+    background: #2d2d2d;   /* hellgrau wie voxeledit */
     border-radius: 8px;
     box-shadow: 0 2px 16px #0006;
     position: relative;
     overflow: hidden;
+    }
+
+    #botCoord {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+    color: #88ccff;
+    font-family: monospace;
+    font-size: 13px;
+    min-height: 18px;
+    pointer-events: none;
     }
 
     #canvasdiv {
@@ -126,12 +142,15 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
 
 
     .move-button-matrix {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 24px;
-    margin-top: 24px;
+    gap: 12px;
     }
 
     .move-button-col {
@@ -141,13 +160,13 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     }
 
     .arrow-btn {
-    width: 58px;
-    height: 58px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     border: none;
-    background: #232638;
+    background: rgba(35,38,56,0.85);
     color: #fff;
-    font-size: 2.1rem;
+    font-size: 1.4rem;
     box-shadow: 0 2px 12px #0004;
     margin: 0;
     cursor: pointer;
@@ -217,13 +236,8 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     
     
      
-<div id="canvasdiv" style="border:solid #888; border-radius:10px; background:#181a1f; margin:20px auto; padding:10px; display:inline-block;">
-<div id="canvas3d"></div>
-</div>
-      
-      
-
-<div class="move-button-matrix">
+<div id="canvasdiv" style="border:solid #888; border-radius:10px; background:#181a1f; margin:20px auto; padding:0; display:inline-block; position:relative;">
+<div id="canvas3d"><div class="move-button-matrix">
   <div class="move-button-col">
     <button class="arrow-btn" id="btn-up"    title="Drehpunkt nach oben">&#9650;</button>
     <button class="arrow-btn" id="btn-down"  title="Drehpunkt nach unten">&#9660;</button>
@@ -233,9 +247,33 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <button class="arrow-btn" id="btn-minus" title="Drehpunkt rückwärts">－</button>
   </div>
 </div>
+<div id="botCoord">&nbsp;</div></div>
+</div>
 
-
-     
+<div id="api_controller" style="width:90%; margin:12px auto; text-align:left;">
+  <div style="color:#aaa; font-size:12px; margin-bottom:4px; letter-spacing:0.5px;">API CLI</div>
+  <div style="display:flex; align-items:center; gap:6px; background:#1a1c23; border:1px solid #444; border-radius:6px; padding:4px 8px;">
+    <span style="color:#888; font-family:monospace; font-size:13px; white-space:nowrap;">node api.js</span>
+    <input type="text" id="api_cli_input" value="move_bot_to B26 2 1 0" style="flex:1; background:transparent; border:none; color:#d4d4d4; font-family:monospace; font-size:13px; outline:none; padding:4px 0;" />
+    <button id="api_cli_send" style="background:#2a6a3a; border:1px solid #3a8a4a; color:#fff; border-radius:4px; padding:4px 12px; cursor:pointer; font-size:12px;">Send</button>
+  </div>
+  <select id="api_cli_examples" style="margin-top:6px; width:100%; background:#1a1c23; color:#d4d4d4; border:1px solid #444; border-radius:4px; padding:4px 6px; font-family:monospace; font-size:12px; outline:none;">
+    <option value="">— Select example —</option>
+    <option value="get_status">get_status</option>
+    <option value="get_bot_position B26">get_bot_position B26</option>
+    <option value="get_bot_position B38">get_bot_position B38</option>
+    <option value="move_bot_to B26 2 1 0">move_bot_to B26 2 1 0</option>
+    <option value="move_bot_to B26 2 1 0 1 0 0">move_bot_to B26 2 1 0 1 0 0</option>
+    <option value="diagnose_move_bot_to B26 4 1 0">diagnose_move_bot_to B26 4 1 0</option>
+    <option value="diagnose_move_carrier_to B26 4 1 0">diagnose_move_carrier_to B26 4 1 0</option>
+    <option value="grab_bot B26 B">grab_bot B26 B</option>
+    <option value="release_bot B26">release_bot B26</option>
+    <option value="is_occupied 4 1 0">is_occupied 4 1 0</option>
+    <option value="gui_set_marker 2 1 3 0.5 green">gui_set_marker 2 1 3 0.5 green</option>
+    <option value="structurescan">structurescan</option>
+  </select>
+  <div id="api_cli_output" style="display:none; margin-top:4px; background:#111; border:1px solid #333; border-radius:4px; padding:6px 10px; font-family:monospace; font-size:12px; color:#aefbaf; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
+</div>
 
 <div id="console" style="height:160px; width:90%; overflow-y:auto; background:#111; color:#d4d4d4; font-family:monospace; font-size:13px; border-radius:6px; padding:6px 10px; margin-top:1em;"></div>
 
@@ -846,6 +884,21 @@ addConsoleLine("Connected" );
      
      
      
+        // API CLI response
+        if (decodedobject.answer == "answer_api_cli") {
+            const outputDiv = document.getElementById('api_cli_output');
+            outputDiv.style.display = 'block';
+            if (decodedobject.ok) {
+                const data = decodedobject.data;
+                outputDiv.textContent = JSON.stringify(data, null, 2);
+                outputDiv.style.color = '#aefbaf';
+            } else {
+                outputDiv.textContent = 'Error: ' + (decodedobject.data?.error || decodedobject.error);
+                outputDiv.style.color = '#f55';
+            }
+            return;
+        }
+
         } // socket.onmessage = function(event)
             
         
@@ -1032,7 +1085,7 @@ group_tmp.userData.show_arrow = showArrow;
 if (masterbot == 1)
 { 
 let cube_tmp = new THREE.Mesh(geometry, materials_chess);
-cube_tmp.geometry.computeVertexNormals();
+// cube_tmp.geometry.computeVertexNormals(); // removed - causes rounded edges
 
 
     
@@ -1060,7 +1113,7 @@ cube_tmp.geometry.computeVertexNormals();
         let size = 1;        
         const rectGeometry = new THREE.PlaneGeometry(size, size); 
         
-        let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow);
+        let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow.clone());
         rectangle.rotation.x = -Math.PI / 2; 
         rectangle.position.y = size / 2 + 0.01; 
         group_tmp.add(rectangle); 
@@ -1084,15 +1137,15 @@ cube_tmp.geometry.computeVertexNormals();
 if (masterbot == 0)
 { 
 
-const material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15, transparent: transparent, opacity: opacity });
-
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.9, transparent: transparent, opacity: opacity });
 
 let cube_tmp = new THREE.Mesh(geometry, material);
 
 
 cube_tmp.material.color.set("#" + safeColor); // color kann z.B. "ff0000" sein
-cube_tmp.geometry.computeVertexNormals();
+// cube_tmp.geometry.computeVertexNormals(); // removed - causes rounded edges
     
+
   
         group_tmp.position.x = position.x;
         group_tmp.position.y = position.y;
@@ -1124,7 +1177,7 @@ cube_tmp.geometry.computeVertexNormals();
            let size = 1;
            const rectGeometry = new THREE.PlaneGeometry(size, size); 
         
-           let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow);
+           let rectangle = new THREE.Mesh(rectGeometry, rectMaterial_arrow.clone());
            rectangle.rotation.x = -Math.PI / 2; 
            rectangle.position.y = size / 2 + 0.01; 
            group_tmp.add(rectangle);
@@ -1179,6 +1232,7 @@ function removeAllCubes(remove_masterbot) {
 
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2d2d2d);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
 
@@ -1193,7 +1247,11 @@ const canvasContainer = document.getElementById('canvas3d');
 renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
 
 canvasContainer.appendChild(renderer.domElement);
-    
+
+// Trigger resize after 200ms to fix initial aspect ratio
+setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+}, 200);
     
 rotateGroup.position.z  = -3;
 rotateGroup.position.y =  -3;
@@ -1204,7 +1262,7 @@ rotateGroup.rotation.z  = 0.1;
     
  
       
-let ambientLight = new THREE.AmbientLight(0xffffff, 0.5); 
+let ambientLight = new THREE.AmbientLight(0xffffff, 0.35); 
 scene.add(ambientLight);
 
       
@@ -1250,6 +1308,7 @@ const texture_chess = new THREE.TextureLoader().load(
                    console.error('Error inline-texture: ', err);
     }
 );
+
 
  
 const texture = new THREE.TextureLoader().load(
@@ -1482,7 +1541,7 @@ const materials = [
   
 
 
-const geometry = new THREE.BoxGeometry();
+const geometry = new THREE.BoxGeometry(0.99, 0.99, 0.99);
 
 const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 80 });
     
@@ -1540,10 +1599,9 @@ animate();
 document.addEventListener('keydown', (event) => {
     const step = 0.1; 
     
-    // Ignore if botcommand-editing
-    const botInput = document.getElementById('botcommand');
-   
-    if (document.activeElement === botInput) {
+    // Ignore keyboard shortcuts when typing in input fields
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
         return;
     }
   
@@ -1622,13 +1680,28 @@ document.getElementById('btn-minus').addEventListener('click', () => {
 
 
 let isDragging = false;
+let didDrag = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
+const CLICK_THRESHOLD = 4; // pixels of movement to distinguish click from drag
+
+let selectedBotId = null; // currently selected/highlighted bot
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
 const canvas = renderer.domElement;  
 
+// Mouse wheel zoom
+canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const zoomStep = event.deltaY > 0 ? 0.2 : -0.2;
+    rotateGroup.position.z += zoomStep;
+});
+
 canvas.addEventListener('mousedown', function(e) {
     isDragging = true;
+    didDrag = false;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
 });
@@ -1637,16 +1710,88 @@ window.addEventListener('mousemove', function(e) {
     if (!isDragging) return;
     const dx = e.clientX - lastMouseX;
     const dy = e.clientY - lastMouseY;
-
+    if (Math.abs(dx) > CLICK_THRESHOLD || Math.abs(dy) > CLICK_THRESHOLD) {
+        didDrag = true;
+    }
     rotateGroup.rotation.y += dx * 0.01;
     rotateGroup.rotation.x += dy * 0.01;
-
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
 });
 
+// Highlight a bot by ID (blue emissive glow). Pass null to clear selection.
+function getBotMaterial(group) {
+    if (!group) return null;
+    const mesh = group.children.find(c => c.isMesh && (c.material || c.materials));
+    if (!mesh) return null;
+    // Support both single material (material) and material array (materials)
+    const mat = mesh.material || (mesh.materials && mesh.materials[0]);
+    return mat || null;
+}
+
+function setBotHighlight(group, enable) {
+    if (!group) return;
+    // Highlight cube
+    const mat = getBotMaterial(group);
+    if (mat && mat.emissive) {
+        mat.emissive.setHex(enable ? 0x3366ff : 0x000000);
+        mat.emissiveIntensity = enable ? 0.5 : 0;
+    }
+    // Highlight arrow (PlaneGeometry child with rectMaterial_arrow)
+    const arrowMesh = group.children.find(c => c.isMesh && c.geometry && c.geometry.type === 'PlaneGeometry');
+    if (arrowMesh && arrowMesh.material) {
+        arrowMesh.material.emissive = arrowMesh.material.emissive || new THREE.Color(0x000000);
+        arrowMesh.material.emissive.setHex(enable ? 0x88ccff : 0x000000);
+        arrowMesh.material.emissiveIntensity = enable ? 0.6 : 0;
+    }
+}
+
+function setSelectedBot(botid) {
+    // Un-highlight previous
+    if (selectedBotId !== null && botGroupMap[selectedBotId]) {
+        setBotHighlight(botGroupMap[selectedBotId], false);
+    }
+    selectedBotId = botid;
+    // Highlight new
+    if (botid !== null && botGroupMap[botid]) {
+        setBotHighlight(botGroupMap[botid], true);
+    }
+}
+
 window.addEventListener('mouseup', function(e) {
     isDragging = false;
+    if (!didDrag) {
+        // Click (no significant drag) → raycast to select bot
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(cubes);
+        if (intersects.length > 0) {
+            const hit = intersects[0].object;
+            const parent = hit.parent;
+            if (parent && parent.userData && parent.userData.botid) {
+                const botid = parent.userData.botid;
+                const botData = botGroupMap[botid];
+                if (botData) {
+                    const rx = Math.round(botData.position.x);
+                    const ry = Math.round(botData.position.y);
+                    const rz = Math.round(-botData.position.z);
+                    document.getElementById('botCoord').textContent = botid + " (" + rx + ", " + ry + ", " + rz + ")";
+                    setSelectedBot(botid);
+                    // Update API CLI input with clicked bot
+                    const currentInput = document.getElementById('api_cli_input');
+                    const currentVal = currentInput.value;
+                    // Replace bot ID in the command (e.g. "move_bot_to B26" -> "move_bot_to B38")
+                    currentInput.value = currentVal.replace(/B\d+/g, botid);
+                }
+            }
+        } else {
+            // Click on empty space → deselect
+            setSelectedBot(null);
+            document.getElementById('botCoord').textContent = "\u00a0";
+        }
+    }
 });
 
 canvas.style.cursor = 'grab';
@@ -1681,6 +1826,33 @@ window.addEventListener('touchend', function(e) {
      
      
       
+
+
+// API CLI: Send button + Enter key
+document.getElementById('api_cli_send').addEventListener('click', sendApiCli);
+document.getElementById('api_cli_input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendApiCli();
+});
+document.getElementById('api_cli_examples').addEventListener('change', function() {
+    const cmd = this.value;
+    if (cmd) {
+        document.getElementById('api_cli_input').value = cmd;
+        this.value = '';
+        document.getElementById('api_cli_input').focus();
+    }
+});
+
+function sendApiCli() {
+    const input = document.getElementById('api_cli_input');
+    const args = input.value.trim();
+    if (!args) return;
+    if (connected == 0) { alert('No Connection'); return; }
+    const outputDiv = document.getElementById('api_cli_output');
+    outputDiv.textContent = 'Running: node api.js ' + args + ' …';
+    outputDiv.style.color = '#888';
+    outputDiv.style.display = 'block';
+    socket.send(JSON.stringify({ cmd: 'api_cli', args: args }));
+}
 
 
 document.getElementById('exampleCommands').addEventListener('change', function() {
