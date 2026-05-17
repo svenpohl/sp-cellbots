@@ -22,13 +22,16 @@
       padding: 0;
     }
     strong a {
-      font-size: 2rem;
-      color: #192bf3;
+      font-size: 1.2rem;
+      color: #888888;
       text-decoration: none;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      margin-left: 16px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.75;
+      transition: opacity 0.2s;
     }
+    strong a:hover { opacity: 1; }
     button {
       background: #f1f3fa;
       border: 1px solid #b8bde3;
@@ -99,9 +102,10 @@
 
 
     #canvas3d {
-     width: 600px;
+     width: 80vw;
+     max-width: 1200px;
      height: 500px;
-     background: #16181d;   /* dunkler Hintergrund für 3D */
+     background: #2d2d2d;   /* hellgrau wie voxeledit */
      border-radius: 8px;
      box-shadow: 0 2px 16px #0006;
      position: relative;
@@ -119,28 +123,31 @@
 
 
    .move-button-matrix {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 24px;
-    margin-top: 24px;
+    gap: 12px;
     }
 
    .move-button-col {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
     }
 
    .arrow-btn {
-    width: 58px;
-    height: 58px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     border: none;
-    background: #232638;
+    background: rgba(35,38,56,0.85);
     color: #fff;
-    font-size: 2.1rem;
+    font-size: 1.4rem;
     box-shadow: 0 2px 12px #0004;
     margin: 0;
     cursor: pointer;
@@ -393,7 +400,7 @@ let group_tmp = new THREE.Group();
 if (masterbot == 1)
 { 
 let cube_tmp = new THREE.Mesh(geometry, materials_chess);
-cube_tmp.geometry.computeVertexNormals();
+// cube_tmp.geometry.computeVertexNormals(); // removed - causes rounded edges on BoxGeometry
     
     
         group_tmp.position.x = position.x;
@@ -446,13 +453,16 @@ console.log("COLOR::: " + color);
  
 
 
-const material = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 });
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.9 });
+
+
 const cube_tmp = new THREE.Mesh(geometry, material);
 
 
 
 cube_tmp.material.color.set("#" + color); // color kann z.B. "ff0000" sein
-cube_tmp.geometry.computeVertexNormals();
+// cube_tmp.geometry.computeVertexNormals(); // removed - causes rounded edges on BoxGeometry
+
 
   
         group_tmp.position.x = position.x;
@@ -510,16 +520,17 @@ function addServicebayCube(servicebayid, position)
 position.z = -position.z;
 
 let group_tmp = new THREE.Group();
-const material = new THREE.MeshPhongMaterial(
+const material = new THREE.MeshStandardMaterial(
                                           {
                                            color: 0xffd000,
                                            transparent: true,
                                            opacity: 0.40,
-                                           shininess: 20
+                                           metalness: 0.1,
+                                           roughness: 0.9
                                           }
                                          );
 const cube_tmp = new THREE.Mesh(geometry, material);
-cube_tmp.geometry.computeVertexNormals();
+// cube_tmp.geometry.computeVertexNormals(); // removed - causes rounded edges on BoxGeometry
 
 group_tmp.position.x = position.x;
 group_tmp.position.y = position.y;
@@ -787,15 +798,8 @@ function removeAllCubes() {
     
   
     
-<div id="canvasdiv" style="border:solid #888; border-radius:10px; background:#181a1f; margin:20px auto; padding:10px; display:inline-block;">
-<div id="canvas3d"></div>
-</div>
-
-
- 
-
-
-<div class="move-button-matrix">
+<div id="canvasdiv" style="border:solid #888; border-radius:10px; background:#181a1f; margin:20px auto; padding:0; display:inline-block; position:relative;">
+<div id="canvas3d"><div class="move-button-matrix">
   <div class="move-button-col">
     <button class="arrow-btn" id="btn-up"    title="Drehpunkt nach oben">&#9650;</button>
     <button class="arrow-btn" id="btn-down"  title="Drehpunkt nach unten">&#9660;</button>
@@ -804,6 +808,7 @@ function removeAllCubes() {
     <button class="arrow-btn" id="btn-plus"  title="Drehpunkt vorwärts">＋</button>
     <button class="arrow-btn" id="btn-minus" title="Drehpunkt rückwärts">－</button>
   </div>
+</div></div>
 </div>
 
 
@@ -815,6 +820,7 @@ function removeAllCubes() {
 <script>
  
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2d2d2d);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
 
@@ -836,6 +842,11 @@ rotateGroup.rotation.z  = 0.1;
       
 
 canvasContainer.appendChild(renderer.domElement);
+
+// Trigger resize after 200ms to fix initial aspect ratio
+setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+}, 200);
     
 scene.position.z  = -3;
     
@@ -943,7 +954,7 @@ const materials = [
  
  
    
-    const geometry = new THREE.BoxGeometry();
+    const geometry = new THREE.BoxGeometry(0.99, 0.99, 0.99);
 
     const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 80 });
   
@@ -998,6 +1009,11 @@ const materials = [
      
 // Keyboard events
 document.addEventListener('keydown', (event) => {
+    // Ignore keyboard shortcuts when typing in input fields
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
+        return;
+    }
     const step = 0.1; 
     switch (event.key) {
         case 'ArrowUp': 
@@ -1066,6 +1082,13 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 
 const canvas = renderer.domElement;  
+
+// Mouse wheel zoom (like voxeledit)
+canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const zoomStep = event.deltaY > 0 ? 0.2 : -0.2;
+    rotateGroup.position.z += zoomStep;
+});
 
 canvas.addEventListener('mousedown', function(e) {
     isDragging = true;
