@@ -6,10 +6,11 @@
 // goal   : Vehicle-Zielzustand als Objekt { x, y, z, vx, vy, vz }
 // world  : Gesamtwelt mit Terrain/S-Bots und world.forbidden
 // options: Zusatzoptionen wie max_search_steps, max_debug_rejections, Debug-Flags
-function calc_vehicle_kinematics_path(start, goal, world, options = {})
+function calc_vehicle_kinematics_payload_path(start, goal, world, options = {})
 {
+if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_kinematics_payload_path AUFGERUFEN");
 // if (!(typeof globalThis !== "undefined" && globalThis.randomScenarioBatchQuiet)) {
-//   console.log("START");
+   console.log("Start VK-Payload-pathplaner");
 // } // START log guard
   const DIR_XP = Object.freeze({ x: 1, y: 0, z: 0 });
   const DIR_XN = Object.freeze({ x: -1, y: 0, z: 0 });
@@ -32,11 +33,12 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 { 
                     name: "MOVE_XP_BWD",
                     match: { dir: [1, 0, 0] },
-                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" } ],
+                    pre: [{ cell: [-1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [-1, -1, 0], is: "occupied" },    { cell: [-2, 0, 0], is: "free" }  ],
                     effect: { pos_delta: [-1, 0, 0], dir: [1, 0, 0] },
                     cost: 1,
                 },
                 
+               
                 
                 {
                     name: "MOVE_XN_FWD",
@@ -48,11 +50,11 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 {
                     name: "MOVE_XN_BWD",
                     match: { dir: [-1, 0, 0] },
-                    pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" }],
+                    pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" },   { cell: [2, 0, 0], is: "free" } ],
                     effect: { pos_delta: [1, 0, 0], dir: [-1, 0, 0] },
                     cost: 1,
                 },
-                
+            
                 {
                     name: "MOVE_ZP_FWD",
                     match: { dir: [0, 0, 1] },
@@ -63,11 +65,11 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 {
                     name: "MOVE_ZP_BWD",
                     match: { dir: [0, 0, 1] },
-                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" }],
+                    pre: [{ cell: [0, 0, -1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, -1], is: "occupied" } ,   { cell: [0, 0, -2], is: "free" } ],
                     effect: { pos_delta: [0, 0, -1], dir: [0, 0, 1] },
                     cost: 1,
                 },
-                
+                    
                 {
                     name: "MOVE_ZN_FWD",
                     match: { dir: [0, 0, -1] },
@@ -78,7 +80,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
                 {
                     name: "MOVE_ZN_BWD",
                     match: { dir: [0, 0, -1] },
-                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" }],
+                    pre: [{ cell: [0, 0, 1], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, -1, 1], is: "occupied" } ,   { cell: [0, 0, 2], is: "free" } ],
                     effect: { pos_delta: [0, 0, 1], dir: [0, 0, -1] },
                     cost: 1,
                 },
@@ -88,38 +90,41 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
       {
         name: "STEP_DOWN_XP",
         match: { dir: [-1, 0, 0] },
-        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [1, 0, 0], is: "free" },{ cell: [1, -1, 0], is: "free" } ],
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [1, 0, 0], is: "free" },{ cell: [1, -1, 0], is: "free" },    { cell: [2, 0, 0], is: "free" },{ cell: [2, -1, 0], is: "free" } ],
         effect: { pos_delta_inter: [1, 0, 0], dir_inter: [-1, 0, 0], pos_delta: [1, -1, 0], dir: [-1, 0, 0] },
         cost: 2,
       },
+       
       {
         name: "STEP_DOWN_XN",
         match: { dir: [1, 0, 0] },
-        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [-1, 0, 0], is: "free" }, { cell: [-1, -1, 0], is: "free" }],
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [-1, 0, 0], is: "free" }, { cell: [-1, -1, 0], is: "free" } ,    { cell: [-2, 0, 0], is: "free" },{ cell: [-2, -1, 0], is: "free" }  ],
         effect: { pos_delta_inter: [-1, 0, 0], dir_inter: [1, 0, 0], pos_delta: [-1, -1, 0], dir: [1, 0, 0] },
         cost: 2,
       },
+      
+     
       {
         name: "STEP_DOWN_ZP",
         match: { dir: [0, 0, -1] },
-        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, 1], is: "free" },{ cell: [0, -1, 1], is: "free" }],
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, 1], is: "free" },{ cell: [0, -1, 1], is: "free" } ,  { cell: [0, 0, 2], is: "free" },{ cell: [0, -1, 2], is: "free" } ],
         effect: { pos_delta_inter: [0, 0, 1], dir_inter: [0, 0, -1], pos_delta: [0, -1, 1], dir: [0, 0, -1] },
         cost: 2,
       },
       {
         name: "STEP_DOWN_ZN",
         match: { dir: [0, 0, 1] },
-        pre: [{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, -1], is: "free" },{ cell: [0, -1, -1], is: "free" }],
+        pre: [{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, -1], is: "free" },{ cell: [0, -1, -1], is: "free" },   { cell: [0, 0, -2], is: "free" },{ cell: [0, -1, -2], is: "free" } ],
         effect: { pos_delta_inter: [0, 0, -1], dir_inter: [0, 0, 1], pos_delta: [0, -1, -1], dir: [0, 0, 1] },
         cost: 2,
       },
       
-     
+    
       
         {
         name: "STEP_UP_XN",
         match: { dir: [-1, 0, 0] },
-        pre: [ { cell: [-1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [-1, 1, 0], is: "free" } ],
+        pre: [ { cell: [-1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [-1, 1, 0], is: "free" },  { cell: [1, 1, 0], is: "free" } ],
         effect: { pos_delta_inter: [0, 1, 0], dir_inter: [-1, 0, 0], pos_delta: [-1, 1, 0], dir: [-1, 0, 0] },
         cost: 2,
       },
@@ -127,7 +132,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
       {
         name: "STEP_UP_XP",
         match: { dir: [1, 0, 0] },
-        pre: [ { cell: [1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [1, 1, 0], is: "free" }],
+        pre: [ { cell: [1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [1, 1, 0], is: "free" }, { cell: [-1, 1, 0], is: "free" }],
         effect: { pos_delta_inter: [0, 1, 0], dir_inter: [1, 0, 0], pos_delta: [1, 1, 0], dir: [1, 0, 0] },
         cost: 2,
       },
@@ -135,7 +140,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
       {
         name: "STEP_UP_ZN",
         match: { dir: [0, 0, -1] },
-        pre: [{ cell: [0, 0, -1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, -1], is: "free" }],
+        pre: [{ cell: [0, 0, -1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, -1], is: "free" },  { cell: [0, 1, 1], is: "free" } ],
         effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, -1], pos_delta: [0, 1, -1], dir: [0, 0, -1] },
         cost: 2,
       },
@@ -143,13 +148,13 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
       {
         name: "STEP_UP_ZP",
         match: { dir: [0, 0, 1] },
-        pre: [ { cell: [0, 0, 1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, 1], is: "free" }],
+        pre: [ { cell: [0, 0, 1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, 1], is: "free" },  { cell: [0, 1, -1], is: "free" } ],
         effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, 1], pos_delta: [0, 1, 1], dir: [0, 0, 1] },
         cost: 2,
       },
       
     
-      
+       
       
       {
         name: "WALL_DOWN_XP",
@@ -157,7 +162,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
         pre: [
           { cell: [0, -1, 0], is: "free" },
           { cell: [1, 0, 0], is: "occupied" },
-          { cell: [1, -1, 0], is: "occupied" },
+          { cell: [1, -1, 0], is: "occupied" },    { cell: [-1, -1, 0], is: "free" }
         ],
         effect: { pos_delta: [0, -1, 0], dir: [1, 0, 0] },
         cost: 2,
@@ -169,7 +174,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
         pre: [
           { cell: [0, -1, 0], is: "free" },
           { cell: [-1, 0, 0], is: "occupied" },
-          { cell: [-1, -1, 0], is: "occupied" },
+          { cell: [-1, -1, 0], is: "occupied" },   { cell: [1, -1, 0], is: "free" }
         ],
         effect: { pos_delta: [0, -1, 0], dir: [-1, 0, 0] },
         cost: 2,
@@ -181,25 +186,25 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
         pre: [
           { cell: [0, -1, 0], is: "free" },
           { cell: [0, 0, 1], is: "occupied" },
-          { cell: [0, -1, 1], is: "occupied" },
+          { cell: [0, -1, 1], is: "occupied" },   { cell: [0, -1, -1], is: "free" }
         ],
         effect: { pos_delta: [0, -1, 0], dir: [0, 0, 1] },
         cost: 2,
       },
-      
+
  {
         name: "WALL_DOWN_ZN",
         match: { dir: [0, 0, -1] },
         pre: [
           { cell: [0, -1, 0], is: "free" },
           { cell: [0, 0, -1], is: "occupied" },
-          { cell: [0, -1, -1], is: "occupied" },
+          { cell: [0, -1, -1], is: "occupied" }, { cell: [0, -1, 1], is: "free" }
         ],
         effect: { pos_delta: [0, -1, 0], dir: [0, 0, -1] },
         cost: 2,
       },      
       
-      
+    
       
       
       {
@@ -208,31 +213,31 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
         pre: [
           { cell: [0, 1, 0], is: "free" },
           { cell: [1, 0, 0], is: "occupied" },
-          { cell: [1, 1, 0], is: "occupied" },
+          { cell: [1, 1, 0], is: "occupied" },    { cell: [-1, 1, 0], is: "free" }
         ],
         effect: { pos_delta: [0, 1, 0], dir: [1, 0, 0] },
         cost: 2,
       },
-      
+       
  {
         name: "WALL_UP_XN",
         match: { dir: [-1, 0, 0] },
         pre: [
           { cell: [0, 1, 0], is: "free" },
           { cell: [-1, 0, 0], is: "occupied" },
-          { cell: [-1, 1, 0], is: "occupied" },
+          { cell: [-1, 1, 0], is: "occupied" },      { cell: [1, 1, 0], is: "free" }
         ],
         effect: { pos_delta: [0, 1, 0], dir: [-1, 0, 0] },
         cost: 2,
       },      
-      
+     
         {
         name: "WALL_UP_ZP",
         match: { dir: [0, 0, 1] },
         pre: [
           { cell: [0, 1, 0], is: "free" },
           { cell: [0, 0, 1], is: "occupied" },
-          { cell: [0, 1, 1], is: "occupied" },
+          { cell: [0, 1, 1], is: "occupied" },      { cell: [0, 1, -1], is: "free" }
         ],
         effect: { pos_delta: [0, 1, 0], dir: [0, 0, 1] },
         cost: 2,
@@ -244,7 +249,7 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
         pre: [
           { cell: [0, 1, 0], is: "free" },
           { cell: [0, 0, -1], is: "occupied" },
-          { cell: [0, 1, -1], is: "occupied" },
+          { cell: [0, 1, -1], is: "occupied" },    { cell: [0, 1, 1], is: "free" }
         ],
         effect: { pos_delta: [0, 1, 0], dir: [0, 0, -1] },
         cost: 2,
@@ -252,62 +257,110 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
       
       
        
-
       
       {
         name: "ROT_RIGHT_XP_TO_ZN",
         match: { dir: [1, 0, 0] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [ 
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+
+             { cell: [-2, 0, 0], is: "free" }, { cell: [-2, 0, 1], is: "free" },{ cell: [-1, 0, 1], is: "free" },{ cell: [-1, 0, 2], is: "free" }, { cell: [0, 0, 2], is: "free" } 
+             
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
         cost: 2,
       },
+     
       {
         name: "ROT_LEFT_XP_TO_ZP",
         match: { dir: [1, 0, 0] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+             
+             { cell: [-2, 0, 0], is: "free" }, { cell: [-2, 0, -1], is: "free" },{ cell: [-1, 0, -1], is: "free" },{ cell: [-1, 0, -2], is: "free" }, { cell: [0, 0, -2], is: "free" } 
+             
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
         cost: 2,
       },
+      
+      
+       
       {
         name: "ROT_RIGHT_XN_TO_ZP",
         match: { dir: [-1, 0, 0] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [
+            { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+            
+             { cell: [2, 0, 0], is: "free" }, { cell: [1, 0, -1], is: "free" },{ cell: [2, 0, -1], is: "free" },{ cell: [0, 0, -2], is: "free" }, { cell: [1, 0, -2], is: "free" } 
+            
+            ],
         effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
         cost: 2,
       },
+      
+       // ... alfalf
       {
         name: "ROT_LEFT_XN_TO_ZN",
         match: { dir: [-1, 0, 0] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+             
+         { cell: [0, 0, 2], is: "free" }, { cell: [1, 0, 2], is: "free" },{ cell: [1, 0, 1], is: "free" },{ cell: [2, 0, 1], is: "free" }, { cell: [2, 0, 0], is: "free" } 
+ 
+             
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
         cost: 2,
       },
       
+      
       {
         name: "ROT_RIGHT_ZP_TO_XP",
         match: { dir: [0, 0, 1] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" }, 
+             
+      { cell: [-2, 0, 0], is: "free" }, { cell: [-2, 0, -1], is: "free" },{ cell: [-1, 0, -1], is: "free" },{ cell: [-1, 0, -2], is: "free" }, { cell: [0, 0, -2], is: "free" } 
+
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
         cost: 2,
       },
       {
         name: "ROT_LEFT_ZP_TO_XN",
         match: { dir: [0, 0, 1] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [ 
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" }, 
+             
+            { cell: [2, 0, 0], is: "free" }, { cell: [1, 0, -1], is: "free" },{ cell: [2, 0, -1], is: "free" },{ cell: [0, 0, -2], is: "free" }, { cell: [1, 0, -2], is: "free" } 
+
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
         cost: 2,
       },
       {
         name: "ROT_RIGHT_ZN_TO_XN",
         match: { dir: [0, 0, -1] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [ 
+             { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+
+         { cell: [0, 0, 2], is: "free" }, { cell: [1, 0, 2], is: "free" },{ cell: [1, 0, 1], is: "free" },{ cell: [2, 0, 1], is: "free" }, { cell: [2, 0, 0], is: "free" } 
+
+             ],
         effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
         cost: 2,
       },
       {
         name: "ROT_LEFT_ZN_TO_XP",
         match: { dir: [0, 0, -1] },
-        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        pre: [ 
+        { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ,
+        
+      { cell: [-2, 0, 0], is: "free" }, { cell: [-2, 0, 1], is: "free" },{ cell: [-1, 0, 1], is: "free" },{ cell: [-1, 0, 2], is: "free" }, { cell: [0, 0, 2], is: "free" } 
+      
+      ],
+
         effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
         cost: 2,
       },
@@ -1100,11 +1153,11 @@ function calc_vehicle_kinematics_path(start, goal, world, options = {})
     error: "PATH_NOT_FOUND",
     best_partial: partialPath,
   });
-} // calc_vehicle_kinematics_path()
+} // calc_vehicle_kinematics_payload_path()
 
 
 module.exports = {
-                 calc_vehicle_kinematics_path
+                 calc_vehicle_kinematics_payload_path
                  };
 
   
