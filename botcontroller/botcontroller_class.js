@@ -26,6 +26,7 @@ const fs       = require('fs');
 const path     = require('path');
 const net      = require('net');
 const readline = require('readline');
+const { exec } = require('child_process');
 
 
 const WebSocket = require('ws');
@@ -112,7 +113,7 @@ const {
       apicall_get_slot_status: runtime_get_slot_status
       } = require('./api_service/modules/api_spatial_analysis_runtime');
 const {
-      apicall_get_front_neighbor_bot_id: runtime_get_front_neighbor_bot_id,
+      apicall_get_neighbor_bot_id_by_slot: runtime_get_neighbor_bot_id_by_slot,
       apicall_get_payload_target_from_carrier_state: runtime_get_payload_target_from_carrier_state,
       apicall_register_payload_link: runtime_register_payload_link,
       apicall_clear_payload_link: runtime_clear_payload_link,
@@ -161,6 +162,7 @@ const {
       apicall_calc_single_path: runtime_calc_single_path,
       apicall_calc_single_path_payload: runtime_calc_single_path_payload,
       apicall_calc_vehicle_kinematics_path: runtime_calc_vehicle_kinematics_path,
+      apicall_calc_vehicle_kinematics_payload_path: runtime_calc_vehicle_kinematics_payload_path,
       apicall_calc_hybrid_kinematics_path: runtime_calc_hybrid_kinematics_path
       } = require('./api_service/modules/api_path_core_runtime');
 const {
@@ -197,7 +199,8 @@ const {
       apicall_build_stationary_ack_returnaddr: runtime_build_stationary_ack_returnaddr,
       apicall_rotate_bot: runtime_rotate_bot,
       apicall_execute_rotation_plan: runtime_execute_rotation_plan,
-      apicall_rotate_bot_to: runtime_rotate_bot_to
+      apicall_rotate_bot_to: runtime_rotate_bot_to,
+      apicall_get_vk_rotation_direction: runtime_get_vk_rotation_direction
       } = require('./api_service/modules/api_rotation_runtime');
 const {
       apicall_grab_bot: runtime_grab_bot,
@@ -604,15 +607,15 @@ return(runtime_get_ack(this, ack_id));
 } // apicall_get_ack()
 
 
-apicall_get_front_neighbor_bot_id(bot_snapshot)
+apicall_get_neighbor_bot_id_by_slot(bot_snapshot, slot = "F")
 {
-return(runtime_get_front_neighbor_bot_id(this, bot_snapshot));
-} // apicall_get_front_neighbor_bot_id()
+return(runtime_get_neighbor_bot_id_by_slot(this, bot_snapshot, slot));
+} // apicall_get_neighbor_bot_id_by_slot()
 
 
-apicall_get_payload_target_from_carrier_state(position, orientation)
+apicall_get_payload_target_from_carrier_state(position, orientation, relative_slot = "F")
 {
-return(runtime_get_payload_target_from_carrier_state(this, position, orientation));
+return(runtime_get_payload_target_from_carrier_state(this, position, orientation, relative_slot));
 } // apicall_get_payload_target_from_carrier_state()
 
 
@@ -752,9 +755,9 @@ return(runtime_get_morph_status(this));
 } // apicall_get_morph_status()
 
 
-apicall_sync_payload_from_carrier(carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [])
+apicall_sync_payload_from_carrier(carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan = [], carrier_old_orientation = null)
 {
-return(runtime_sync_payload_from_carrier(this, carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan));
+return(runtime_sync_payload_from_carrier(this, carrier_bot_id, carrier_position, carrier_orientation, payload_rotation_plan, carrier_old_orientation));
 } // apicall_sync_payload_from_carrier()
 
 
@@ -867,7 +870,15 @@ else if (mode == "grab")
    {
    if (payload_bot_id != "")
       {
-      this.apicall_register_payload_link(bot_id, payload_bot_id, "F", true);
+      let grab_slot = String(ack_entry?.slot ?? "").trim().toUpperCase();
+      if (grab_slot == "")
+         {
+         grab_slot = "F";
+         } // if
+
+      // console.log("[DEBUG] apicall_apply_ack_local_state GRAB mode bot_id=" + bot_id + " payload_bot_id=" + payload_bot_id + " grab_slot=" + grab_slot + " ack_id=" + ack_id);
+
+      this.apicall_register_payload_link(bot_id, payload_bot_id, grab_slot, true);
       let carrier_snapshot = this.apicall_get_bot_snapshot(bot_id);
 
       if (carrier_snapshot)
@@ -5232,6 +5243,10 @@ return(ret);
 // ---
 } // calc_move_vk_cmds()
 
+
+
+
+
 //
 // calc_move_hybrid_cmds()
 // Hybrid-kinematics entry point for the MOVE translation chain.
@@ -6706,6 +6721,12 @@ return(runtime_calc_vehicle_kinematics_path(this, src, dest, bots_s, bots_f, veh
 } // apicall_calc_vehicle_kinematics_path()
 
 
+apicall_calc_vehicle_kinematics_payload_path(src, dest, bots_s, bots_f, vehicle_options = {})
+{
+return(runtime_calc_vehicle_kinematics_payload_path(this, src, dest, bots_s, bots_f, vehicle_options));
+} // apicall_calc_vehicle_kinematics_payload_path()
+
+
 apicall_calc_hybrid_kinematics_path(src, dest, bots_s, bots_f, vehicle_options = {})
 {
 return(runtime_calc_hybrid_kinematics_path(this, src, dest, bots_s, bots_f, vehicle_options));
@@ -6781,6 +6802,12 @@ return(runtime_rotate_orientation(this, vx, vy, vz, direction));
 } // apicall_rotate_orientation()
 
 
+apicall_get_vk_rotation_direction(old_vx, old_vy, old_vz, new_vx, new_vy, new_vz)
+{
+return(runtime_get_vk_rotation_direction(old_vx, old_vy, old_vz, new_vx, new_vy, new_vz));
+} // apicall_get_vk_rotation_direction()
+
+
 apicall_rotate_bot(bot_id, direction)
 {
 return(runtime_rotate_bot(this, bot_id, direction));
@@ -6805,9 +6832,9 @@ return(runtime_build_stationary_ack_returnaddr(this, bot_snapshot, target_orient
 } // apicall_build_stationary_ack_returnaddr()
 
 
-apicall_grab_bot(bot_id)
+apicall_grab_bot(bot_id, slot = null)
 {
-return(runtime_grab_bot(this, bot_id));
+return(runtime_grab_bot(this, bot_id, slot));
 } // apicall_grab_bot()
 
 
@@ -7461,6 +7488,13 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                let oldy = this.bots[tmpbotid].y;
                let oldz = this.bots[tmpbotid].z;
 
+               // Save old carrier orientation before it gets overwritten below
+               let carrier_old_orientation = {
+                                               x: Number(this.bots[tmpbotid].vector_x),
+                                               y: Number(this.bots[tmpbotid].vector_y),
+                                               z: Number(this.bots[tmpbotid].vector_z)
+                                               };
+
                let new_x = Number(api_ack_entry.to.x);
                let new_y = Number(api_ack_entry.to.y);
                let new_z = Number(api_ack_entry.to.z);
@@ -7520,7 +7554,8 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                                                                 x: Number(this.bots[tmpbotid].vector_x),
                                                                                 y: Number(this.bots[tmpbotid].vector_y),
                                                                                 z: Number(this.bots[tmpbotid].vector_z)
-                                                                                }
+                                                                                },
+                                                                                carrier_old_orientation
                                                                                 );
 
                   this.append_api_bot_history(
@@ -7567,17 +7602,24 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                           );
                   } // else if
 
-               if (api_ack_entry.mode == "grab")
-                  {
-                  if (api_ack_entry.payload_bot_id)
-                     {
-                     this.apicall_register_payload_link(
-                                                       api_ack_entry.bot_id,
-                                                       api_ack_entry.payload_bot_id,
-                                                       "F",
-                                                       true
-                                                       );
-                     } // if
+                if (api_ack_entry.mode == "grab")
+                   {
+                   if (api_ack_entry.payload_bot_id)
+                      {
+                      let grab_slot = String(api_ack_entry?.slot ?? "").trim().toUpperCase();
+                      if (grab_slot == "")
+                         {
+                         grab_slot = "F";
+                         } // if
+                      // console.log("[DEBUG] handle_answer GRAB mode bot_id=" + api_ack_entry.bot_id + " payload=" + api_ack_entry.payload_bot_id + " grab_slot=" + grab_slot + " ack_id=" + msgarray.bottmpid);
+                      this.apicall_register_payload_link(
+                                                        api_ack_entry.bot_id,
+                                                        api_ack_entry.payload_bot_id,
+                                                        grab_slot,
+                                                        true
+                                                        );
+                      } // if
+
 
                   let safe_mode_after_ret = this.apicall_apply_safe_mode_after_structure_change(
                                                                                            api_ack_entry.bot_id,
@@ -8690,6 +8732,47 @@ handleGUIMessage(message) {
             });
 
             this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // API_CLI — Execute node api.js commands via shell
+        //
+        if (decodedobject.cmd === 'api_cli') {
+            const apiArgs = String(decodedobject.args ?? "").trim();
+            if (apiArgs === "") {
+                this.ws_gui.send(JSON.stringify({
+                    answer: "answer_api_cli",
+                    ok: false,
+                    error: "EMPTY_ARGS"
+                }));
+                return;
+            }
+            const apiScript = path.join(__dirname, "api.js");
+            const cmdLine = 'node "' + apiScript + '" ' + apiArgs;
+            exec(cmdLine, { cwd: __dirname, timeout: 30000 }, (error, stdout, stderr) => {
+                let result = { ok: false, error: "" };
+                if (error) {
+                    result.error = error.message;
+                }
+                if (stdout.trim() !== "") {
+                    try {
+                        result = JSON.parse(stdout.trim());
+                    } catch (e) {
+                        result = { ok: false, raw: stdout.trim(), error: "PARSE_ERROR" };
+                    }
+                }
+                if (stderr.trim() !== "") {
+                    result.stderr = stderr.trim();
+                }
+                this.ws_gui.send(JSON.stringify({
+                    answer: "answer_api_cli",
+                    ok: result.ok !== false,
+                    data: result,
+                    args: apiArgs
+                }));
+            });
             return;
         }
 

@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 const { check_nodejs_version } = require('../common/system_utils');
-check_nodejs_version("23.11.0"); 
+check_nodejs_version("26.0.0"); 
  
 const botcontroller_class = require('./botcontroller_class');  
 const botcontroller_class_obj = new botcontroller_class();

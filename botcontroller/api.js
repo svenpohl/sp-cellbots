@@ -426,7 +426,8 @@ function buildRequestFromCli() {
   if (cmd == "grab_bot") {
     return {
       cmd: "grab_bot",
-      bot_id: process.argv[3] ?? ""
+      bot_id: process.argv[3] ?? "",
+      slot: process.argv[4] ?? ""
     };
   } // if
 
@@ -434,6 +435,23 @@ function buildRequestFromCli() {
     return {
       cmd: "release_bot",
       bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "register_payload_link") {
+    return {
+      cmd: "register_payload_link",
+      carrier_bot_id: process.argv[3] ?? "",
+      payload_bot_id: process.argv[4] ?? "",
+      slot: process.argv[5] ?? "B",
+      attached: ((process.argv[6] ?? "true") === "true")
+    };
+  } // if
+
+  if (cmd == "get_payload_link") {
+    return {
+      cmd: "get_payload_link",
+      carrier_bot_id: process.argv[3] ?? ""
     };
   } // if
 
@@ -802,7 +820,7 @@ function main() {
       const ok = responseObject.ok === true;
       const executed = responseObject.executed;
       const ack = responseObject.ack_received === true;
-      const reason = responseObject.final_diagnostic_reason || responseObject.reason || "";
+      const reason = responseObject.final_diagnostic_reason || responseObject.reason || responseObject.error || "";
       const answer = responseObject.answer || "";
 
       let result = {};
@@ -822,11 +840,36 @@ function main() {
             const pos = s.position || s;
             result.position = { x: pos.x, y: pos.y, z: pos.z };
           }
+          // Include payload_bot_id for grab_bot
+          if (responseObject.payload_bot_id) result.payload_bot_id = responseObject.payload_bot_id;
         } else if (ok && executed) {
           result = { ok: true, result: "succeeded", ack: "pending" };
+          // Include payload_bot_id for grab_bot
+          if (responseObject.payload_bot_id) result.payload_bot_id = responseObject.payload_bot_id;
+        } else if (ok && !executed) {
+          // Diagnosis mode (executed=false): show diagnostic result
+          result = {
+            ok: true,
+            result: "diagnosis",
+            executable: responseObject.executable === true,
+            path_found: responseObject.path_found === true,
+            executed: false
+          };
+          if (responseObject.carrier_bot_id) result.carrier_bot_id = responseObject.carrier_bot_id;
+          result.carried_payload_bot_id = responseObject.carried_payload_bot_id ?? null;
+          if (responseObject.target) result.target = responseObject.target;
+          if (responseObject.target_orientation) result.target_orientation = responseObject.target_orientation;
+          if (responseObject.steps) result.steps = responseObject.steps;
+          if (responseObject.move_result) result.move_result = responseObject.move_result;
+          if (responseObject.rotate_result) result.rotate_result = responseObject.rotate_result;
+          if (responseObject.release_result) result.release_result = responseObject.release_result;
+          if (responseObject.error) result.error = responseObject.error;
+          if (responseObject.final_diagnostic_reason) result.reason = responseObject.final_diagnostic_reason;
         } else {
           result = { ok: false, result: "failed" };
           if (reason) result.reason = reason;
+          if (responseObject.carrier_bot_id) result.carrier_bot_id = responseObject.carrier_bot_id;
+          if (responseObject.bot_id) result.bot_id = responseObject.bot_id;
         }
 
       // Query commands (describe, get_bot_by_id, get_status, etc.)
@@ -849,8 +892,26 @@ function main() {
             result.wave_count = responseObject.wave_count;
             result.move_count = responseObject.move_count;
           }
-        } else if (answer === "api_get_status") {
-          result = { ok: true, result: "status", status: responseObject.status || "ok" };
+        } else if (answer === "api_status") {
+          result = {
+            ok: true,
+            result: "api_status",
+            loaded_bots: responseObject.loaded_bots,
+            mobility_mode: responseObject.mobility_mode,
+            communication_mode: responseObject.communication_mode
+          };
+        } else if (answer === "api_is_occupied") {
+          result = {
+            ok: true,
+            result: "api_is_occupied",
+            position: responseObject.position,
+            occupied: responseObject.occupied === true,
+            bot_id: responseObject.id ?? null,
+            state: responseObject.state ?? null
+          };
+          if (responseObject.orientation) {
+            result.orientation = { x: responseObject.orientation.x, y: responseObject.orientation.y, z: responseObject.orientation.z };
+          }
         } else if (answer === "api_version") {
           result = { ok: true, result: "version", version: responseObject.version || "?" };
         } else if (answer === "api_find_path_for_bot") {
