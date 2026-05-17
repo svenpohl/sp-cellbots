@@ -2,8 +2,8 @@
 
 # CellBots – Installation
 
-Current version: **1.4**  
-Developed and tested on **Node.js v23.11.0**.  
+Current version: **1.7.4**  
+Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 ---
@@ -223,9 +223,19 @@ The BotController shell interface allows for flexible test commands, while the W
 ```ini
 # -------- config.txt for ClusterSim --------
 
-version = 1.0
-port    = 3001
-name    = Default Swarm
+version           = 1.7.4
+timezone          = Europe/Berlin
+port              = 3001
+name              = Default Swarm
+
+#mobility_mode      = full_edge             # [full_edge | vehicle_kinematics | hybrid_kinematics]
+mobility_mode      = vehicle_kinematics     # [full_edge | vehicle_kinematics | hybrid_kinematics]
+#mobility_mode      = hybrid_kinematics     # [full_edge | vehicle_kinematics | hybrid_kinematics]
+
+communication_mode = mesh_opcode            # [mesh_opcode | direct_radio]
+#communication_mode = direct_radio          # [mesh_opcode | direct_radio]
+
+allow_rid_discovery = false
 
 blenderlogging = true
 
@@ -240,10 +250,20 @@ physical_bot_move_delay = 300
 
 # -------- config.txt for BotController --------
 
-version           = 1.0
+version           = 1.7.4
+timezone          = Europe/Berlin
 connect_masterbot = 1
 masterbot_host    = localhost
 masterbot_port    = 3001
+
+#mobility_mode      = full_edge             # [full_edge | vehicle_kinematics | hybrid_kinematics]
+mobility_mode      = vehicle_kinematics     # [full_edge | vehicle_kinematics | hybrid_kinematics]
+#mobility_mode      = hybrid_kinematics     # [full_edge | vehicle_kinematics | hybrid_kinematics]
+
+communication_mode = mesh_opcode            # [mesh_opcode | direct_radio]
+#communication_mode = direct_radio          # [mesh_opcode | direct_radio]
+
+allow_rid_discovery = false
 
 # MasterBot initialization:
 

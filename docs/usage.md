@@ -11,7 +11,7 @@ ClusterSim and BotController form the operating system, protocol simulation, and
 - Future integration of graph-theoretic modules
 - Testing of morphing algorithms
 
-A quick overview and setup of simple morph structures is covered here:\
+A quick overview and setup of simple morph structures is covered here:
 [Installation & Quickstart](install.md)
 
 Below you'll find notes on specific applications and useful edits for the software.
@@ -112,7 +112,7 @@ The core logic is implemented in:
 
 **`connect_to_external_masterbot()`**
 
-Within the `` block, there are some commented **example commands**\
+Within the `` block, there are some commented **example commands**
 which can be sent to **ClusterSim** for testing communication.
 
 ---
@@ -140,16 +140,16 @@ which can be sent to **ClusterSim** for testing communication.
 
 The **WebGUIController frontend** includes a few prepared OP-Code examples for quick experimentation.
 
-👉 **Requirement:**\
-Morph the `move_and_spin_test` structure from base config.\
+👉 **Requirement:**
+Morph the `move_and_spin_test` structure from base config.
 Two CellBots will be placed near the MasterBot.
 
 ---
 
 ## 👁️ Visibility Note
 
-Movements are currently **only visible in the 3D frontend of ClusterSim**\
-because they do **not generate ALIFE instructions**.\
+Movements are currently **only visible in the 3D frontend of ClusterSim**
+because they do **not generate ALIFE instructions**.
 BotController needs a **re-scan** to display updated positions.
 
 ---
@@ -194,11 +194,14 @@ FFFT#MOVE#GF;D_SL_D#
 
 ## 🚫 Limitation (currently)
 
-ClusterSim only supports **grabbing in front (F direction)**.
+Grabbing is supported in two directions depending on mobility mode:
 
-> **Why this restriction?**\
-> Grabbing will likely be an expensive function in future hardware.\
-> Limiting it to one direction makes sense as a starting point.
+- **F-Slot (Front):** Default for `full_edge` and `hybrid_kinematics` modes — the carrier grabs a bot in front and transports it ahead  
+- **B-Slot (Back):** Default for `vehicle_kinematics` mode — the carrier grabs a bot on its back (B-Slot), leaving the F-Slot free for climbing walls and stairs  
+
+> **Why this restriction?**
+> Grabbing will likely be an expensive function in future hardware.
+> Limiting it to one direction per mode keeps the protocol lean and focused.
 
 ---
 
@@ -208,13 +211,13 @@ Transporting a CellBot is central to future **self-healing algorithms**.
 
 In real scenarios with **thousands of CellBots**, not all bots will always function correctly.
 
-> System goal:\
-> **Self-organized fault management**\
-> – Detect broken units\
-> – Remove from critical zones\
+> System goal:
+> **Self-organized fault management**
+> – Detect broken units
+> – Remove from critical zones
 > – Replace with functional bots
 
-This type of **fault tolerance via transport** may be a key to\
+This type of **fault tolerance via transport** may be a key to
 real-world deployment of morphogenic robotics in complex environments.
 
 ---

@@ -6,6 +6,13 @@
 
 ---
 
+- **1.7.4** (17.05.2026)  
+**Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
+  - **B-Slot Payload:** In `vehicle_kinematics` mode, a carried payload bot is now always attached to the carrier's back (B-Slot). This leaves the F-Slot free for climbing walls and stairs, making payload transport and terrain navigation compatible  
+  - **World model sync:** BotController and ClusterSim correctly update the payload's **position and orientation** after carrier moves and rotations (90° and 180°), even when the payload started with a different facing direction  
+  - **API CLI in BotController WebGUI:** The BotController WebGUI (`http://localhost:3010`) now has a built-in **API CLI panel** — type `node api.js` commands directly into the browser, see JSON responses live. Click any bot in the 3D view to auto-fill its ID into the command. Includes a dropdown of example commands for quick experimentation  
+  - **Primary demo:** `node api.js structurescan` then switch to BotController WebGUI and try the API CLI examples
+
 - **1.7.3** (12.05.2026)  
 **Hybrid Kinematics mobility mode (API preview)**
   - Added `mobility_mode = hybrid_kinematics` as the new default mode (preview)
