@@ -761,18 +761,18 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
              released_previous_payload = (previous_grabbed_cellbot !== null);
              } // if
           
-          // Only F-Transport is permitted
-          if (targetslot == 'F')
-             {
-                         
-             this.grabbed_cellbot = caller.get_target_int_id( this.x, this.y, this.z, targetslot );
+           // Generic slot transport (F, B, R, L, T, D)
+           if (targetslot == 'F' || targetslot == 'B' || targetslot == 'R' || targetslot == 'L' || targetslot == 'T' || targetslot == 'D')
+              {
+                          
+              this.grabbed_cellbot = caller.get_target_int_id( this.x, this.y, this.z, targetslot );
 
-             if (this.grabbed_cellbot !== null && this.grabbed_cellbot >= 0)
-                {
-                caller.register_payload_bot_int_id(this.grabbed_cellbot);
-                } // if
-      
-             } // if (targetslot == 'F')
+              if (this.grabbed_cellbot !== null && this.grabbed_cellbot >= 0)
+                 {
+                 caller.register_payload_bot_int_id(this.grabbed_cellbot);
+                 } // if
+       
+              } // if (valid slot)
 
           if (released_previous_payload)
              {
@@ -1434,7 +1434,13 @@ return(ret);
 //
 // get_payload_spin_collision_profile()
 //
-get_payload_spin_collision_profile( caller, payload_botindex, payload_old_vector, payload_new_vector )
+// Calculates the target and sweep positions for a payload bot during a carrier spin.
+// Uses position_offset_old and position_offset_new (from carrier to payload) for
+// target and sweep collision checking. In F-slot mode (default), the offset equals
+// the payload's orientation vector (one step forward). In VK B-slot mode, the caller
+// passes inverted heading vectors so the payload is placed at the carrier's back.
+//
+get_payload_spin_collision_profile( caller, payload_botindex, payload_old_vector, payload_new_vector, position_offset_old, position_offset_new )
 {
 let ret =
 {
@@ -1445,12 +1451,18 @@ payload_sweep: null,
 blocking_target_bot_id: null,
 blocking_sweep_bot_id: null
 };
-let payload_target_x = Number(this.x) + Number(payload_new_vector[0]);
-let payload_target_y = Number(this.y) + Number(payload_new_vector[1]);
-let payload_target_z = Number(this.z) + Number(payload_new_vector[2]);
-let payload_sweep_x = Number(this.x) + Number(payload_old_vector[0]) + Number(payload_new_vector[0]);
-let payload_sweep_y = Number(this.y) + Number(payload_old_vector[1]) + Number(payload_new_vector[1]);
-let payload_sweep_z = Number(this.z) + Number(payload_old_vector[2]) + Number(payload_new_vector[2]);
+let pos_offset_old_x = Number((position_offset_old !== undefined) ? position_offset_old[0] : payload_old_vector[0]);
+let pos_offset_old_y = Number((position_offset_old !== undefined) ? position_offset_old[1] : payload_old_vector[1]);
+let pos_offset_old_z = Number((position_offset_old !== undefined) ? position_offset_old[2] : payload_old_vector[2]);
+let pos_offset_new_x = Number((position_offset_new !== undefined) ? position_offset_new[0] : payload_new_vector[0]);
+let pos_offset_new_y = Number((position_offset_new !== undefined) ? position_offset_new[1] : payload_new_vector[1]);
+let pos_offset_new_z = Number((position_offset_new !== undefined) ? position_offset_new[2] : payload_new_vector[2]);
+let payload_target_x = Number(this.x) + pos_offset_new_x;
+let payload_target_y = Number(this.y) + pos_offset_new_y;
+let payload_target_z = Number(this.z) + pos_offset_new_z;
+let payload_sweep_x = Number(this.x) + pos_offset_old_x + pos_offset_new_x;
+let payload_sweep_y = Number(this.y) + pos_offset_old_y + pos_offset_new_y;
+let payload_sweep_z = Number(this.z) + pos_offset_old_z + pos_offset_new_z;
 
 ret.payload_target =
 {
@@ -1591,8 +1603,12 @@ if (!blocked_horizontal_spin)
    this.vector_y = vector_new[1];
    this.vector_z = vector_new[2];
 
-   // Update_neighbors
-   let self_int_index     = caller.get_3d(this.x,this.y,this.z);
+   // Update neighbors
+   let self_int_index = caller.get_3d(this.x, this.y, this.z);
+   if (self_int_index === null || self_int_index === undefined)
+      {
+      console.warn("[WARN] motoric_spin bot=" + this.id + " position (" + this.x + "," + this.y + "," + this.z + ") not found in caller grid!");
+      } // if
    caller.update_bot_index_neighbors( self_int_index );
    } // if (!blocked_horizontal_spin)
     
@@ -1619,7 +1635,19 @@ if (!blocked_horizontal_spin && this.grabbed_cellbot !== null)
    grabbed_vector_z_old = grabbed_vector_z;
    
    
-   // The grabbed bot must end up exactly at the new F-slot of the carrier.
+   // Determine the slot offset vectors from carrier to payload position.
+   // F-slot (default): payload sits at the new orientation vector (one step forward).
+   // B-slot (VK mode): payload sits at the inverse of the carrier's heading.
+   let slot_offset_old = [ Number(grabbed_vector_x_old), Number(grabbed_vector_y_old), Number(grabbed_vector_z_old) ];
+   let slot_offset_new = [ Number(grabbed_vector_new[0]), Number(grabbed_vector_new[1]), Number(grabbed_vector_new[2]) ];
+   let mobility_mode = this.get_mobility_mode(caller);
+   if (mobility_mode == "vehicle_kinematics")
+      {
+      // VK mode: payload is always carried on the B-slot (inverse of carrier heading)
+      slot_offset_old = [ -Number(this.vector_x), -Number(this.vector_y), -Number(this.vector_z) ];
+      slot_offset_new = [ -Number(vector_new[0]), -Number(vector_new[1]), -Number(vector_new[2]) ];
+      } // if
+
    // A carrier spin changes the payload attachment slot, not just its world
    // translation by a diagonal offset.
    
@@ -1649,7 +1677,9 @@ if (!blocked_horizontal_spin && this.grabbed_cellbot !== null)
                                                                  caller,
                                                                  this.grabbed_cellbot,
                                                                  [ grabbed_vector_x_old, grabbed_vector_y_old, grabbed_vector_z_old ],
-                                                                 grabbed_vector_new
+                                                                 grabbed_vector_new,
+                                                                 slot_offset_old,
+                                                                 slot_offset_new
                                                                  );
 
    grabbed_new_x = Number(payload_spin_profile.payload_target.x);
@@ -1683,6 +1713,10 @@ if (!blocked_horizontal_spin && this.grabbed_cellbot !== null)
       
       // update_neighbors
       let self_int_index  =  caller.get_3d(this.x,this.y,this.z);    
+      if (self_int_index === null || self_int_index === undefined)
+         {
+         console.warn("[WARN] motoric_spin (collision-revoke) bot=" + this.id + " position (" + this.x + "," + this.y + "," + this.z + ") not found in caller grid!");
+         } // if
       caller.update_bot_index_neighbors( self_int_index );
                   
       } // if (collision)

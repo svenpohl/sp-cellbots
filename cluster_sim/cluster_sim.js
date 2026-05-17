@@ -29,7 +29,7 @@ const { check_nodejs_version, console_format_log } = require('../common/system_u
 
 if (!QUIET)
    {
-   check_nodejs_version("23.11.0");
+   check_nodejs_version("26.0.0");
    }
 
 

@@ -613,6 +613,11 @@ const rotations = [
 //   
 update_bot_index_neighbors( botindex )
 {
+if (botindex === null || botindex === undefined)
+   {
+   console.warn("[WARN] update_bot_index_neighbors called with null/undefined botindex - skipping");
+   return;
+   } // if
 
 const rotations = [
   { F: [1, 0, 0], R: [0, 0, -1], B: [-1,0,0], L: [0,0,1], T: [0,1,0], D: [0,-1,0] },
