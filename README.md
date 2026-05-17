@@ -52,6 +52,7 @@ structures.
 - [Vehicle Kinematics](docs/vehicle_kinematics.md)  
 - [Usage & Examples](docs/usage.md)  
 - [API](docs/api.md)  
+- [LLM Collaboration](docs/llm_collaboration.md)  
 - [Morphing](docs/morphing.md)  
 - [Blender Replay and Animation](docs/blender.md)  
 - [Tools (Scripts)](docs/tools.md)  
