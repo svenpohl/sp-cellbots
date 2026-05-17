@@ -287,4 +287,4 @@ The next iteration should grow into a fuller V1 reference with:
 ---
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [Usage & examples](usage.md) | **Next chapter:** [Morphing](morphing.md)
+**Previous chapter:** [Usage & examples](usage.md) | **Next chapter:** [LLM Collaboration](llm_collaboration.md)

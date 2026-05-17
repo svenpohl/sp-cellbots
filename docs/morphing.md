@@ -163,4 +163,4 @@ In the long term, various morph strategies will exist:
 ---
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [API](api.md) | **Next chapter:** [Blender](blender.md)
+**Previous chapter:** [LLM Collaboration](llm_collaboration.md) | **Next chapter:** [Blender](blender.md)
