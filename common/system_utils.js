@@ -46,7 +46,7 @@ const COLORS = {
  * Check Node.js version consistency.
  * Prints a warning if too old or too new.
  */
-function check_nodejs_version(requiredVersion = "23.11.0") {
+function check_nodejs_version(requiredVersion = "26.0.0") {
     const current = process.version.replace(/^v/, "");  // strip "v"
 
     console.log(COLORS.cyan(`[CellBots] Checking Node.js version...`));
