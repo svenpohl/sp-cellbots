@@ -131,6 +131,63 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     pointer-events: none;
     }
 
+    /* iPhone-style toggle */
+    .toggle-3dcursor {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 2px 0;
+    font-size: 13px;
+    color: #aaa;
+    cursor: pointer;
+    user-select: none;
+    }
+    .toggle-3dcursor input { display: none; }
+    .toggle-slider {
+    width: 36px;
+    height: 20px;
+    background: #444;
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    }
+    .toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #ccc;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-3dcursor input:checked + .toggle-slider {
+    background: #d44;
+    }
+    .toggle-3dcursor input:checked + .toggle-slider::after {
+    transform: translateX(16px);
+    background: #fff;
+    }
+    .toggle-hint {
+    font-size: 11px;
+    color: #666;
+    }
+
+    #cursorCoord {
+    position: absolute;
+    bottom: 44px;
+    left: 20px;
+    z-index: 10;
+    color: #ff4444;
+    font-family: monospace;
+    font-size: 13px;
+    min-height: 18px;
+    pointer-events: none;
+    display: none;
+    }
+
     #canvasdiv {
     border: 2px dotted #888;
     border-radius: 10px;
@@ -190,7 +247,8 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
        
 </head>
 <body>
-<strong style='margin-top:10px;'><a href='#'>CellBots WebGUI</a></strong><br>
+<strong style='margin-top:10px;'><a href='#'>SP-CellBots WebGUI</a></strong><br>
+<!-- <small>(Botcontroller)</small> -->
 <br>
 
 
@@ -236,6 +294,18 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     
     
      
+<label class="toggle-3dcursor">
+  <input type="checkbox" id="cursorModeToggle">
+  <span class="toggle-slider"></span>
+  <span>3D-Cursor</span>
+  <span class="toggle-hint">(Toggle: Space)</span>
+</label>
+<span id="cursorOrientationDisplay" style="display:none; margin-left:12px; font-size:12px; color:#ff8844; font-family:monospace;">
+  <span id="oriDisplayText">Ori: (1,0,0)</span>
+  <button id="oriToggleBtn" style="background:none; border:1px solid #ff8844; color:#ff8844; border-radius:4px; cursor:pointer; font-size:11px; padding:1px 6px; margin-left:4px;" title="Toggle orientation (r)">↻</button>
+  <span class="toggle-hint" style="font-size:11px;color:#666;">(r)</span>
+</span>
+
 <div id="canvasdiv" style="border:solid #888; border-radius:10px; background:#181a1f; margin:20px auto; padding:0; display:inline-block; position:relative;">
 <div id="canvas3d"><div class="move-button-matrix">
   <div class="move-button-col">
@@ -247,7 +317,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <button class="arrow-btn" id="btn-minus" title="Drehpunkt rückwärts">－</button>
   </div>
 </div>
-<div id="botCoord">&nbsp;</div></div>
+<div id="botCoord">&nbsp;</div><div id="cursorCoord">&nbsp;</div></div>
 </div>
 
 <div id="api_controller" style="width:90%; margin:12px auto; text-align:left;">
@@ -1607,6 +1677,22 @@ document.addEventListener('keydown', (event) => {
   
    
   
+    // Space toggles 3D cursor mode
+    if (event.key === ' ' || event.code === 'Space') {
+        event.preventDefault();
+        const toggle = document.getElementById('cursorModeToggle');
+        toggle.checked = !toggle.checked;
+        toggle.dispatchEvent(new Event('change'));
+        return;
+    }
+
+    // 'r' cycles cursor orientation
+    if ((event.key === 'r' || event.key === 'R') && cursorModeActive) {
+        event.preventDefault();
+        cycleOrientation();
+        return;
+    }
+
     switch (event.key) {
               
         case 'ArrowUp':  
@@ -1685,12 +1771,215 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 const CLICK_THRESHOLD = 4; // pixels of movement to distinguish click from drag
 
-let selectedBotId = null; // currently selected/highlighted bot
+let selectedBotId = null; // move-bot (selected in normal mode, unchanged in cursor mode)
+let anchorBotId = null;   // anchor-bot (reference for ghost in cursor mode)
+let cursorModeActive = false; // 3D cursor mode toggle
+let cursorMesh = null;       // red wireframe cursor
+let cursorPosition = null;   // {x,y,z} of cursor
+let cursorOrientation = { x: 1, y: 0, z: 0 }; // current orientation of 3D cursor
+const CURSOR_DIRS = [
+    { x: 1, y: 0, z: 0 },  { x: 0, y: 0, z: -1 },
+    { x: -1, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }
+];
+let cursorArrowMesh = null;  // arrow on the 3D cursor
+let anchorWireframe = null;  // blue wireframe around anchor bot
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 const canvas = renderer.domElement;  
+
+// Ghost mesh for hover preview (voxeledit-style)
+let ghostMesh = null;
+function initGhostMesh() {
+    if (!ghostMesh) {
+        const geo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0x88ccff, transparent: true, opacity: 0.35, wireframe: true
+        });
+        ghostMesh = new THREE.Mesh(geo, mat);
+        ghostMesh.visible = false;
+        rotateGroup.add(ghostMesh);
+    }
+}
+function updateGhost(pos) {
+    initGhostMesh();
+    if (pos) {
+        ghostMesh.position.set(pos.x, pos.y, -pos.z);
+        ghostMesh.visible = true;
+    } else {
+        ghostMesh.visible = false;
+    }
+}
+
+// Create/release cursor mesh
+function updateCursorMesh(pos) {
+    // Remove old cursor meshes
+    if (cursorMesh) {
+        rotateGroup.remove(cursorMesh);
+        cursorMesh.geometry.dispose();
+        cursorMesh.material.dispose();
+        cursorMesh = null;
+    }
+    if (cursorArrowMesh) {
+        rotateGroup.remove(cursorArrowMesh);
+        // Dispose children if it's a Group, or single mesh otherwise
+        if (cursorArrowMesh.isGroup) {
+            cursorArrowMesh.traverse((child) => {
+                if (child.isMesh) { child.geometry.dispose(); child.material.dispose(); }
+            });
+        } else {
+            if (cursorArrowMesh.geometry) cursorArrowMesh.geometry.dispose();
+            if (cursorArrowMesh.material) cursorArrowMesh.material.dispose();
+        }
+        cursorArrowMesh = null;
+    }
+    if (!pos) return;
+    // Red wireframe cube
+    const geo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+    const mat = new THREE.MeshBasicMaterial({
+        color: 0xff2222,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.7
+    });
+    cursorMesh = new THREE.Mesh(geo, mat);
+    cursorMesh.position.set(pos.x, pos.y, -pos.z);
+    rotateGroup.add(cursorMesh);
+    // Orientation arrow (red, lying flat on top of cursor, pointing in XZ plane)
+    const arrowGroup = new THREE.Group();
+    const redMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff2222, emissiveIntensity: 0.2 });
+    // Shaft: a flat cylinder extending 0.4 units along Z
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 6), redMat);
+    shaft.position.set(0, 0, 0.2);
+    shaft.rotation.x = Math.PI / 2;
+    arrowGroup.add(shaft);
+    // Head: a longer cone (0.35) placed deeper, overlapping shaft
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.35, 6), redMat);
+    head.position.set(0, 0, 0.45);
+    head.rotation.x = Math.PI / 2;
+    arrowGroup.add(head);
+    // Rotate the whole arrow in the XZ plane
+    let angle = 0;
+    if (cursorOrientation.x == 1 && cursorOrientation.z == 0) angle = Math.PI / 2;  // +X
+    if (cursorOrientation.x == 0 && cursorOrientation.z == 1) angle = Math.PI;       // +Z
+    if (cursorOrientation.x == -1 && cursorOrientation.z == 0) angle = -Math.PI / 2; // -X
+    if (cursorOrientation.x == 0 && cursorOrientation.z == -1) angle = 0;            // -Z
+    arrowGroup.rotation.y = angle;
+    arrowGroup.position.set(pos.x, pos.y + 0.5, -pos.z);
+    rotateGroup.add(arrowGroup);
+    cursorArrowMesh = arrowGroup;
+}
+
+// Check if a grid position is occupied (used by any bot)
+function cursorIsOccupied(x, y, z) {
+    const key = x + ',' + y + ',' + z;
+    for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const gx = Math.round(g.position.x);
+        const gy = Math.round(g.position.y);
+        const gz = Math.round(-g.position.z);
+        if (gx === x && gy === y && gz === z) return true;
+    }
+    return false;
+}
+
+// Find a free orthogonal neighbor closest to (hitX, hitY, hitZ)
+function cursorFindFreeNeighbor(hitX, hitY, hitZ) {
+    const dirs = [
+        {dx:1,dy:0,dz:0},{dx:-1,dy:0,dz:0},
+        {dx:0,dy:1,dz:0},{dx:0,dy:-1,dz:0},
+        {dx:0,dy:0,dz:1},{dx:0,dy:0,dz:-1}
+    ];
+    let best = null, bestDist = Infinity;
+    for (const d of dirs) {
+        const nx = hitX + d.dx, ny = hitY + d.dy, nz = hitZ + d.dz;
+        if (!cursorIsOccupied(nx, ny, nz)) {
+            const dist = Math.abs(nx - hitX) + Math.abs(ny - hitY) + Math.abs(nz - hitZ);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = { x: nx, y: ny, z: nz };
+            }
+        }
+    }
+    return best;
+}
+
+// Find the nearest free cell to (gx,gy,gz) by checking all bot neighbors
+function cursorFindNearestFree(gx, gy, gz) {
+    let best = null, bestDist = Infinity;
+    for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const bx = Math.round(g.position.x);
+        const by = Math.round(g.position.y);
+        const bz = Math.round(-g.position.z);
+        const dirs = [
+            {dx:1,dy:0,dz:0},{dx:-1,dy:0,dz:0},
+            {dx:0,dy:1,dz:0},{dx:0,dy:-1,dz:0},
+            {dx:0,dy:0,dz:1},{dx:0,dy:0,dz:-1}
+        ];
+        for (const d of dirs) {
+            const nx = bx + d.dx, ny = by + d.dy, nz = bz + d.dz;
+            if (!cursorIsOccupied(nx, ny, nz)) {
+                const dist = Math.abs(nx - gx) + Math.abs(ny - gy) + Math.abs(nz - gz);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = { x: nx, y: ny, z: nz };
+                }
+            }
+        }
+    }
+    return best;
+}
+
+// 3D-Cursor toggle handler
+document.getElementById('cursorModeToggle').addEventListener('change', function() {
+    cursorModeActive = this.checked;
+    const coordEl = document.getElementById('cursorCoord');
+    const oriDisp = document.getElementById('cursorOrientationDisplay');
+    if (!cursorModeActive) {
+        coordEl.style.display = 'none';
+        oriDisp.style.opacity = '0.3';
+        updateCursorMesh(null);
+        updateGhost(null);
+        // Clear anchor wireframe
+        if (anchorWireframe) { rotateGroup.remove(anchorWireframe); anchorWireframe.geometry.dispose(); anchorWireframe.material.dispose(); anchorWireframe = null; }
+        anchorBotId = null;
+        document.getElementById('botCoord').textContent = "\u00a0";
+    } else {
+        oriDisp.style.display = 'inline';
+        oriDisp.style.opacity = '1';
+        if (cursorPosition) {
+            coordEl.style.display = 'block';
+            coordEl.textContent = 'Cursor: (' + cursorPosition.x + ', ' + cursorPosition.y + ', ' + cursorPosition.z + ')';
+            updateCursorMesh(cursorPosition);
+        }
+    }
+});
+
+// Orientation toggle function (used by 'r' key and button)
+function cycleOrientation() {
+    const idx = CURSOR_DIRS.findIndex(d =>
+        d.x === cursorOrientation.x && d.z === cursorOrientation.z
+    );
+    const next = (idx + 1) % CURSOR_DIRS.length;
+    cursorOrientation = CURSOR_DIRS[next];
+    const dispText = document.getElementById('oriDisplayText');
+    if (!dispText) return;
+    dispText.textContent = 'Ori: (' + cursorOrientation.x + ',' + cursorOrientation.y + ',' + cursorOrientation.z + ')';
+    if (cursorPosition) {
+        updateCursorMesh(cursorPosition);
+        const moveBot = selectedBotId || anchorBotId || '';
+        if (moveBot) {
+            document.getElementById('api_cli_input').value =
+                'move_bot_to ' + moveBot + ' ' +
+                cursorPosition.x + ' ' + cursorPosition.y + ' ' + cursorPosition.z + '  ' +
+                cursorOrientation.x + ' ' + cursorOrientation.y + ' ' + cursorOrientation.z;
+        }
+    }
+}
+// Orientation toggle button
+document.getElementById('oriToggleBtn').addEventListener('click', cycleOrientation);
 
 // Mouse wheel zoom
 canvas.addEventListener('wheel', (event) => {
@@ -1717,6 +2006,48 @@ window.addEventListener('mousemove', function(e) {
     rotateGroup.rotation.x += dy * 0.01;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+});
+
+// Ghost cursor hover (cursor mode only) — camera-aware neighbor selection
+// Projects each free neighbor of the anchor bot to screen space and picks
+// the one closest to the mouse cursor — works with any view rotation.
+canvas.addEventListener('mousemove', function(e) {
+    const refBotId = anchorBotId || selectedBotId;
+    if (!cursorModeActive || !refBotId || !canvas.contains(e.target)) {
+        updateGhost(null);
+        return;
+    }
+    const refGroup = botGroupMap[refBotId];
+    if (!refGroup) { updateGhost(null); return; }
+    const ax = Math.round(refGroup.position.x);
+    const ay = Math.round(refGroup.position.y);
+    const az = Math.round(-refGroup.position.z);
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Project each free neighbor of anchor bot to screen, pick closest to mouse
+    const dirs = [
+        {dx:1,dy:0,dz:0},{dx:-1,dy:0,dz:0},
+        {dx:0,dy:1,dz:0},{dx:0,dy:-1,dz:0},
+        {dx:0,dy:0,dz:1},{dx:0,dy:0,dz:-1}
+    ];
+    const halfCanvas = new THREE.Vector3(0.5, 0.5, 0.5);
+    let best = null, bestDist = Infinity;
+    for (const d of dirs) {
+        const nx = ax + d.dx, ny = ay + d.dy, nz = az + d.dz;
+        if (cursorIsOccupied(nx, ny, nz)) continue;
+        // Project neighbor center to screen space
+        const worldPos = new THREE.Vector3(nx + 0.5, ny + 0.5, -(nz + 0.5));
+        worldPos.applyMatrix4(rotateGroup.matrixWorld);
+        worldPos.project(camera);
+        const sx = (worldPos.x * 0.5 + 0.5) * rect.width;
+        const sy = (-worldPos.y * 0.5 + 0.5) * rect.height;
+        const dist = Math.sqrt((sx - mx) * (sx - mx) + (sy - my) * (sy - my));
+        if (dist < bestDist) { bestDist = dist; best = { x: nx, y: ny, z: nz }; }
+    }
+    updateGhost(best);
 });
 
 // Highlight a bot by ID (blue emissive glow). Pass null to clear selection.
@@ -1746,21 +2077,46 @@ function setBotHighlight(group, enable) {
     }
 }
 
+function setAnchorWireframe(botid) {
+    // Remove old wireframe
+    if (anchorWireframe) {
+        rotateGroup.remove(anchorWireframe);
+        anchorWireframe.geometry.dispose();
+        anchorWireframe.material.dispose();
+        anchorWireframe = null;
+    }
+    if (!botid || !botGroupMap[botid]) return;
+    const group = botGroupMap[botid];
+    const pos = group.position;
+    const geo = new THREE.BoxGeometry(1.02, 1.02, 1.02);
+    const mat = new THREE.MeshBasicMaterial({
+        color: 0x4488ff, wireframe: true, transparent: true, opacity: 0.5
+    });
+    anchorWireframe = new THREE.Mesh(geo, mat);
+    anchorWireframe.position.set(pos.x, pos.y, pos.z);
+    rotateGroup.add(anchorWireframe);
+}
+
 function setSelectedBot(botid) {
     // Un-highlight previous
     if (selectedBotId !== null && botGroupMap[selectedBotId]) {
         setBotHighlight(botGroupMap[selectedBotId], false);
     }
     selectedBotId = botid;
-    // Highlight new
+    // Highlight new + add anchor wireframe
     if (botid !== null && botGroupMap[botid]) {
         setBotHighlight(botGroupMap[botid], true);
+        setAnchorWireframe(botid);
+    } else {
+        setAnchorWireframe(null);
     }
 }
 
 window.addEventListener('mouseup', function(e) {
     isDragging = false;
     if (!didDrag) {
+        // Only process clicks inside the 3D canvas, not on UI buttons/inputs
+        if (!canvas.contains(e.target)) return;
         // Click (no significant drag) → raycast to select bot
         const rect = canvas.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1777,19 +2133,97 @@ window.addEventListener('mouseup', function(e) {
                     const rx = Math.round(botData.position.x);
                     const ry = Math.round(botData.position.y);
                     const rz = Math.round(-botData.position.z);
-                    document.getElementById('botCoord').textContent = botid + " (" + rx + ", " + ry + ", " + rz + ")";
-                    setSelectedBot(botid);
-                    // Update API CLI input with clicked bot
-                    const currentInput = document.getElementById('api_cli_input');
-                    const currentVal = currentInput.value;
-                    // Replace bot ID in the command (e.g. "move_bot_to B26" -> "move_bot_to B38")
-                    currentInput.value = currentVal.replace(/B\d+/g, botid);
+
+                    if (cursorModeActive) {
+                        // Cursor mode: set clicked bot as new anchor, move-bot stays unchanged
+                        document.getElementById('botCoord').textContent = 'Anchor: ' + botid + " (" + rx + ", " + ry + ", " + rz + ")";
+                        // Remove old anchor wireframe
+                        if (anchorWireframe) { rotateGroup.remove(anchorWireframe); anchorWireframe.geometry.dispose(); anchorWireframe.material.dispose(); anchorWireframe = null; }
+                        anchorBotId = botid;
+                        setAnchorWireframe(botid);
+                        // Set cursor orientation from anchor bot's heading
+                        const anchorGroup = botGroupMap[botid];
+                        if (anchorGroup) {
+                            const rotY = anchorGroup.rotation.y;
+                            const oriIdx = Math.round(rotY / (Math.PI / 2)) % 4;
+                            const adjIdx = ((oriIdx % 4) + 4) % 4;
+                            cursorOrientation = CURSOR_DIRS[adjIdx];
+                            document.getElementById('oriDisplayText').textContent =
+                                'Ori: (' + cursorOrientation.x + ',' + cursorOrientation.y + ',' + cursorOrientation.z + ')';
+                        }
+                        // Place cursor at ghost position (or free neighbor)
+                        let pos = null;
+                        if (ghostMesh && ghostMesh.visible) {
+                            const gp = ghostMesh.position;
+                            pos = { x: Math.round(gp.x), y: Math.round(gp.y), z: Math.round(-gp.z) };
+                        }
+                        if (!pos) pos = cursorFindFreeNeighbor(rx, ry, rz);
+                        if (pos) {
+                            cursorPosition = pos;
+                            const coordEl = document.getElementById('cursorCoord');
+                            coordEl.style.display = 'block';
+                            coordEl.textContent = 'Cursor: (' + pos.x + ', ' + pos.y + ', ' + pos.z + ')';
+                            updateCursorMesh(cursorPosition);
+                            updateGhost(null);
+                            // Update API CLI: move from move-bot (selectedBotId) to cursor
+                            const moveBot = selectedBotId || botid;
+                            document.getElementById('api_cli_input').value =
+                                'move_bot_to ' + moveBot + ' ' + pos.x + ' ' + pos.y + ' ' + pos.z + '  ' +
+                                cursorOrientation.x + ' ' + cursorOrientation.y + ' ' + cursorOrientation.z;
+                        }
+                    } else {
+                        // Normal mode: select the bot
+                        document.getElementById('botCoord').textContent = botid + " (" + rx + ", " + ry + ", " + rz + ")";
+                        setSelectedBot(botid);
+                        // Update API CLI input with clicked bot
+                        const currentInput = document.getElementById('api_cli_input');
+                        const currentVal = currentInput.value;
+                        currentInput.value = currentVal.replace(/B\d+/g, botid);
+                    }
                 }
             }
         } else {
-            // Click on empty space → deselect
-            setSelectedBot(null);
-            document.getElementById('botCoord').textContent = "\u00a0";
+            if (cursorModeActive) {
+                // Cursor mode: use ghost position if visible
+                let pos = null;
+                if (ghostMesh && ghostMesh.visible) {
+                    const gp = ghostMesh.position;
+                    pos = { x: Math.round(gp.x), y: Math.round(gp.y), z: Math.round(-gp.z) };
+                }
+                if (!pos) {
+                    // Fallback: ground plane raycast
+                    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                    const intersectPoint = new THREE.Vector3();
+                    if (raycaster.ray.intersectPlane(plane, intersectPoint)) {
+                        const gx = Math.round(intersectPoint.x);
+                        const gy = Math.round(intersectPoint.y);
+                        const gz = Math.round(-intersectPoint.z);
+                        pos = cursorFindNearestFree(gx, gy, gz);
+                    }
+                }
+                if (pos) {
+                    cursorPosition = pos;
+                    const coordEl = document.getElementById('cursorCoord');
+                    coordEl.style.display = 'block';
+                    coordEl.textContent = 'Cursor: (' + pos.x + ', ' + pos.y + ', ' + pos.z + ')';
+                    updateCursorMesh(cursorPosition);
+                    updateGhost(null);
+                    if (selectedBotId) {
+                        document.getElementById('api_cli_input').value =
+                            'move_bot_to ' + selectedBotId + ' ' + pos.x + ' ' + pos.y + ' ' + pos.z + '  ' +
+                            cursorOrientation.x + ' ' + cursorOrientation.y + ' ' + cursorOrientation.z;
+                    }
+                    return;
+                }
+                // Fallback: clear cursor
+                cursorPosition = null;
+                document.getElementById('cursorCoord').style.display = 'none';
+                updateCursorMesh(null);
+            } else {
+                // Normal mode: click on empty space → deselect
+                setSelectedBot(null);
+                document.getElementById('botCoord').textContent = "\u00a0";
+            }
         }
     }
 });
