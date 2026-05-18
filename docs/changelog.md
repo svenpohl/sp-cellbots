@@ -6,6 +6,12 @@
 
 ---
 
+- **1.7.5** (18.05.2026)  
+**3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
+  - **3D Cursor:** Selected bots can be moved to any reachable position and orientation directly from the BotController WebGUI
+  - **Ghost Preview + Orientation Arrow:** Target position and direction are shown interactively in the 3D view
+  - **LLM Collaboration Guide:** New documentation `docs/llm_collaboration.md` with a recorded example dialogue
+
 - **1.7.4** (17.05.2026)  
 **Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
   - **B-Slot Payload:** In `vehicle_kinematics` mode, a carried payload bot is now always attached to the carrier's back (B-Slot). This leaves the F-Slot free for climbing walls and stairs, making payload transport and terrain navigation compatible  
