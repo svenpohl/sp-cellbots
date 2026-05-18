@@ -65,11 +65,18 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.4**  
+Current version: **1.7.5**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.5** (18.05.2026)  
+**3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
+  - **3D Cursor:** Selected bots can now be moved to any reachable position and orientation directly from the BotController WebGUI using the 3D cursor. Place the cursor with a mouse click, set the target orientation via the 'r' key or the ↻ button, and execute the move through the integrated API CLI
+  - **Ghost Preview:** A translucent wireframe cursor shows the planned target position on hover — derived from the free neighbor grid of the most recently marked anchor bot
+  - **Orientation Arrow:** The target vector is visualized as a red 3D arrow on the cursor, toggled through the four main directions via click or 'r' key
+  - **LLM Collaboration Guide:** New documentation `docs/llm_collaboration.md` featuring a recorded example dialogue — from scan through move and grab to stacking bots, ideal as an entry point for AI-assisted control
 
 - **1.7.4** (17.05.2026)  
 **Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
