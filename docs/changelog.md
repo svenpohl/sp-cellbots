@@ -6,6 +6,15 @@
 
 ---
 
+- **1.7.6** (23.05.2026)  
+**Parallel Vehicle-Kinematics Morph & Auto Structurescan**
+  - **Parallel VK Morph:** Multiple bots can now move simultaneously in the same wave. Collect-execute phase with up to 10 non-colliding paths per wave
+  - **Successfully tested:** base_72 → 72_table, 25_cross, 72_wall, 25_arch and back
+  - **Start position isolation:** Prevents adjacent path starts to avoid RALIFE deadlocks  
+  - **Auto structurescan:** `auto_structurescan = true` triggers scan ~3s after startup
+  - **Improved diagnostics:** Detailed morph plan log for debugging
+  - **RALIFE robustness:** Excludes simultaneously moving bots from return-address routing
+
 - **1.7.5** (18.05.2026)  
 **3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
   - **3D Cursor:** Selected bots can be moved to any reachable position and orientation directly from the BotController WebGUI
