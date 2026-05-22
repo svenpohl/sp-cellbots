@@ -50,12 +50,14 @@ class MorphVehicleKinematics extends MorphBase
         }
 
         // Debug log file - cleared on each new morph run
-        this.debugLogPath = path.join(__dirname, 'morph_vehicle_kinematics.log');
+        this.debugLogPath = path.join(__dirname, 'morph_vehicle_kinematics_parallel.log');
         fs.writeFileSync(this.debugLogPath, '', 'utf8');
+        this.morphPlanLogPath = path.join(__dirname, 'morph_vehicle_kinematics_parallel_morphplan.txt');
+        fs.writeFileSync(this.morphPlanLogPath, '', 'utf8');
 
         // Valid path log file - cleared on each new morph run
         // Contains ONLY paths verified by _calcVehicleKinematicsPath()
-        this.validPathLogPath = path.join(__dirname, 'morph_vehicle_kinematics_validpath.log');
+        this.validPathLogPath = path.join(__dirname, 'morph_vehicle_kinematics_parallel_validpath.log');
         fs.writeFileSync(this.validPathLogPath, '', 'utf8');
 
         this.progress = 0;
@@ -130,7 +132,7 @@ class MorphVehicleKinematics extends MorphBase
 
         this.wavecnt = 0;
 
-        this.log("Construct MorphVehicleKinematics");
+        this.debugLog("Construct MorphVehicleKinematics Parallel");
     } // constructor()
 
 
@@ -469,7 +471,7 @@ class MorphVehicleKinematics extends MorphBase
     // NOTE: wouldSplitCluster is checked for ALL bots (including Reserve-Bots).
     //       Reserve-Bots are still preferred in the sorting order.
     //
-    choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets = new Set(), movedBotsInWave = new Set(), pathResult = null)
+    choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets = new Set(), movedBotsInWave = new Set(), pathResult = null, forbiddenCells = null)
     {
         // 1. Find all unhappy bots (not at master position and not already at their target)
         //    Exclude bots that have already been moved in the current wave
@@ -550,11 +552,7 @@ class MorphVehicleKinematics extends MorphBase
             return { bot, minDist, bestTarget };
         });
 
-        // 4a. Heuristic: prefer bots whose Y+ position (0,1,0) is free
-        //     AND whose Y- position (0,-1,0) is free ("exposed" bots).
-        //     A bot with nothing above it can be removed without collapsing
-        //     a tower above it. A bot with nothing below it has no "foundation"
-        //     dependency — no other bot relies on it as a floor.
+        // 4a. Heuristic: prefer bots whose Y+ (0,1,0) AND Y- (0,-1,0) are free.
         for (const c of botCandidates) {
             const above = this.getAllBots(collection).find(b =>
                 b.x === c.bot.x && b.y === c.bot.y + 1 && b.z === c.bot.z
@@ -566,7 +564,7 @@ class MorphVehicleKinematics extends MorphBase
             c.hasFreeYMinus = !below;
         }
 
-        // 4b. Sort: Reserve-Bots (R*) first, then by free Y+ AND free Y-,
+        // 4b. Sort: Reserve-Bots (R*) first, then by free Y+ AND Y-,
         //     then by free Y+, then by greatest distance
         botCandidates.sort((a, b) => {
             const aIsReserve = String(a.bot.id ?? "").startsWith("R");
@@ -575,9 +573,9 @@ class MorphVehicleKinematics extends MorphBase
             if (!aIsReserve && bIsReserve) return 1;
             const aExposed = a.hasFreeYPlus && a.hasFreeYMinus;
             const bExposed = b.hasFreeYPlus && b.hasFreeYMinus;
-            if (aExposed && !bExposed) return -1;   // fully exposed first
+            if (aExposed && !bExposed) return -1;
             if (!aExposed && bExposed) return 1;
-            if (a.hasFreeYPlus && !b.hasFreeYPlus) return -1; // free Y+ second
+            if (a.hasFreeYPlus && !b.hasFreeYPlus) return -1;
             if (!a.hasFreeYPlus && b.hasFreeYPlus) return 1;
             return b.minDist - a.minDist;
         });
@@ -647,7 +645,8 @@ class MorphVehicleKinematics extends MorphBase
                     { x: bot.x, y: bot.y, z: bot.z ,  vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1)},
                     { x: target.x, y: target.y, z: target.z  , vx: Number(target.vx ?? 0), vy: Number(target.vy ?? 0), vz: Number(target.vz ?? 0) },
                     collectionCopy,
-                    bot
+                    bot,
+                    forbiddenCells
                 );
 
                 if (vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2) {
@@ -1060,7 +1059,7 @@ class MorphVehicleKinematics extends MorphBase
     // @param {Object} botToMove - The bot object that is being moved (to exclude from structure grid)
     // @returns {Object|null} - Path result from _calcVehicleKinematicsPath, or null on failure
     //
-    _buildWorldAndPlanPath(botStart, botTarget, plannedCells, botToMove)
+    _buildWorldAndPlanPath(botStart, botTarget, plannedCells, botToMove, forbiddenCells = null)
     {
         // Convert plannedCells to array if it's an object (keyed by bot ID)
         const cellsArray = Array.isArray(plannedCells) ? plannedCells : Object.values(plannedCells);
@@ -1080,7 +1079,7 @@ class MorphVehicleKinematics extends MorphBase
                 let occupied = (bots_s_clean.get(Number(x), Number(y), Number(z)) !== null);
                 return !occupied;
             },
-            forbidden: null
+            forbidden: (Array.isArray(forbiddenCells) && forbiddenCells.length > 0) ? forbiddenCells : null
         };
 
         // Use the bot's ACTUAL orientation (vx, vy, vz) if available.
@@ -1260,13 +1259,13 @@ class MorphVehicleKinematics extends MorphBase
         const DIR_ZP = Object.freeze({ x: 0, y: 0, z: 1 });
         const DIR_ZN = Object.freeze({ x: 0, y: 0, z: -1 });
 
-        const primitives = Object.freeze({
-            meta: Object.freeze({
-                cell_states: ["free", "occupied"],
-            }),
-            primitives: [
-               
-                 { 
+     const primitives = Object.freeze({
+    meta: Object.freeze({
+      cell_states: ["free", "occupied"],
+    }),
+    primitives: [
+    
+     { 
                     name: "MOVE_XP_FWD",
                     match: { dir: [1, 0, 0] },
                     pre: [{ cell: [1, 0, 0], is: "free" } ,{ cell: [0, -1, 0], is: "occupied" }, { cell: [1, -1, 0], is: "occupied" } ],
@@ -1327,213 +1326,236 @@ class MorphVehicleKinematics extends MorphBase
                     cost: 1,
                 },
                  
-                 
-                
-                
-                
-                
-                {
-                    name: "STEP_DOWN_XP",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [1, 0, 0], is: "free" },{ cell: [1, -1, 0], is: "free" } ],
-                    effect: { pos_delta_inter: [1, 0, 0], dir_inter: [-1, 0, 0], pos_delta: [1, -1, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_DOWN_XN",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [-1, 0, 0], is: "free" }, { cell: [-1, -1, 0], is: "free" }],
-                    effect: { pos_delta_inter: [-1, 0, 0], dir_inter: [1, 0, 0], pos_delta: [-1, -1, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_DOWN_ZP",
-                    match: { dir: [0, 0, -1] },
-                    pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, 1], is: "free" },{ cell: [0, -1, 1], is: "free" }],
-                    effect: { pos_delta_inter: [0, 0, 1], dir_inter: [0, 0, -1], pos_delta: [0, -1, 1], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_DOWN_ZN",
-                    match: { dir: [0, 0, 1] },
-                    pre: [{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, -1], is: "free" },{ cell: [0, -1, -1], is: "free" }],
-                    effect: { pos_delta_inter: [0, 0, -1], dir_inter: [0, 0, 1], pos_delta: [0, -1, -1], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_UP_XN",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [-1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [-1, 1, 0], is: "free" } ],
-                    effect: { pos_delta_inter: [0, 1, 0], dir_inter: [-1, 0, 0], pos_delta: [-1, 1, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_UP_XP",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [1, 1, 0], is: "free" }],
-                    effect: { pos_delta_inter: [0, 1, 0], dir_inter: [1, 0, 0], pos_delta: [1, 1, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_UP_ZN",
-                    match: { dir: [0, 0, -1] },
-                    pre: [{ cell: [0, 0, -1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, -1], is: "free" }],
-                    effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, -1], pos_delta: [0, 1, -1], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "STEP_UP_ZP",
-                    match: { dir: [0, 0, 1] },
-                    pre: [ { cell: [0, 0, 1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, 1], is: "free" }],
-                    effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, 1], pos_delta: [0, 1, 1], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_DOWN_XP",
-                    match: { dir: [1, 0, 0] },
-                    pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [1, 0, 0], is: "occupied" },
-                        { cell: [1, -1, 0], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, -1, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_DOWN_XN",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [-1, 0, 0], is: "occupied" },
-                        { cell: [-1, -1, 0], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, -1, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_DOWN_ZP",
-                    match: { dir: [0, 0, 1] },
-                    pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [0, 0, 1], is: "occupied" },
-                        { cell: [0, -1, 1], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, -1, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_DOWN_ZN",
-                    match: { dir: [0, 0, -1] },
-                    pre: [
-                        { cell: [0, -1, 0], is: "free" },
-                        { cell: [0, 0, -1], is: "occupied" },
-                        { cell: [0, -1, -1], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, -1, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_UP_XP",
-                    match: { dir: [1, 0, 0] },
-                    pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [1, 0, 0], is: "occupied" },
-                        { cell: [1, 1, 0], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, 1, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_UP_XN",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [-1, 0, 0], is: "occupied" },
-                        { cell: [-1, 1, 0], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, 1, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_UP_ZP",
-                    match: { dir: [0, 0, 1] },
-                    pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [0, 0, 1], is: "occupied" },
-                        { cell: [0, 1, 1], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, 1, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "WALL_UP_ZN",
-                    match: { dir: [0, 0, -1] },
-                    pre: [
-                        { cell: [0, 1, 0], is: "free" },
-                        { cell: [0, 0, -1], is: "occupied" },
-                        { cell: [0, 1, -1], is: "occupied" },
-                    ],
-                    effect: { pos_delta: [0, 1, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_XP_TO_ZN",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_XP_TO_ZP",
-                    match: { dir: [1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_XN_TO_ZP",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_XN_TO_ZN",
-                    match: { dir: [-1, 0, 0] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_ZP_TO_XP",
-                    match: { dir: [0, 0, 1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_ZP_TO_XN",
-                    match: { dir: [0, 0, 1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_LEFT_ZN_TO_XN",
-                    match: { dir: [0, 0, -1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
-                    cost: 2,
-                },
-                {
-                    name: "ROT_RIGHT_ZN_TO_XP",
-                    match: { dir: [0, 0, -1] },
-                    pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
-                    effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
-                    cost: 2,
-                },
-            ],
-        });
+      
+      
+      {
+        name: "STEP_DOWN_XP",
+        match: { dir: [-1, 0, 0] },
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [1, 0, 0], is: "free" },{ cell: [1, -1, 0], is: "free" } ],
+        effect: { pos_delta_inter: [1, 0, 0], dir_inter: [-1, 0, 0], pos_delta: [1, -1, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },
+      {
+        name: "STEP_DOWN_XN",
+        match: { dir: [1, 0, 0] },
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [-1, 0, 0], is: "free" }, { cell: [-1, -1, 0], is: "free" }],
+        effect: { pos_delta_inter: [-1, 0, 0], dir_inter: [1, 0, 0], pos_delta: [-1, -1, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+      {
+        name: "STEP_DOWN_ZP",
+        match: { dir: [0, 0, -1] },
+        pre: [ { cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, 1], is: "free" },{ cell: [0, -1, 1], is: "free" }],
+        effect: { pos_delta_inter: [0, 0, 1], dir_inter: [0, 0, -1], pos_delta: [0, -1, 1], dir: [0, 0, -1] },
+        cost: 2,
+      },
+      {
+        name: "STEP_DOWN_ZN",
+        match: { dir: [0, 0, 1] },
+        pre: [{ cell: [0, -1, 0], is: "occupied" }, { cell: [0, 0, -1], is: "free" },{ cell: [0, -1, -1], is: "free" }],
+        effect: { pos_delta_inter: [0, 0, -1], dir_inter: [0, 0, 1], pos_delta: [0, -1, -1], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      
+     
+      
+        {
+        name: "STEP_UP_XN",
+        match: { dir: [-1, 0, 0] },
+        pre: [ { cell: [-1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [-1, 1, 0], is: "free" } ],
+        effect: { pos_delta_inter: [0, 1, 0], dir_inter: [-1, 0, 0], pos_delta: [-1, 1, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },
+      
+      {
+        name: "STEP_UP_XP",
+        match: { dir: [1, 0, 0] },
+        pre: [ { cell: [1, 0, 0], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [1, 1, 0], is: "free" }],
+        effect: { pos_delta_inter: [0, 1, 0], dir_inter: [1, 0, 0], pos_delta: [1, 1, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+       
+      {
+        name: "STEP_UP_ZN",
+        match: { dir: [0, 0, -1] },
+        pre: [{ cell: [0, 0, -1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, -1], is: "free" }],
+        effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, -1], pos_delta: [0, 1, -1], dir: [0, 0, -1] },
+        cost: 2,
+      },
+      
+      {
+        name: "STEP_UP_ZP",
+        match: { dir: [0, 0, 1] },
+        pre: [ { cell: [0, 0, 1], is: "occupied" }, { cell: [0, 1, 0], is: "free" },{ cell: [0, 1, 1], is: "free" }],
+        effect: { pos_delta_inter: [0, 1, 0], dir_inter: [0, 0, 1], pos_delta: [0, 1, 1], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      
+    
+      
+      
+      {
+        name: "WALL_DOWN_XP",
+        match: { dir: [1, 0, 0] },
+        pre: [
+          { cell: [0, -1, 0], is: "free" },
+          { cell: [1, 0, 0], is: "occupied" },
+          { cell: [1, -1, 0], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, -1, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+      
+ {
+        name: "WALL_DOWN_XN",
+        match: { dir: [-1, 0, 0] },
+        pre: [
+          { cell: [0, -1, 0], is: "free" },
+          { cell: [-1, 0, 0], is: "occupied" },
+          { cell: [-1, -1, 0], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, -1, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },      
+      
+        {
+        name: "WALL_DOWN_ZP",
+        match: { dir: [0, 0, 1] },
+        pre: [
+          { cell: [0, -1, 0], is: "free" },
+          { cell: [0, 0, 1], is: "occupied" },
+          { cell: [0, -1, 1], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, -1, 0], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      
+ {
+        name: "WALL_DOWN_ZN",
+        match: { dir: [0, 0, -1] },
+        pre: [
+          { cell: [0, -1, 0], is: "free" },
+          { cell: [0, 0, -1], is: "occupied" },
+          { cell: [0, -1, -1], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, -1, 0], dir: [0, 0, -1] },
+        cost: 2,
+      },      
+      
+      
+      
+      
+      {
+        name: "WALL_UP_XP",
+        match: { dir: [1, 0, 0] },
+        pre: [
+          { cell: [0, 1, 0], is: "free" },
+          { cell: [1, 0, 0], is: "occupied" },
+          { cell: [1, 1, 0], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, 1, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+      
+ {
+        name: "WALL_UP_XN",
+        match: { dir: [-1, 0, 0] },
+        pre: [
+          { cell: [0, 1, 0], is: "free" },
+          { cell: [-1, 0, 0], is: "occupied" },
+          { cell: [-1, 1, 0], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, 1, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },      
+      
+        {
+        name: "WALL_UP_ZP",
+        match: { dir: [0, 0, 1] },
+        pre: [
+          { cell: [0, 1, 0], is: "free" },
+          { cell: [0, 0, 1], is: "occupied" },
+          { cell: [0, 1, 1], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, 1, 0], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      
+ {
+        name: "WALL_UP_ZN",
+        match: { dir: [0, 0, -1] },
+        pre: [
+          { cell: [0, 1, 0], is: "free" },
+          { cell: [0, 0, -1], is: "occupied" },
+          { cell: [0, 1, -1], is: "occupied" },
+        ],
+        effect: { pos_delta: [0, 1, 0], dir: [0, 0, -1] },
+        cost: 2,
+      },      
+      
+      
+       
+
+      
+      {
+        name: "ROT_RIGHT_XP_TO_ZN",
+        match: { dir: [1, 0, 0] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
+        cost: 2,
+      },
+      {
+        name: "ROT_LEFT_XP_TO_ZP",
+        match: { dir: [1, 0, 0] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      {
+        name: "ROT_RIGHT_XN_TO_ZP",
+        match: { dir: [-1, 0, 0] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [0, 0, 1] },
+        cost: 2,
+      },
+      {
+        name: "ROT_LEFT_XN_TO_ZN",
+        match: { dir: [-1, 0, 0] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [0, 0, -1] },
+        cost: 2,
+      },
+      
+      {
+        name: "ROT_RIGHT_ZP_TO_XP",
+        match: { dir: [0, 0, 1] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+      {
+        name: "ROT_LEFT_ZP_TO_XN",
+        match: { dir: [0, 0, 1] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },
+      {
+        name: "ROT_RIGHT_ZN_TO_XN",
+        match: { dir: [0, 0, -1] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [-1, 0, 0] },
+        cost: 2,
+      },
+      {
+        name: "ROT_LEFT_ZN_TO_XP",
+        match: { dir: [0, 0, -1] },
+        pre: [ { cell: [1, 0, 0], is: "free" },{ cell: [0, 0, 1], is: "free" },{ cell: [-1, 0, 0], is: "free" }, { cell: [0, 0, -1], is: "free" } ],
+        effect: { pos_delta: [0, 0, 0], dir: [1, 0, 0] },
+        cost: 2,
+      },
+    ],
+  });
 
         const primitiveList = primitives.primitives.slice();
         const primitiveByName = new Map(primitiveList.map((primitive) => [primitive.name, primitive]));
@@ -2242,11 +2264,30 @@ class MorphVehicleKinematics extends MorphBase
     // ========================================================================
 
     //
-    // stepMorph()
+    // Extract all unique cell positions from a vkResult path (states array).
+    // Used to mark cells as forbidden for subsequent path planning in the same wave.
+    _extractPathCells(vkResult)
+    {
+        if (!vkResult || !vkResult.states) return [];
+        const seen = new Set();
+        const cells = [];
+        for (const s of vkResult.states) {
+            const key = Number(s.x) + ',' + Number(s.y) + ',' + Number(s.z);
+            if (!seen.has(key)) {
+                seen.add(key);
+                cells.push({ x: Number(s.x), y: Number(s.y), z: Number(s.z) });
+            }
+        }
+        return cells;
+    } // _extractPathCells()
+
+
+    //
+    // stepMorph() — Parallel wave builder
     //
     stepMorph(caller, finishHandler) {
 
-        this.debugLog("=== stepMorph() called ===");
+        this.debugLog("=== stepMorph() called (parallel mode) ===");
 
         let plannedCells = JSON.parse(JSON.stringify(this.cells));
 
@@ -2258,116 +2299,200 @@ class MorphVehicleKinematics extends MorphBase
             return;
         }
 
-        const attemptedPairs = new Set();
-        const reservedTargets = new Set();
-        const movedBotsInWave = new Set();
-
         this.bot_start = null;
         this.bot_target = null;
         this.bot_id = null;
 
-    // --- Wave loop: find and move bots until all targets are occupied or no more pairs found ---
-    let round = 0;
+        // --- Configuration ---
+        const maxBotsPerWave = 10;
+        const securityShell = true;  // When true, each forbidden cell expands to its 6 orthogonal
+                                     // neighbors, preventing parallel paths from running adjacent.
+
+    // ====================================================================
+    //  WAVE LOOP: Collect up to maxBotsPerWave non-colliding paths per wave
+    // ====================================================================
+    let waveIndex = 0;
+    let globalRound = 0;
+
     while (true) {
-        round++;
-        this.debugLog(`=== choosePair round ${round} ===`);
-        const pathResult = {};
-        const success = this.choosePair(plannedCells, attemptedPairs, reservedTargets, movedBotsInWave, pathResult);
+        const attemptedPairs = new Set();
+        const reservedTargets = new Set();
+        const movedBotsInWave = new Set();
+        const wavePairs = [];
+        const waveForbiddenCells = [];
+        let waveHasValidPair = false;
 
-        let logMsg = `choosePair round=${round}: success=${success}`;
-        if (success && this.bot_start && this.bot_target) {
-            logMsg += ` bot_id=${this.bot_id}`;
-            logMsg += ` from=(${this.bot_start.x},${this.bot_start.y},${this.bot_start.z})`;
-            logMsg += ` to=(${this.bot_target.x},${this.bot_target.y},${this.bot_target.z})`;
-            logMsg += ` orientation=(${this.bot_start.vx ?? 0},${this.bot_start.vy ?? 0},${this.bot_start.vz ?? 1})`;
+        // --- COLLECT PHASE: find up to maxBotsPerWave pairs ---
+        let collectRound = 0;
+        while (wavePairs.length < maxBotsPerWave) {
+            collectRound++;
+            globalRound++;
+            const pathResult = {};
+            this.debugLog(`=== Wave ${waveIndex + 1} collect round ${collectRound} (global ${globalRound}) ===`);
 
-            // Use the path already computed by choosePair (stored in pathResult.vkResult)
-            const vkResult = pathResult.vkResult || null;
-            const pathValid = vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2;
-            logMsg += ` path_valid=${pathValid}`;
-            if (pathValid) {
-                logMsg += ` path_len=${vkResult.states.length}`;
-                logMsg += ` error=${vkResult.error ?? 'none'}`;
-            } else {
-                logMsg += ` error=${vkResult ? (vkResult.error ?? 'PATH_NOT_FOUND') : 'vkResult_null'}`;
+            const success = this.choosePair(
+                plannedCells, attemptedPairs, reservedTargets,
+                movedBotsInWave, pathResult, waveForbiddenCells
+            );
+
+            if (!success || !this.bot_start || !this.bot_target) {
+                this.debugLog(`No more pairs found for wave ${waveIndex + 1} after ${collectRound} rounds.`);
+                break;
             }
 
-            // Mark bot as moved in this wave so choosePair() skips it in the next round
-            movedBotsInWave.add(this.bot_id);
+            const vkResult = pathResult.vkResult || null;
+            const pathValid = vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2;
 
-            // Move the bot to its target position in plannedCells for the next round
-            // Use the goal orientation from bot_target (set by choosePair / _buildWorldAndPlanPath)
-            // instead of the last state from the path planner, because the path planner may
-            // return PATH_NOT_FOUND with best_partial where the last state has wrong orientation.
+            if (!pathValid) {
+                this.debugLog(`Skipping bot=${this.bot_id} — path invalid`);
+                movedBotsInWave.add(this.bot_id);
+                continue;
+            }
+
+            // Check: the bot's START position must not be in waveForbiddenCells.
+            // This prevents parallel paths from starting adjacent to each other,
+            // which the A* planner does not check (it only validates move targets,
+            // not the initial position).
+            const startKey = Number(this.bot_start.x) + ',' + Number(this.bot_start.y) + ',' + Number(this.bot_start.z);
+            const forbiddenKeys = new Set(waveForbiddenCells.map(c => Number(c.x) + ',' + Number(c.y) + ',' + Number(c.z)));
+            if (forbiddenKeys.has(startKey)) {
+                this.debugLog(`Skipping bot=${this.bot_id} — start position (${this.bot_start.x},${this.bot_start.y},${this.bot_start.z}) conflicts with forbidden cells`);
+                movedBotsInWave.add(this.bot_id);
+                continue;
+            }
+
+            // Resolve target orientation
             let targetVx = Number(this.bot_target.vx ?? 0);
             let targetVy = Number(this.bot_target.vy ?? 0);
             let targetVz = Number(this.bot_target.vz ?? 0);
-            // Fallback: if bot_target has no explicit orientation from the structure JSON,
-            // use the goal orientation from the path planner result (which includes auto-orientation).
-            // Only if even that fails, fall back to start orientation.
             if (targetVx === 0 && targetVy === 0 && targetVz === 0) {
-                // Use goal orientation from path planner (auto-orientation calculated by _buildWorldAndPlanPath)
                 if (vkResult && vkResult.goal_state) {
                     targetVx = Number(vkResult.goal_state.vx ?? 0);
                     targetVy = Number(vkResult.goal_state.vy ?? 0);
                     targetVz = Number(vkResult.goal_state.vz ?? 0);
                 }
-                // Ultimate fallback: if even goal_state has no orientation, use start orientation
                 if (targetVx === 0 && targetVy === 0 && targetVz === 0) {
                     targetVx = Number(this.bot_start.vx ?? 0);
                     targetVy = Number(this.bot_start.vy ?? 0);
                     targetVz = Number(this.bot_start.vz ?? 1);
                 }
             }
+
+            // Store collected pair
+            wavePairs.push({
+                botId: this.bot_id,
+                botStart: { x: this.bot_start.x, y: this.bot_start.y, z: this.bot_start.z,
+                            vx: Number(this.bot_start.vx ?? 0), vy: Number(this.bot_start.vy ?? 0), vz: Number(this.bot_start.vz ?? 1) },
+                botTarget: { x: this.bot_target.x, y: this.bot_target.y, z: this.bot_target.z,
+                             vx: Number(targetVx), vy: Number(targetVy), vz: Number(targetVz) },
+                vkResult: vkResult,
+                targetOrientation: { x: targetVx, y: targetVy, z: targetVz }
+            });
+
+            // Update plannedCells
             this.addBotToCells({
                 id: this.bot_id,
                 x: this.bot_target.x,
                 y: this.bot_target.y,
                 z: this.bot_target.z,
-                vx: targetVx,
-                vy: targetVy,
-                vz: targetVz
+                vx: targetVx, vy: targetVy, vz: targetVz
             }, plannedCells);
-            logMsg += ` moved_to_target=(${this.bot_target.x},${this.bot_target.y},${this.bot_target.z}) orientation=(${targetVx},${targetVy},${targetVz})`;
 
-            // Register this single move as its own wave in morphLog (one move per wave)
-            if (vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2) {
-                const coordPath = vkResult.states.map(s => [Number(s.x), Number(s.y), Number(s.z)]);
-                const singleWavePath = [{
-                    path: coordPath,
-                    botStart: { x: this.bot_start.x, y: this.bot_start.y, z: this.bot_start.z, vx: Number(this.bot_start.vx ?? 0), vy: Number(this.bot_start.vy ?? 0), vz: Number(this.bot_start.vz ?? 1) },
-                    botTarget: { x: this.bot_target.x, y: this.bot_target.y, z: this.bot_target.z, vx: targetVx, vy: targetVy, vz: targetVz },
-                    botId: this.bot_id,
-                    pathStates: vkResult.states
-                }];
-                this.wavecnt++;
-                this.registerMorphStepForExport(singleWavePath, this.wavecnt);
-                this.debugLog(`stepMorph: registered move for bot=${this.bot_id} as wave ${this.wavecnt}`);
+            movedBotsInWave.add(this.bot_id);
+
+            // Add path cells to forbidden set for subsequent pairs
+            const pathCells = this._extractPathCells(vkResult);
+            for (const cell of pathCells) waveForbiddenCells.push(cell);
+
+            // Also add the bot's STARTING position to forbidden cells, so that
+            // another bot starting at an adjacent cell gets blocked by the shell.
+            // Without this, the shell only blocks PATH cells (moves) but not the
+            // initial position — allowing adjacent wave bots to start side by side.
+            const startCell = { x: this.bot_start.x, y: this.bot_start.y, z: this.bot_start.z };
+            waveForbiddenCells.push(startCell);
+
+            // Optional: expand forbidden cells with orthogonal neighbors (security shell)
+            // This prevents parallel paths from running directly adjacent to each other,
+            // which could cause false neighbor detection or physical interference.
+            if (securityShell) {
+                const shellDirs = [
+                    {dx:1,dy:0,dz:0},{dx:-1,dy:0,dz:0},
+                    {dx:0,dy:1,dz:0},{dx:0,dy:-1,dz:0},
+                    {dx:0,dy:0,dz:1},{dx:0,dy:0,dz:-1}
+                ];
+                const shellCells = [];
+                const shellSeen = new Set();
+                for (const c of waveForbiddenCells) {
+                    const ck = c.x + ',' + c.y + ',' + c.z;
+                    shellSeen.add(ck);
+                }
+                for (const c of waveForbiddenCells) {
+                    for (const d of shellDirs) {
+                        const nx = c.x + d.dx, ny = c.y + d.dy, nz = c.z + d.dz;
+                        const nk = nx + ',' + ny + ',' + nz;
+                        if (!shellSeen.has(nk)) {
+                            shellSeen.add(nk);
+                            shellCells.push({ x: nx, y: ny, z: nz });
+                        }
+                    }
+                }
+                for (const sc of shellCells) waveForbiddenCells.push(sc);
+            } // if (securityShell)
+
+            waveHasValidPair = true;
+            this.debugLog(`Collected bot=${this.bot_id} pathLen=${vkResult.states.length} forbiddenCells=${waveForbiddenCells.length}`);
+
+            if (this.areAllBotsHappy(this.cluster_target, plannedCells)) {
+                this.debugLog("All bots happy during collect — finishing wave early.");
+                break;
             }
-        } else {
-            logMsg += ` bot_start=${JSON.stringify(this.bot_start)} bot_target=${JSON.stringify(this.bot_target)}`;
-        }
+        } // collect loop
 
-        this.debugLog(logMsg);
-        this.log(logMsg);
-
-        // Stop if no pair was found in this round
-        if (!success) {
-            this.debugLog(`stepMorph: no more pairs found after ${round} rounds.`);
-            this.log(`stepMorph: no more pairs found after ${round} rounds.`);
+        if (!waveHasValidPair) {
+            this.debugLog("No valid pairs — morph complete or stuck.");
             break;
         }
 
-        // Stop if all bots are happy
+        // --- EXECUTE PHASE: register all collected moves as ONE wave ---
+        this.wavecnt++;
+        const waveMoves = [];
+        for (const pair of wavePairs) {
+            const coordPath = pair.vkResult.states.map(s => [Number(s.x), Number(s.y), Number(s.z)]);
+            waveMoves.push({
+                path: coordPath,
+                botStart: pair.botStart,
+                botTarget: pair.botTarget,
+                botId: pair.botId,
+                pathStates: pair.vkResult.states
+            });
+        }
+        this.registerMorphStepForExport(waveMoves, this.wavecnt);
+        this.debugLog(`Parallel wave ${this.wavecnt}: ${waveMoves.length} bots moving simultaneously`);
+
+        // Write human-readable morph plan for debugging
+        try {
+            let planLines = [];
+            planLines.push(`=== Wave ${this.wavecnt} (${waveMoves.length} bots) ===`);
+            for (const m of waveMoves) {
+                const start = m.botStart ? `(${m.botStart.x},${m.botStart.y},${m.botStart.z})` : '(?,?,?)';
+                const target = m.botTarget ? `(${m.botTarget.x},${m.botTarget.y},${m.botTarget.z})` : '(?,?,?)';
+                const pathStr = m.path ? m.path.map(p => `(${p[0]},${p[1]},${p[2]})`).join(' → ') : 'no path';
+                planLines.push(`  ${m.botId}: ${start} → ${target}  Path: ${pathStr}`);
+            }
+            planLines.push('');
+            fs.appendFileSync(this.morphPlanLogPath, planLines.join('\n'), 'utf8');
+        } catch (e) {
+            this.debugLog(`Failed to write morph plan log: ${e.message}`);
+        }
+
+        waveIndex++;
+
         if (this.areAllBotsHappy(this.cluster_target, plannedCells)) {
-            this.debugLog(`stepMorph: all bots happy after ${round} rounds.`);
-            this.log(`stepMorph: all bots happy after ${round} rounds.`);
+            this.debugLog("All bots happy after wave execution.");
             break;
         }
-    } // while (true)
+    } // wave loop
 
-    // Call finishHandler to complete this morph step
-    // success=true if all bots are happy, false otherwise
     const allHappy = this.areAllBotsHappy(this.cluster_target, plannedCells);
     finishHandler(this.morphLog, allHappy);
     return;
