@@ -41,6 +41,7 @@ const { parse_config_file } = require('../common/config_parser');
 //const MorphBFSSimple    = require('./morph/morph_bfs_simple');
 const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
 const MorphVehicleKinematics = require('./morph/morph_vehicle_kinematics');
+const MorphVehicleKinematicsParallel = require('./morph/morph_vehicle_kinematics_parallel');
 
 
 const Logger = require('./logger');
@@ -397,13 +398,18 @@ constructor()
         },
         {
         id: "vehicle_kinematics",
-//        name: "Morph Vehicle Kinematics ",
-        name : "Sequential Vehicle Kinematics Morph", //  Parallel Vehicle Kinematics Morph
-        description: "Vehicle-kinematics-based morphing using path planning (Preview).",
+        name : "Sequential Vehicle Kinematics Morph",
+        description: "Vehicle-kinematics-based morphing using path planning (Sequential).",
+        default: false
+        },
+        {
+        id: "parallel_vehicle_kinematics",
+        name : "Parallel Vehicle Kinematics Morph",
+        description: "Vehicle-kinematics-based morphing using parallel path planning.",
         default: true
         }
     ];
-    this.morphAlgorithmSelected = "vehicle_kinematics";
+    this.morphAlgorithmSelected = "parallel_vehicle_kinematics";
 
 
 
@@ -453,6 +459,15 @@ constructor()
    // start WebGUI (async Modul)
    const { startWebGUI } = require('./webgui_server');
    startWebGUI(this);
+
+   // Auto structurescan on startup (config: auto_structurescan = true)
+   if (String(this.config.auto_structurescan ?? "").trim().toLowerCase() === "true")
+      {
+      console.log("[config] auto_structurescan = true → starting scan in 3 seconds...");
+      setTimeout(() => {
+                       this.start_scan(1);
+                       }, 3000);
+      } // if
 
    } // constructor()
 
@@ -3162,6 +3177,7 @@ createAlgorithm(algoName, startBots, targetBots, params) {
         //case "simple": return new MorphBFSSimple(startBots, targetBots, params);
         case "wavefront": return new MorphBFSWavefront(startBots, targetBots, params);
         case "vehicle_kinematics": return new MorphVehicleKinematics(startBots, targetBots, params);
+        case "parallel_vehicle_kinematics": return new MorphVehicleKinematicsParallel(startBots, targetBots, params);
         default: throw new Error("Unknown algorithm: " + algoName);
     }
 } // createAlgorithm
@@ -3318,6 +3334,20 @@ if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
    algo = this.createAlgorithm("vehicle_kinematics", startBots, targetBots, params);
 
    } // "vehicle_kinematics"
+   
+if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" ) 
+   {
+   console.log("Prepare parallel_vehicle_kinematics...");
+
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("parallel_vehicle_kinematics", startBots, targetBots, params);
+
+   } // "parallel_vehicle_kinematics"
   
  
  
@@ -3446,6 +3476,20 @@ if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
    algo = this.createAlgorithm("vehicle_kinematics", startBots, targetBots, params);
 
    } // "vehicle_kinematics"
+
+if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
+   {
+   console.log("Headless prepare parallel_vehicle_kinematics...");
+
+   params = {
+            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("parallel_vehicle_kinematics", startBots, targetBots, params);
+
+   } // "parallel_vehicle_kinematics"
   
 
 
@@ -3706,7 +3750,18 @@ for (let i=0; i<size; i++)
   
     // create blockedBots
     let blockedBots = morphLog.waves[i].moves.map(mv => mv.from);
-    
+
+    // Also add the current positions of wave bots to blockedBots so the BFS
+    // does not route RALIFE through a bot that is about to move. Unlike FROM
+    // positions (which are the start positions before this wave), this catches
+    // bots that were already moved in a previous wave and now sit elsewhere.
+    const waveBotIdsAddr = new Set(morphLog.waves[i].moves.map(mv => String(mv.id ?? "")));
+    for (const b of bots_tmp) {
+        if (waveBotIdsAddr.has(String(b.id ?? ""))) {
+            blockedBots.push({ x: b.x, y: b.y, z: b.z });
+        }
+    }
+
     ret += "block "+signalbuffer+"\n";
     ret += "{\n";
     
@@ -3761,15 +3816,10 @@ for (let i=0; i<size; i++)
        
 
        
-        // console.log("Blocked bots:");
-        // console.log(blockedBots);
-        
-        
-       
-        // Adress-Update (all bots!) 
-        for (let b = 0; b < bots_tmp.length; b++) 
+        // Adress-Update (all bots!)
+        for (let b = 0; b < bots_tmp.length; b++)
             {
- 
+
             // Don't block masterbot and current target-bot
             const cleanedBlockedBots = blockedBots.filter(b2 =>
              !(b2.x === this.mb.x && b2.y === this.mb.y && b2.z === this.mb.z) &&
@@ -3780,13 +3830,13 @@ for (let i=0; i<size; i++)
              {x: bots_tmp[b].x, y: bots_tmp[b].y, z: bots_tmp[b].z},
              bots_tmp, cleanedBlockedBots
             );
-      
+
            if (bots_tmp[b].adress  == "" )
-            { 
+            {
             if (locallog)  console.log("empty adress!!!! ---- Bot:", bots_tmp[b].id, "Pos:", bots_tmp[b].x, bots_tmp[b].y, bots_tmp[b].z);
             }
 
-          
+
             }      // for b...   
       
           
@@ -7100,7 +7150,13 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
    let bottmpid = msgarray.bottmpid;
    
     
-   this.scan_waiting_info[bottmpid].status = 1;
+   if (this.scan_waiting_info[bottmpid] === undefined) 
+      {
+      if (logging) console.log("RINFO ignored: scan_waiting_info entry missing for " + bottmpid);
+      } else
+        {
+        this.scan_waiting_info[bottmpid].status = 1;
+        }
    
    
    // Register new detected Cellbot to internals structure...

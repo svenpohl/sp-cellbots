@@ -914,6 +914,20 @@ function main() {
           }
         } else if (answer === "api_version") {
           result = { ok: true, result: "version", version: responseObject.version || "?" };
+        } else if (answer === "api_morph_check_progress") {
+          result = {
+            ok: true,
+            result: "morph_progress",
+            running: responseObject.running === true,
+            phase: responseObject.phase ?? "idle",
+            progress: responseObject.progress ?? 0,
+            success: responseObject.success ?? null,
+            structure: responseObject.structure ?? null,
+            algo: responseObject.algo ?? null,
+            started_at: responseObject.started_at ?? null,
+            finished_at: responseObject.finished_at ?? null,
+            message: responseObject.message ?? ""
+          };
         } else if (answer === "api_find_path_for_bot") {
           // Bewegungsprimitiven (actions) + Zwischenkoordinaten (steps) zurückgeben
           const actions = responseObject.vehicle_path_dry_run?.actions ?? [];
