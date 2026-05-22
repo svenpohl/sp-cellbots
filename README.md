@@ -65,11 +65,20 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.5**  
+Current version: **1.7.6**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.6** (23.05.2026)  
+**Parallel Vehicle-Kinematics Morph & Auto Structurescan**
+  - **Parallel VK Morph:** Multiple bots can now move simultaneously in the same wave. A collect-execute phase gathers up to 10 non-colliding paths before dispatching them together. Includes `securityShell` (orthogonal path expansion) and heuristics (free Y+, free Y-) to minimize conflicts
+  - **Successfully tested:** base_72 → 72_table, 25_cross, 72_wall, 25_arch and back – with parallel waves up to 3 bots moving simultaneously
+  - **Start position isolation:** Both the A* planner and the collect phase now ensure that no two paths start adjacent to each other, preventing RALIFE deadlocks
+  - **Auto structurescan:** New config flag `auto_structurescan = true` triggers a scan ~3s after BotController startup – no more manual scan needed
+  - **Improved diagnostics:** Detailed wave-by-wave morph plan written to `morph_vehicle_kinematics_parallel_morphplan.txt` for debugging
+  - **Robustness:** The RALIFE return-address calculation now excludes simultaneously moving bots from the routing table, eliminating the main source of stuck parallel morphs
 
 - **1.7.5** (18.05.2026)  
 **3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
