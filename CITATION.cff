@@ -11,8 +11,8 @@ authors:
 repository-code: "https://github.com/svenpohl/sp-cellbots"
 url: "https://github.com/svenpohl/sp-cellbots"
 license: "MIT"
-version: "1.5.3"
-date-released: "2026-04-06"
+version: "1.7.6"
+date-released: "2026-05-23"
 
 keywords:
   - modular robotics
