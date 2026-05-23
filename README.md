@@ -65,11 +65,19 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.6**  
+Current version: **1.7.7**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.7** (23.05.2026)  
+**get_bots_in_region API, would_split_cluster in diagnose, CLI fixes**  
+  - `get_bots_in_region x1 y1 z1 x2 y2 z2`: 3D bounding-box scan  
+  - `diagnose_move_bot_to`: would_split_cluster + disconnected_bots  
+  - CLI: fixed get_bots, get_neighbors, morph_get_* output  
+  - JSON offline error (instead of console.error)  
+ 
 
 - **1.7.6** (23.05.2026)  
 **Parallel Vehicle-Kinematics Morph & Auto Structurescan**
