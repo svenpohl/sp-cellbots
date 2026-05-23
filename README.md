@@ -11,7 +11,7 @@ structures.
 
 - **Mobility Modes:** `vehicle_kinematics`, `full_edge` and `hybrid_kinematics` — each with dedicated path planning and movement primitives  
 - **Rich API:** Numerous manipulation and diagnostic tools, optimized for LLM-driven control via Codex, Deepseek or Gemini CLI  
-- **Structure Morphing:** Support for `full_edge` and sequential VK morphing algorithms  
+- **Structure Morphing:** Support for `full_edge`, sequential and **parallel** VK morphing algorithms  
 - **Cryptographic Signatures:** ED25519-based message signing to protect against unauthorized access (pre-configured; generate your own keys before practical deployment)
 
 <table>
