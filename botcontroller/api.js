@@ -264,6 +264,18 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "get_bots_in_region") {
+    return {
+      cmd: "get_bots_in_region",
+      x1: Number(process.argv[3] ?? 0),
+      y1: Number(process.argv[4] ?? 0),
+      z1: Number(process.argv[5] ?? 0),
+      x2: Number(process.argv[6] ?? 0),
+      y2: Number(process.argv[7] ?? 0),
+      z2: Number(process.argv[8] ?? 0)
+    };
+  } // if
+
   if (cmd == "get_bots_by_prefix") {
     return {
       cmd: "get_bots_by_prefix",
@@ -853,6 +865,8 @@ function main() {
             result: "diagnosis",
             executable: responseObject.executable === true,
             path_found: responseObject.path_found === true,
+            would_split_cluster: responseObject.would_split_cluster === true,
+            disconnected_bots: responseObject.disconnected_bots || [],
             executed: false
           };
           if (responseObject.carrier_bot_id) result.carrier_bot_id = responseObject.carrier_bot_id;
@@ -959,6 +973,45 @@ function main() {
             reason: responseObject.reason ?? "",
             distance: responseObject.distance
           };
+        } else if (answer === "api_get_bots") {
+          result = {
+            ok: true,
+            result: "api_get_bots",
+            mode: responseObject.mode,
+            center: responseObject.center,
+            radius: responseObject.radius,
+            count: responseObject.count,
+            bots: responseObject.bots
+          };
+        } else if (answer === "api_get_neighbors") {
+          result = {
+            ok: true,
+            result: "api_get_neighbors",
+            bot_id: responseObject.bot_id,
+            neighbors: responseObject.neighbors
+          };
+        } else if (answer === "api_get_bots_in_region") {
+          result = {
+            ok: true,
+            result: "api_get_bots_in_region",
+            region: responseObject.region,
+            count: responseObject.count,
+            bots: responseObject.bots
+          };
+        } else if (answer === "api_morph_get_algos") {
+          result = {
+            ok: true,
+            result: "api_morph_get_algos",
+            count: responseObject.count,
+            list: responseObject.list
+          };
+        } else if (answer === "api_morph_get_structures") {
+          result = {
+            ok: true,
+            result: "api_morph_get_structures",
+            count: responseObject.count,
+            list: responseObject.list
+          };
         } else {
           result = { ok: true, result: answer };
         }
@@ -980,7 +1033,7 @@ function main() {
   });
 
   client.on("error", (err) => {
-    console.error("API connection error:", err.message);
+    process.stdout.write(JSON.stringify({ ok: false, result: "failed", reason: "BOTCONTROLLER_OFFLINE", error: err.message }) + "\n");
     process.exit(1);
   });
 } // main()

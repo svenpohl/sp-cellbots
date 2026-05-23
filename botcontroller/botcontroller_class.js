@@ -101,6 +101,7 @@ const {
 const {
       apicall_get_bots: runtime_get_bots,
       apicall_get_bots_by_prefix: runtime_get_bots_by_prefix,
+      apicall_get_bots_in_region: runtime_get_bots_in_region,
       apicall_get_inactive_bots: runtime_get_inactive_bots,
       apicall_get_inactive_bot_by_xyz: runtime_get_inactive_bot_by_xyz,
       apicall_get_neighbors: runtime_get_neighbors
@@ -6598,6 +6599,15 @@ return(runtime_get_bots_by_prefix(this, prefix));
 
 
 //
+// apicall_get_bots_in_region()
+//
+apicall_get_bots_in_region( x1, y1, z1, x2, y2, z2 )
+{
+return(runtime_get_bots_in_region(this, x1, y1, z1, x2, y2, z2));
+} // apicall_get_bots_in_region()
+
+
+//
 // apicall_raw_cmd()
 //
 apicall_raw_cmd( raw_value )
@@ -9279,6 +9289,24 @@ async handleAPIMessage_internal(message, socket) {
                         description: "Returns all known bots whose IDs start with the given prefix."
                     },
                     {
+                        cmd: "get_bots_in_region",
+                        params: {
+                            x1: "number",
+                            y1: "number",
+                            z1: "number",
+                            x2: "number",
+                            y2: "number",
+                            z2: "number"
+                        },
+                        returns: {
+                            answer: "api_get_bots_in_region",
+                            count: "number",
+                            bots: "list",
+                            region: "object"
+                        },
+                        description: "Returns all bots inside an axis-aligned bounding box. Example: get_bots_in_region 4 1 0 4 -1 0 returns 2 stacked bots at x=4,z=0."
+                    },
+                    {
                         cmd: "get_inactive_bots",
                         params: {},
                         returns: {
@@ -9475,11 +9503,13 @@ async handleAPIMessage_internal(message, socket) {
                         returns: {
                             answer: "api_diagnose_move_bot_to",
                             path_found: "boolean",
+                            would_split_cluster: "boolean",
+                            disconnected_bots: "list",
                             planned_moves: "list",
                             planned_primitives: "list",
                             turn_positions_on_path: "list"
                         },
-                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
+                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics. Also checks whether removing the bot from its current position would split the cluster. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
                     },
                     {
                         cmd: "rotate_bot",
