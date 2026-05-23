@@ -1322,7 +1322,22 @@ return(response);
 
 function apicall_diagnose_move_bot_to(controller, bot_id, x, y, z, goal_orientation = null)
 {
-return(apicall_move_bot_to(controller, bot_id, x, y, z, false, goal_orientation));
+let ret = apicall_move_bot_to(controller, bot_id, x, y, z, false, goal_orientation);
+
+// Prüfe ob der Move den Cluster splitten würde
+let split_check = controller.apicall_would_split_cluster(bot_id);
+if (split_check && split_check.ok === true)
+   {
+   ret.would_split_cluster = (split_check.would_split_cluster === true);
+   ret.disconnected_bots = Array.isArray(split_check.disconnected_bots) ? split_check.disconnected_bots : [];
+   }
+else
+   {
+   ret.would_split_cluster = false;
+   ret.disconnected_bots = [];
+   }
+
+return(ret);
 } // apicall_diagnose_move_bot_to()
 
 

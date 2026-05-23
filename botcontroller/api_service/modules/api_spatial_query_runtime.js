@@ -268,9 +268,59 @@ return({
 } // apicall_get_neighbors()
 
 
+function apicall_get_bots_in_region(controller, x1, y1, z1, x2, y2, z2)
+{
+let x_min = Math.min(x1, x2);
+let x_max = Math.max(x1, x2);
+let y_min = Math.min(y1, y2);
+let y_max = Math.max(y1, y2);
+let z_min = Math.min(z1, z2);
+let z_max = Math.max(z1, z2);
+
+let retbots = [];
+
+for (let i=0; i<controller.bots.length; i++)
+    {
+    let bx = Number(controller.bots[i].x);
+    let by = Number(controller.bots[i].y);
+    let bz = Number(controller.bots[i].z);
+
+    if ( bx >= x_min && bx <= x_max &&
+         by >= y_min && by <= y_max &&
+         bz >= z_min && bz <= z_max )
+       {
+       retbots.push({
+                    id: controller.bots[i].id,
+                    position: {
+                               x: bx,
+                               y: by,
+                               z: bz
+                               }
+                    });
+       } // if
+    } // for
+
+return({
+       ok: true,
+       answer: "api_get_bots_in_region",
+       region: {
+                x1: x_min,
+                y1: y_min,
+                z1: z_min,
+                x2: x_max,
+                y2: y_max,
+                z2: z_max
+                },
+       count: retbots.length,
+       bots: retbots
+       });
+} // apicall_get_bots_in_region()
+
+
 module.exports = {
                   apicall_get_bots,
                   apicall_get_bots_by_prefix,
+                  apicall_get_bots_in_region,
                   apicall_get_inactive_bots,
                   apicall_get_inactive_bot_by_xyz,
                   apicall_get_neighbors
