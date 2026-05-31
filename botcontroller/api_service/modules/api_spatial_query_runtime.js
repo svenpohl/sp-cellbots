@@ -317,10 +317,69 @@ return({
 } // apicall_get_bots_in_region()
 
 
+function apicall_get_bot_info(controller, bot_id)
+{
+let bot = null;
+let bot_index = -1;
+
+for (let i=0; i<controller.bots.length; i++)
+    {
+    if (String(controller.bots[i].id ?? "") === String(bot_id).trim())
+       {
+       bot = controller.bots[i];
+       bot_index = i;
+       break;
+       }
+    } // for
+
+if (!bot)
+   {
+   return({
+          ok: false,
+          answer: "api_get_bot_info",
+          error: "BOT_NOT_FOUND",
+          bot_id: String(bot_id).trim()
+          });
+   } // if
+
+let carried_payload = null;
+try {
+    let payload_id = controller.apicall_get_carried_payload_bot_id(bot.id);
+    if (payload_id) carried_payload = String(payload_id);
+    } catch(e) { /* ignore */ }
+
+let neighbors = {};
+try {
+    let neigh_ret = controller.apicall_get_neighbors(bot.id);
+    if (neigh_ret && neigh_ret.neighbors) neighbors = neigh_ret.neighbors;
+    } catch(e) { /* ignore */ }
+
+return({
+       ok: true,
+       answer: "api_get_bot_info",
+       bot_id: bot.id,
+       position: {
+                  x: Number(bot.x),
+                  y: Number(bot.y),
+                  z: Number(bot.z)
+                  },
+       orientation: {
+                    x: Number(bot.vector_x),
+                    y: Number(bot.vector_y),
+                    z: Number(bot.vector_z)
+                    },
+       adress: controller.apicall_get_safe_adress(bot),
+       carried_payload_bot_id: carried_payload,
+       neighbors: neighbors
+       });
+} // apicall_get_bot_info()
+
+
 module.exports = {
                   apicall_get_bots,
                   apicall_get_bots_by_prefix,
                   apicall_get_bots_in_region,
+                  apicall_get_bot_info,
                   apicall_get_inactive_bots,
                   apicall_get_inactive_bot_by_xyz,
                   apicall_get_neighbors

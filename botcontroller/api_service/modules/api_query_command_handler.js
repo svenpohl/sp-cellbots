@@ -103,6 +103,14 @@ if (cmd === "get_bots_by_prefix")
    return(true);
    } // if
 
+if (cmd === "get_bot_info")
+   {
+   let ret = controller.apicall_get_bot_info(decodedobject.bot_id);
+   controller.append_api_action_log("get_bot_info", { bot_id: decodedobject.bot_id }, { ok: ret.ok, answer: ret.answer });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "get_inactive_bots")
    {
    let ret = controller.apicall_get_inactive_bots();
