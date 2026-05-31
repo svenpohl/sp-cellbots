@@ -287,6 +287,13 @@ function buildRequestFromCli() {
     return { cmd: "get_inactive_bots" };
   } // if
 
+  if (cmd == "get_bot_info") {
+    return {
+      cmd: "get_bot_info",
+      bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
   if (cmd == "get_neighbors") {
     return {
       cmd: "get_neighbors",
@@ -997,6 +1004,17 @@ function main() {
             region: responseObject.region,
             count: responseObject.count,
             bots: responseObject.bots
+          };
+        } else if (answer === "api_get_bot_info") {
+          result = {
+            ok: true,
+            result: "api_get_bot_info",
+            bot_id: responseObject.bot_id,
+            position: responseObject.position,
+            orientation: responseObject.orientation,
+            adress: responseObject.adress,
+            carried_payload_bot_id: responseObject.carried_payload_bot_id,
+            neighbors: responseObject.neighbors
           };
         } else if (answer === "api_morph_get_algos") {
           result = {

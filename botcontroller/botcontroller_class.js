@@ -102,6 +102,7 @@ const {
       apicall_get_bots: runtime_get_bots,
       apicall_get_bots_by_prefix: runtime_get_bots_by_prefix,
       apicall_get_bots_in_region: runtime_get_bots_in_region,
+      apicall_get_bot_info: runtime_get_bot_info,
       apicall_get_inactive_bots: runtime_get_inactive_bots,
       apicall_get_inactive_bot_by_xyz: runtime_get_inactive_bot_by_xyz,
       apicall_get_neighbors: runtime_get_neighbors
@@ -6608,6 +6609,15 @@ return(runtime_get_bots_in_region(this, x1, y1, z1, x2, y2, z2));
 
 
 //
+// apicall_get_bot_info()
+//
+apicall_get_bot_info( bot_id )
+{
+return(runtime_get_bot_info(this, bot_id));
+} // apicall_get_bot_info()
+
+
+//
 // apicall_raw_cmd()
 //
 apicall_raw_cmd( raw_value )
@@ -9305,6 +9315,22 @@ async handleAPIMessage_internal(message, socket) {
                             region: "object"
                         },
                         description: "Returns all bots inside an axis-aligned bounding box. Example: get_bots_in_region 4 1 0 4 -1 0 returns 2 stacked bots at x=4,z=0."
+                    },
+                    {
+                        cmd: "get_bot_info",
+                        params: {
+                            bot_id: "string"
+                        },
+                        returns: {
+                            answer: "api_get_bot_info",
+                            bot_id: "string",
+                            position: "object",
+                            orientation: "object",
+                            adress: "string",
+                            carried_payload_bot_id: "string|null",
+                            neighbors: "object"
+                        },
+                        description: "Returns detailed information about one bot: position, orientation, adress, carried payload and all slot neighbors."
                     },
                     {
                         cmd: "get_inactive_bots",
