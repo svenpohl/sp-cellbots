@@ -6,6 +6,13 @@
 
 ---
 
+- **1.7.8** (31.05.2026)  
+**Shepherd experiments, get_bot_info API, test structures**  
+  - New: `get_bot_info <id>` – position, orientation, adress, payload, neighbors in one call  
+  - New: shepherd experiment prompts (exp03–exp09) in botcontroller/  
+  - New: test structures (target1–4, pins.json)  
+  - `grab_bot` uses B-slot (back) in VK mode
+
 - **1.7.7** (23.05.2026)  
 **get_bots_in_region API, would_split_cluster in diagnose, CLI fixes**  
   - `get_bots_in_region x1 y1 z1 x2 y2 z2`: 3D bounding-box scan  
