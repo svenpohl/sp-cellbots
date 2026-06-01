@@ -135,6 +135,10 @@ If you use SP-CellBots in your work, please cite one (or more) of the following:
 - **Applied benchmark / follow-up study:**  
   Pohl, S. (2026). *A Qualitative Benchmark Comparison of Full-Edge and Vehicle Kinematics in SP-CellBots*. Zenodo.  
   [https://doi.org/10.5281/zenodo.20074691](https://doi.org/10.5281/zenodo.20074691)
+
+- **LLM Experiments with Programmable Matter:**  
+  Pohl, S. (2026). *LLM Experiments with Programmable Matter: Preliminary Studies with SP-CellBots*. Zenodo.  
+  [https://doi.org/10.5281/zenodo.20474601](https://doi.org/10.5281/zenodo.20474601)
   
 ---
 
