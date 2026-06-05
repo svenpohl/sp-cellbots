@@ -1,0 +1,680 @@
+All API Commands — use 'describe' for core overview.
+
+Available commands:
+- describe
+  Shows the core commands overview (api_ref/core_commands.txt).
+  Use 'describe all' for the complete reference.
+  usage: node api.js describe
+  returns:
+    - answer: api_description
+    - commands: list
+
+- describe all
+  Shows the complete list of all available API commands (this file).
+  usage: node api.js describe all
+  returns:
+    - answer: api_description
+    - commands: list
+- version
+  Returns the current BotController version.
+  returns:
+    - answer: api_version
+    - version: string
+- get_status
+  Returns the number of currently loaded bots in the BotController.
+  returns:
+    - answer: api_status
+    - loaded_bots: number
+    - mobility_mode: string
+    - communication_mode: string
+- get_status_extended
+  Returns an extended BotController status including cluster bounding box.
+  returns:
+    - answer: api_status_extended
+    - loaded_bots_total: number
+    - loaded_cluster_bots: number
+    - mobility_mode: string
+    - communication_mode: string
+    - bounding_box: object
+- get_masterbot
+  Returns the current Masterbot reference data used by the BotController.
+  returns:
+    - answer: api_get_masterbot
+    - position: {x,y,z}
+    - orientation: {x,y,z}
+    - connection_slot: string
+- get_scan_state
+  Returns the current running state of Scan Level 1 and Scan Level 2.
+  returns:
+    - answer: api_get_scan_state
+    - level1: object
+    - level2: object
+- gui_set_marker
+  Draws one semi-transparent marker cube in the WebGUI.
+  params:
+    - x: number
+    - y: number
+    - z: number
+    - size: number
+    - color: red|green|blue|yellow|cyan|white
+  returns:
+    - answer: api_gui_set_marker
+    - accepted: boolean
+    - frontend_attached: boolean
+- gui_clear_markers
+  Clears all API marker cubes from the WebGUI.
+  returns:
+    - answer: api_gui_clear_markers
+    - accepted: boolean
+    - frontend_attached: boolean
+- gui_refresh
+  Requests the BotController WebGUI to reload the current cluster world from the controller.
+  returns:
+    - answer: api_gui_refresh
+    - accepted: boolean
+    - frontend_attached: boolean
+- debug_move
+  Enables, disables or queries the global MOVE diagnostics flag in the BotController.
+  params:
+    - mode: on|off|status
+  returns:
+    - answer: api_debug_move
+    - debug_move_enabled: boolean
+- safe_mode
+  Enables, disables or queries the address recalibration safety level. Mode 0 disables recalibration, mode 1 recalibrates one addressed bot before bot-scoped API actions, and mode 2 globally recalibrates all bot addresses after successful structural changes. Default is 2.
+  params:
+    - mode: 0|1|2|on|off|status
+  returns:
+    - answer: api_safe_mode
+    - safe_mode: number
+- recalibrate_bot_address
+  Recalculates the current local address of one known bot from the existing BotController world model without performing a full scan. Optional mode=minimal prefers shorter and simpler routes.
+  params:
+    - bot_id: string
+    - mode: standard|minimal (optional)
+  returns:
+    - answer: api_recalibrate_bot_address
+    - old_adress: string
+    - new_adress: string
+    - changed: boolean
+- recalibrate_bot_addresses
+  Recalculates the current local addresses of all known non-master bots from the existing BotController world model. Optional mode=minimal prefers shorter and simpler routes.
+  params:
+    - mode: standard|minimal (optional)
+  returns:
+    - answer: api_recalibrate_bot_addresses
+    - count: number
+    - changed_count: number
+- diagnose_ack_route
+  Diagnoses the target-side address and ALIFE/RALIFE return route for a hypothetical bot target pose without executing a move.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - vx: number|null
+    - vy: number|null
+    - vz: number|null
+  returns:
+    - answer: api_diagnose_ack_route
+    - ack_target_addr: string
+    - ack_retaddr: string
+    - ack_target_neighbors_debug: array
+    - ack_target_neighbors_live_debug: array
+    - ack_stl_debug: object|null
+- forbidden_add
+  Adds one forbidden grid cell to the runtime structure roles. The update is idempotent and triggers a WebGUI refresh.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_forbidden_add
+    - changed: boolean
+    - count: number
+    - list: list
+- forbidden_remove
+  Removes one forbidden grid cell from the runtime structure roles and triggers a WebGUI refresh.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_forbidden_remove
+    - changed: boolean
+    - count: number
+    - list: list
+- forbidden_clear
+  Clears all forbidden runtime cells and triggers a WebGUI refresh.
+  returns:
+    - answer: api_forbidden_clear
+    - removed_count: number
+    - count: number
+    - list: list
+- forbidden_list
+  Returns the current runtime list of forbidden cells.
+  returns:
+    - answer: api_forbidden_list
+    - count: number
+    - list: list
+- servicebay_add
+  Adds one service-bay (X) grid cell to the runtime structure roles and triggers a WebGUI refresh. Direct movers can be recycled immediately when they end on X, while carried payload bots are marked pending on X and are recycled on release.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_servicebay_add
+    - changed: boolean
+    - count: number
+    - list: list
+- servicebay_remove
+  Removes one service-bay (X) grid cell from the runtime structure roles and triggers a WebGUI refresh.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_servicebay_remove
+    - changed: boolean
+    - count: number
+    - list: list
+- servicebay_clear
+  Clears all runtime service-bay (X) cells and triggers a WebGUI refresh.
+  returns:
+    - answer: api_servicebay_clear
+    - removed_count: number
+    - count: number
+    - list: list
+- servicebay_list
+  Returns the current runtime list of service-bay (X) cells used by automatic recycle.
+  returns:
+    - answer: api_servicebay_list
+    - count: number
+    - list: list
+- structurescan
+  Starts Scan Level 1 for active structure discovery.
+  returns:
+    - answer: api_structurescan_started
+    - accepted: boolean
+- structurescan_lvl2
+  Starts Scan Level 2 for inactive-bot diagnostics.
+  returns:
+    - answer: api_structurescan_lvl2_started
+    - accepted: boolean
+- structurescan_radio
+  Starts Scan Radio skeleton mode. This is currently a placeholder flow for direct_radio-specific scan orchestration.
+  returns:
+    - answer: api_structurescan_radio_started
+    - accepted: boolean
+- search_bot
+  Starts a targeted direct_radio NBH resync for one bot. Level 1 queries only the target bot, level 2 additionally queries its currently known neighbors for a more robust local relocalization.
+  params:
+    - bot_id: string
+    - level: optional number, default 1 (1=only this bot, 2=this bot + known neighbors)
+  returns:
+    - answer: api_search_bot_started
+    - accepted: boolean
+    - queued_ids: list
+- morph_get_structures
+  Returns the available morph structure JSON names from botcontroller/structures.
+  returns:
+    - answer: api_morph_get_structures
+    - count: number
+    - list: list
+- morph_get_algos
+  Returns the currently available morph algorithms with ids, names and descriptions.
+  returns:
+    - answer: api_morph_get_algos
+    - count: number
+    - list: list
+- morph_start
+  Starts a morph calculation and subsequent sequence execution for one known structure with one known morph algorithm.
+  params:
+    - algo: string
+    - structure: string
+  returns:
+    - answer: api_morph_start
+    - accepted: boolean
+- morph_check_progress
+  Returns the current structured morph progress state, including planning phases like calculation_success and the final finished state after sequence execution.
+  returns:
+    - answer: api_morph_check_progress
+    - running: boolean
+    - phase: string
+    - progress: number
+    - success: boolean|null
+    - message: string
+- get_bot_by_id
+  Returns position and orientation of a known bot by ID.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_get_bot_by_id
+    - position: {x,y,z}
+    - orientation: {x,y,z}
+- get_bots
+  Returns all bots inside a local cube around a given center coordinate.
+  params:
+    - mode: cube
+    - x: number
+    - y: number
+    - z: number
+    - radius: number
+  returns:
+    - answer: api_get_bots
+    - count: number
+    - bots: list
+- get_bots_by_prefix
+  Returns all known bots whose IDs start with the given prefix.
+  params:
+    - prefix: string
+  returns:
+    - answer: api_get_bots_by_prefix
+    - count: number
+    - bots: list
+- get_bots_in_region
+  Returns all bots inside an axis-aligned bounding box. Example: get_bots_in_region 4 1 0 4 -1 0 returns 2 stacked bots at x=4,z=0.
+  params:
+    - x1: number
+    - y1: number
+    - z1: number
+    - x2: number
+    - y2: number
+    - z2: number
+  returns:
+    - answer: api_get_bots_in_region
+    - count: number
+    - bots: list
+    - region: object
+- get_bot_info
+  Returns detailed information about one bot: position, orientation, adress, carried payload and all slot neighbors.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_get_bot_info
+    - bot_id: string
+    - position: object
+    - orientation: object
+    - adress: string
+    - carried_payload_bot_id: string|null
+    - neighbors: object
+- get_inactive_bots
+  Returns the inactive bots detected by Scan Level 2.
+  returns:
+    - answer: api_get_inactive_bots
+    - count: number
+    - bots: list
+- get_neighbors
+  Returns the direct local neighbors of a known bot, including active, inactive or empty slots.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_get_neighbors
+    - neighbors: object with F/R/B/L/T/D
+- get_grab_positions
+  Returns up to four carrier grab candidates around a target coordinate, including required orientation, anchor checks and blocking reasons.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_get_grab_positions
+    - feasible_count: number
+    - candidates: list
+- get_turn_positions
+  Returns rotation-capable candidate cells in a local 3D cube around a coordinate. turnable_same_y requires four free orthogonal neighbors on the same y-plane.
+  params:
+    - x: number
+    - y: number
+    - z: number
+    - radius: optional number, default 1
+  returns:
+    - answer: api_get_turn_positions
+    - turnable_same_y_count: number
+    - turnable_strict_count: number
+    - candidates: list
+- is_occupied
+  Checks whether a specific coordinate is occupied by an active or inactive bot.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_is_occupied
+    - occupied: boolean
+    - state: active|inactive|empty
+- get_slot_status
+  Returns the status of one relative slot of a bot, respecting the bot orientation.
+  params:
+    - bot_id: string
+    - slot: F|R|B|L|T|D
+  returns:
+    - answer: api_get_slot_status
+    - target: occupancy object
+- probe_move_bot
+  Performs a conservative local plausibility check for one single translational move primitive.
+  params:
+    - bot_id: string
+    - move: single primitive move, e.g. F_TF_D
+  returns:
+    - answer: api_probe_move_bot
+    - possible: boolean
+    - predicted_target: {x,y,z}
+- can_reach_position
+  Performs a conservative surface check whether a target coordinate looks locally reachable.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - vx: optional number
+    - vy: optional number
+    - vz: optional number
+  returns:
+    - answer: api_can_reach_position
+    - reachable: boolean
+    - reason: string
+- find_path_for_bot
+  Calculates a first surface path candidate for a bot to reach a target coordinate.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_find_path_for_bot
+    - path_found: boolean
+    - path: list of coordinates
+- find_path_for_bot_payload
+  Calculates a payload-aware path candidate for a carrier bot with a virtual or real payload bot attached in F-direction.
+  params:
+    - bot_id: string
+    - payload_bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_find_path_for_bot_payload
+    - path_found: boolean
+    - path: list of coordinates
+- suggest_simple_move
+  Suggests one simple primitive move candidate that matches the beginning of a calculated path.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_suggest_simple_move
+    - suggested: boolean
+    - move_candidate: single primitive move or null
+- move_bot_to
+  Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_move_bot_to
+    - executable: boolean
+    - executed: boolean
+    - path_found: boolean
+    - turn_positions_on_path: list
+- would_split_cluster
+  Checks whether removing one bot from the currently known cluster would split the remaining structure into disconnected parts.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_would_split_cluster
+    - would_split_cluster: boolean
+    - disconnected_bots: list
+- diagnose_move_bot_to
+  Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics. Also checks whether removing the bot from its current position would split the cluster. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - vx: optional number
+    - vy: optional number
+    - vz: optional number
+  returns:
+    - answer: api_diagnose_move_bot_to
+    - path_found: boolean
+    - would_split_cluster: boolean
+    - disconnected_bots: list
+    - planned_moves: list
+    - planned_primitives: list
+    - turn_positions_on_path: list
+- rotate_bot
+  Rotates one bot left or right and appends ALIFE so the local world model can update without a full scan.
+  params:
+    - bot_id: string
+    - direction: L|R
+  returns:
+    - answer: api_rotate_bot
+    - executed: boolean
+    - target_orientation: {x,y,z}
+- rotate_bot_to
+  Rotates one bot to an absolute horizontal target orientation vector and executes the required one-step or two-step spin plan as one bundled MOVE block with ALIFE/RALIFE.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_rotate_bot_to
+    - executed: boolean
+    - target_orientation: {x,y,z}
+    - rotation_plan: list
+- grab_bot
+  Sends a direct GF command for one bot and appends ALIFE when a return route is available.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_grab_bot
+    - executed: boolean
+- release_bot
+  Sends a direct G command for one bot and appends ALIFE when a return route is available. If a carried payload is pending on a service-bay (X) cell, release finalizes the recycle and removes that payload from active bots.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_release_bot
+    - executed: boolean
+- move_payload_to
+  Small convenience transport command that grabs a payload directly in front of a carrier, moves the carrier to a target coordinate and can optionally release afterwards. The target coordinate currently refers to the carrier, not the payload.
+  params:
+    - carrier_bot_id: string
+    - payload_bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - release_after: optional boolean
+  returns:
+    - answer: api_move_payload_to
+    - ok: boolean
+    - steps: list
+- move_carrier_to
+  Moves one carrier bot to a target coordinate, automatically using payload-aware path planning when the carrier currently holds a payload. It can then optionally rotate to a target orientation and optionally release afterwards. Use 0,0,0 as orientation when the final orientation is irrelevant.
+  params:
+    - carrier_bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - vx: number
+    - vy: number
+    - vz: number
+    - release_after: optional boolean
+  returns:
+    - answer: api_move_carrier_to
+    - ok: boolean
+    - steps: list
+- diagnose_move_carrier_to
+  Plans one carrier move like move_carrier_to but stops before execution and returns transport, rotation and optional release planning data.
+  params:
+    - carrier_bot_id: string
+    - x: number
+    - y: number
+    - z: number
+    - vx: number
+    - vy: number
+    - vz: number
+    - release_after: optional boolean
+  returns:
+    - answer: api_diagnose_move_carrier_to
+    - ok: boolean
+    - executable: boolean
+    - steps: list
+- calc_crater
+  Calculates a crater planning stub around a target coordinate. The vector defines the dig direction, while sx/sy/sz define the shaft stamp shape (cross-section) relative to that direction.
+  params:
+    - tx: number
+    - ty: number
+    - tz: number
+    - vx: number
+    - vy: number
+    - vz: number
+    - sx: number
+    - sy: number
+    - sz: number
+    - mode: optional string, default plan
+    - max_depth: optional number; when omitted, future implementations may auto-expand toward outer region
+  returns:
+    - answer: api_calc_crater
+    - implemented: boolean
+    - error: string
+- crater_start
+  Starts an asynchronous crater execution process. The controller plans pair_order via calc_crater and executes moves step-by-step with ACK handling.
+  params:
+    - crater_id: optional string, default crater_default
+    - tx: number
+    - ty: number
+    - tz: number
+    - vx: number
+    - vy: number
+    - vz: number
+    - sx: number
+    - sy: number
+    - sz: number
+    - max_depth: optional number
+  returns:
+    - answer: api_crater_start
+    - accepted: boolean
+    - session_id: number
+    - total_steps: number
+- crater_check_progress
+  Returns progress and state for one crater execution session, similar to morph_check_progress.
+  params:
+    - crater_id: optional string, defaults to active crater session
+  returns:
+    - answer: api_crater_check_progress
+    - running: boolean
+    - phase: string
+    - progress: number
+    - success: boolean|null
+    - total_steps: number
+    - completed_steps: number
+- crater_fill
+  Builds an inverted fill plan from one stored crater id. In mode=plan it only runs prechecks; in mode=execute it starts asynchronous fill execution if prechecks pass.
+  params:
+    - crater_id: string
+    - mode: plan|execute (default execute)
+  returns:
+    - answer: api_crater_fill
+    - accepted: boolean
+    - fillable: boolean
+    - blocked_steps: list
+- crater_list
+  Lists known crater sessions by crater_id with their current status and plan availability.
+  returns:
+    - answer: api_crater_list
+    - count: number
+    - craters: list
+- get_last_moves
+  Returns the most recent API actions stored in the BotController action ring buffer.
+  params:
+    - limit: optional integer, default 10
+  returns:
+    - answer: api_get_last_moves
+    - moves: list
+- get_bot_history
+  Returns recent bot-specific API history entries with state snapshots.
+  params:
+    - bot_id: string
+    - limit: optional integer, default 10
+  returns:
+    - answer: api_get_bot_history
+    - history: list
+- get_last_raw_cmds
+  Returns the most recent raw_cmd strings sent through the API.
+  params:
+    - limit: optional integer, default 10
+  returns:
+    - answer: api_get_last_raw_cmds
+    - raw_cmds: list
+- raw_cmd
+  Sends a raw OP-Code command directly to the Masterbot.
+  params:
+    - value: string
+  returns:
+    - answer: api_raw_cmd
+    - accepted: boolean
+- ping_position
+  Pings a coordinate by sending an INFO opcode via sign+push (like scan).
+  If a bot responds, the world model is updated and frontend refreshed.
+  Returns immediately with a tmpid. Use ping_status to check the result.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_ping_position
+    - target: object
+    - tmpid: string
+    - accepted: boolean
+- ping_status
+  Returns the status of a previous ping_position request.
+  Status 0 = waiting, 1 = bot found, -1 = timeout.
+  params:
+    - tmpid: string
+  returns:
+    - answer: api_ping_status
+    - tmpid: string
+    - status: number
+    - bot_found: boolean
+    - response: object|null
+- poll_masterbot_queue
+  Triggers one explicit pop cycle from the Masterbot response queue.
+  returns:
+    - answer: api_poll_masterbot_queue
+    - accepted: boolean
+- reset_api_message_log
+  Clears the internal API message ring buffer.
+  returns:
+    - answer: api_reset_api_message_log
+    - accepted: boolean
+    - cleared: boolean
+- get_api_messages
+  Returns recent parsed Masterbot responses from the internal API message ring buffer.
+  params:
+    - cmd_filter: optional string, e.g. RCHECK
+    - limit: optional integer, default 50
+  returns:
+    - answer: api_get_api_messages
+    - count: number
+    - messages: list
+
+CLI-only features (api.js wrapper):
+- batch <file>
+  Reads a JSON file with multiple move_bot_to commands and executes them sequentially.
+  Each move opens its own TCP connection (atomic-request mode).
+  params:
+    - file: path to JSON file (array of {id, x, y, z, vx?, vy?, vz?})
+  returns:
+    - answer: api_batch_complete
+    - total: number of moves
+    - results: array of per-move {index, move, response} all
+
+--- EOF /botcontroller/api_ref/all_commands.txt ---
