@@ -31,10 +31,10 @@ structures.
       </sub>
     </td>
     <td align="center">
-      <img src="docs/img/stick_figure_blender.png" width="180"/><br>
+      <img src="img/spcellbots.webp" width="240"/><br>
       <sub>
-        Animated Blender export<br>
-        <sub>(Rendering)</sub>
+        Morph Animation<br>
+        <sub></sub>
       </sub>
     </td>
   </tr>
