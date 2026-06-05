@@ -31,7 +31,7 @@ structures.
       </sub>
     </td>
     <td align="center">
-      <img src="img/spcellbots.webp" width="240"/><br>
+      <img src="docs/img/spcellbots.webp" width="240"/><br>
       <sub>
         Morph Animation<br>
         <sub></sub>
