@@ -159,6 +159,22 @@ if (cmd === "is_occupied")
    return(true);
    } // if
 
+if (cmd === "ping_position")
+   {
+   let ret = controller.apicall_ping_position(decodedobject.x, decodedobject.y, decodedobject.z);
+   controller.append_api_action_log("ping_position", { x: decodedobject.x, y: decodedobject.y, z: decodedobject.z }, { ok: ret.ok, answer: ret.answer, tmpid: ret.tmpid ?? "" });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "ping_status")
+   {
+   let ret = controller.apicall_ping_status(decodedobject.tmpid);
+   controller.append_api_action_log("ping_status", { tmpid: decodedobject.tmpid }, { ok: ret.ok, answer: ret.answer, bot_found: ret.bot_found ?? false });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "get_slot_status")
    {
    let ret = controller.apicall_get_slot_status(decodedobject.bot_id, decodedobject.slot);

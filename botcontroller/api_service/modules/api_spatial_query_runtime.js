@@ -369,10 +369,135 @@ return({
                     z: Number(bot.vector_z)
                     },
        adress: controller.apicall_get_safe_adress(bot),
+       adress_first: String(bot.adress_first ?? ""),
+       adress_short: String(bot.adress_short ?? ""),
+       adress_detour: String(bot.adress_detour ?? ""),
        carried_payload_bot_id: carried_payload,
        neighbors: neighbors
        });
 } // apicall_get_bot_info()
+
+
+function apicall_ping_position(controller, x, y, z)
+{
+let tx = Number(x), ty = Number(y), tz = Number(z);
+
+let adr = controller.get_mb_returnaddr(
+    {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+    {x: tx, y: ty, z: tz},
+    controller.bots, [], { routing_mode: "standard" }
+);
+
+if (!adr || adr === "")
+   {
+   // BFS failed – try to find a known neighbor within ±1 orthogonal
+   let neighbor_bot = null;
+   let neighbor_slot = "";
+   let neighbor_dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+   for (let d of neighbor_dirs)
+       {
+       let nx = tx + d[0], ny = ty + d[1], nz = tz + d[2];
+       let bot = controller.bots.find(b => Number(b.x)===nx && Number(b.y)===ny && Number(b.z)===nz);
+       if (!bot) continue;
+       neighbor_bot = bot;
+       // Slot from neighbor to target
+       let slot = controller.get_cell_slot_byvector(-d[0], -d[1], -d[2],
+           Number(bot.vector_x), Number(bot.vector_y), Number(bot.vector_z));
+       if (slot) { neighbor_slot = slot; break; }
+       }
+   if (!neighbor_bot || !neighbor_slot)
+      {
+      return({ ok: false, answer: "api_ping_position", error: "NO_ROUTE_TO_TARGET", target: {x: tx, y: ty, z: tz} });
+      } // if
+   // Route to neighbor + slot to target
+   let neighbor_adr = controller.get_mb_returnaddr(
+       {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+       {x: Number(neighbor_bot.x), y: Number(neighbor_bot.y), z: Number(neighbor_bot.z)},
+       controller.bots, [], { routing_mode: "standard" });
+   if (!neighbor_adr) neighbor_adr = "";
+   adr = neighbor_adr + neighbor_slot;
+   } // if
+
+controller.ping_seq = (controller.ping_seq || 0) + 1;
+let tmpid = "PING" + controller.ping_seq;
+
+// Eintrag in ping_waiting_info (wird vom RINFO-Handler befüllt)
+if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
+
+// STL-ID berechnen (second-to-last bot) via get_next_target_coor
+let stl_id = "";
+let path_to_stl = adr.length > 1 ? adr.slice(0, -1) : "";
+if (path_to_stl) {
+    let cx = Number(controller.mb.x), cy = Number(controller.mb.y), cz = Number(controller.mb.z);
+    for (let s = 0; s < path_to_stl.length; s++) {
+        let cur = controller.bots.find(b => Number(b.x)===cx && Number(b.y)===cy && Number(b.z)===cz);
+        if (!cur) break;
+        let t = controller.get_next_target_coor(cx, cy, cz,
+            Number(cur.vector_x), Number(cur.vector_y), Number(cur.vector_z), path_to_stl[s]);
+        if (!t) break;
+        cx = Number(t.x); cy = Number(t.y); cz = Number(t.z);
+    }
+    stl_id = controller.getKey_3d(cx, cy, cz);
+}
+
+controller.ping_waiting_info[tmpid] = {
+    x: tx, y: ty, z: tz,
+    addr: adr,
+    status: 0,
+    stl_id: stl_id,
+    timestamp: Date.now()
+};
+
+// Rückadresse via get_inverse_address berechnen und senden
+let firstindex = controller.getKey_3d(controller.mb.x, controller.mb.y, controller.mb.z);
+let retaddr = controller.get_inverse_address(firstindex, adr);
+let cmd = adr + "#INFO#" + tmpid + "#" + retaddr;
+cmd = controller.sign(cmd);
+let cellbot_cmd = '{ "cmd":"push", "param":"' + cmd + '" }\n';
+if (controller.client && typeof controller.client.write === "function") {
+    controller.client.write(cellbot_cmd);
+}
+
+return({
+       ok: true,
+       answer: "api_ping_position",
+       target: {x: tx, y: ty, z: tz},
+       tmpid: tmpid,
+       adress_used: adr,
+       accepted: true
+       });
+} // apicall_ping_position()
+
+
+
+function apicall_ping_status(controller, tmpid)
+{
+if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
+let entry = controller.ping_waiting_info[tmpid];
+
+if (!entry)
+   {
+   return({ ok: false, answer: "api_ping_status", error: "TMPID_NOT_FOUND", tmpid: tmpid });
+   } // if
+
+let bot_found = (entry.status === 1);
+let timed_out = (entry.status === -1);
+
+return({
+       ok: true,
+       answer: "api_ping_status",
+       tmpid: tmpid,
+       status: entry.status,
+       bot_found: bot_found,
+       timed_out: timed_out,
+       target: {x: entry.x, y: entry.y, z: entry.z},
+       response: bot_found ? {
+                              bot_id: String(entry.botid ?? ""),
+                              position: {x: Number(entry.x ?? entry.x), y: Number(entry.y ?? entry.y), z: Number(entry.z ?? entry.z)},
+                              orientation: {x: Number(entry.vector_x ?? 0), y: Number(entry.vector_y ?? 0), z: Number(entry.vector_z ?? 0)}
+                              } : null
+       });
+} // apicall_ping_status()
 
 
 module.exports = {
@@ -380,6 +505,8 @@ module.exports = {
                   apicall_get_bots_by_prefix,
                   apicall_get_bots_in_region,
                   apicall_get_bot_info,
+                  apicall_ping_position,
+                  apicall_ping_status,
                   apicall_get_inactive_bots,
                   apicall_get_inactive_bot_by_xyz,
                   apicall_get_neighbors

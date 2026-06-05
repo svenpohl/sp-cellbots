@@ -32,6 +32,15 @@ if (cmd === "recalibrate_bot_addresses")
    return(true);
    } // if
 
+if (cmd === "switch_bot_address")
+   {
+   let target = decodedobject.target ?? "first";
+   let ret = controller.apicall_switch_bot_address(decodedobject.bot_id, target);
+   controller.append_api_action_log("switch_bot_address", { bot_id: decodedobject.bot_id, target: target }, { ok: ret.ok, answer: ret.answer });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "diagnose_ack_route")
    {
    let ret = controller.apicall_diagnose_ack_route(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz);

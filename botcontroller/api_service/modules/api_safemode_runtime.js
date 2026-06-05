@@ -154,7 +154,21 @@ new_adress = controller.get_mb_returnaddr(
                                           { routing_mode: normalized_mode }
                                           );
 
-controller.bots[botindex].adress = new_adress;
+controller.bots[botindex].adress_short = new_adress;
+
+// Also generate detour address (alternative route)
+let detour_adress = controller.get_mb_returnaddr_detour(
+                                          {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+                                          {
+                                          x: Number(controller.bots[botindex].x),
+                                          y: Number(controller.bots[botindex].y),
+                                          z: Number(controller.bots[botindex].z)
+                                          },
+                                          controller.bots,
+                                          [],
+                                          { routing_mode: normalized_mode }
+                                          );
+controller.bots[botindex].adress_detour = detour_adress;
 
 return({
        ok: true,
@@ -343,8 +357,47 @@ return({
 } // apicall_set_safe_mode()
 
 
+function apicall_switch_bot_address(controller, bot_id, target = "first")
+{
+let normalized_id = String(bot_id ?? "").trim();
+let normalized_target = String(target ?? "first").trim().toLowerCase();
+let botindex = controller.get_bot_by_id(normalized_id, controller.bots);
+
+if (normalized_id === "" || botindex == null)
+   {
+   return({ ok: false, answer: "api_switch_bot_address", error: "BOT_NOT_FOUND" });
+   } // if
+
+let bot = controller.bots[botindex];
+let source_field = "adress_first";
+
+if (normalized_target === "short") source_field = "adress_short";
+else if (normalized_target === "detour") source_field = "adress_detour";
+else if (normalized_target === "first") source_field = "adress_first";
+else { return({ ok: false, answer: "api_switch_bot_address", error: "UNKNOWN_TARGET", valid: ["first","short","detour"] }); }
+
+let new_adress = String(bot[source_field] ?? "").trim();
+if (new_adress === "")
+   {
+   return({ ok: false, answer: "api_switch_bot_address", error: "ADDRESS_EMPTY", target: normalized_target });
+   } // if
+
+let old_adress = String(bot.adress ?? "");
+bot.adress = new_adress;
+return({
+       ok: true,
+       answer: "api_switch_bot_address",
+       bot_id: normalized_id,
+       target: normalized_target,
+       old_adress: old_adress,
+       new_adress: new_adress
+       });
+} // apicall_switch_bot_address()
+
+
 module.exports = {
                  apicall_get_bot_by_id,
+                 apicall_switch_bot_address,
                  apicall_get_safe_adress,
                  apicall_recalibrate_bot_address,
                  apicall_recalibrate_bot_addresses,
