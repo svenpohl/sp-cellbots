@@ -65,11 +65,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.8**  
+Current version: **1.7.9**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.7.9** (05.06.2026)  
+**ping_position / ping_status API – BotController world model improvements**  
+  - `ping_position x y z`: Ping a coordinate via INFO opcode, returns tmpid  
+  - `ping_status tmpid`: Check if a bot responded (bot_found, bot_id, position)
 
 - **1.7.8** (31.05.2026)  
 **Shepherd experiments, get_bot_info API, test structures**  
@@ -88,23 +93,12 @@ Latest changes:
 
 - **1.7.6** (23.05.2026)  
 **Parallel Vehicle-Kinematics Morph & Auto Structurescan**
-  - **Parallel VK Morph:** Multiple bots can now move simultaneously in the same wave. A collect-execute phase gathers up to 10 non-colliding paths before dispatching them together. Includes `securityShell` (orthogonal path expansion) and heuristics (free Y+, free Y-) to minimize conflicts
-  - **Successfully tested:** base_72 → 72_table, 25_cross, 72_wall, 25_arch and back – with parallel waves up to 3 bots moving simultaneously
-  - **Start position isolation:** Both the A* planner and the collect phase now ensure that no two paths start adjacent to each other, preventing RALIFE deadlocks
-  - **Auto structurescan:** New config flag `auto_structurescan = true` triggers a scan ~3s after BotController startup – no more manual scan needed
-  - **Improved diagnostics:** Detailed wave-by-wave morph plan written to `morph_vehicle_kinematics_parallel_morphplan.txt` for debugging
-  - **Robustness:** The RALIFE return-address calculation now excludes simultaneously moving bots from the routing table, eliminating the main source of stuck parallel morphs
 
 - **1.7.5** (18.05.2026)  
 **3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
-  - **3D Cursor:** Selected bots can now be moved to any reachable position and orientation directly from the BotController WebGUI using the 3D cursor. Place the cursor with a mouse click, set the target orientation via the 'r' key or the ↻ button, and execute the move through the integrated API CLI
-  - **Ghost Preview:** A translucent wireframe cursor shows the planned target position on hover — derived from the free neighbor grid of the most recently marked anchor bot
-  - **Orientation Arrow:** The target vector is visualized as a red 3D arrow on the cursor, toggled through the four main directions via click or 'r' key
-  - **LLM Collaboration Guide:** New documentation `docs/llm_collaboration.md` featuring a recorded example dialogue — from scan through move and grab to stacking bots, ideal as an entry point for AI-assisted control
 
 - **1.7.4** (17.05.2026)  
 **Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
-  - **B-Slot Payload:** In `vehicle_kinematics` mode, a carried payload bot is now always attached to the carrier's back (B-Slot). This leaves the F-Slot free for climbing walls and stairs, making payload transport and terrain navigation compatible  
   - **World model sync:** BotController and ClusterSim correctly update the payload's **position and orientation** after carrier moves and rotations (90° and 180°), even when the payload started with a different facing direction  
   - **API CLI in BotController WebGUI:** The BotController WebGUI (`http://localhost:3010`) now has a built-in **API CLI panel** — type `node api.js` commands directly into the browser, see JSON responses live. Click any bot in the 3D view to auto-fill its ID into the command. Includes a dropdown of example commands for quick experimentation  
   - **Primary demo:** `node api.js structurescan` then switch to BotController WebGUI and try the API CLI examples
