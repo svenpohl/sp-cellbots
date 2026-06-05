@@ -6,6 +6,11 @@
 
 ---
 
+- **1.7.9** (05.06.2026)  
+**ping_position / ping_status API – BotController world model improvements**  
+  - `ping_position x y z`: Ping a coordinate via INFO opcode, returns tmpid  
+  - `ping_status tmpid`: Check if a bot responded (bot_found, bot_id, position)  
+
 - **1.7.8** (31.05.2026)  
 **Shepherd experiments, get_bot_info API, test structures**  
   - New: `get_bot_info <id>` – position, orientation, adress, payload, neighbors in one call  
