@@ -34,6 +34,9 @@ constructor()
   this.checked_neighbors['d'] = -1;
   
   this.adress = "";
+  this.adress_first = "";   // scan address (initial, never overwritten)
+  this.adress_short = "";    // BFS recalibrated (shorter path)
+  this.adress_detour = "";   // longer alternative route (preparatory)
 
 
   this.nbh_info = [];
@@ -65,6 +68,7 @@ this.vector_z = vz;
 
 this.color    = color;
 this.adress   = adress;
+if (this.adress_first === "") { this.adress_first = adress; }
 } // setvalues()
 
   

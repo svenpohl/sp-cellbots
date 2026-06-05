@@ -53,7 +53,11 @@ function buildRequestFromCli() {
   } // parseGoalOrientationFromCli()
 
   if (cmd == "describe") {
-    return { cmd: "describe" };
+    let mode = process.argv[3] ?? "";
+    if (mode === "all" || mode === "full") {
+      return { cmd: "describe", mode: "all" };
+    }
+    return { cmd: "describe", mode: "core" };
   } // if
 
   if (cmd == "version") {
@@ -121,6 +125,14 @@ function buildRequestFromCli() {
     return {
       cmd: "recalibrate_bot_addresses",
       mode: process.argv[3] ?? "standard"
+    };
+  } // if
+
+  if (cmd == "switch_bot_address") {
+    return {
+      cmd: "switch_bot_address",
+      bot_id: process.argv[3] ?? "",
+      target: process.argv[4] ?? "first"
     };
   } // if
 
@@ -291,6 +303,22 @@ function buildRequestFromCli() {
     return {
       cmd: "get_bot_info",
       bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "ping_position") {
+    return {
+      cmd: "ping_position",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "ping_status") {
+    return {
+      cmd: "ping_status",
+      tmpid: process.argv[3] ?? ""
     };
   } // if
 
@@ -620,6 +648,10 @@ function buildRequestFromCli() {
 
 
 function api_interface_description(responseObject) {
+  // If text mode (from api_ref/ files), output directly
+  if (responseObject.text) {
+    return responseObject.text;
+  }
   let output = "";
   output += "SP-CellBots BotController API\n";
   output += "Version: " + responseObject.version + "\n";
@@ -1013,6 +1045,9 @@ function main() {
             position: responseObject.position,
             orientation: responseObject.orientation,
             adress: responseObject.adress,
+            adress_first: responseObject.adress_first ?? "",
+            adress_short: responseObject.adress_short ?? "",
+            adress_detour: responseObject.adress_detour ?? "",
             carried_payload_bot_id: responseObject.carried_payload_bot_id,
             neighbors: responseObject.neighbors
           };
@@ -1029,6 +1064,68 @@ function main() {
             result: "api_morph_get_structures",
             count: responseObject.count,
             list: responseObject.list
+          };
+        } else if (answer === "api_raw_cmd") {
+          result = {
+            ok: true,
+            result: "api_raw_cmd",
+            accepted: responseObject.accepted === true
+          };
+        } else if (answer === "api_poll_masterbot_queue") {
+          result = {
+            ok: true,
+            result: "api_poll_masterbot_queue",
+            accepted: responseObject.accepted === true
+          };
+        } else if (answer === "api_get_api_messages") {
+          result = {
+            ok: true,
+            result: "api_get_api_messages",
+            count: responseObject.count ?? 0,
+            messages: responseObject.messages ?? []
+          };
+        } else if (answer === "api_recalibrate_bot_addresses") {
+          result = {
+            ok: true,
+            result: "api_recalibrate_bot_addresses",
+            count: responseObject.count ?? 0,
+            changed_count: responseObject.changed_count ?? 0
+          };
+        } else if (answer === "api_recalibrate_bot_address") {
+          result = {
+            ok: true,
+            result: "api_recalibrate_bot_address",
+            old_adress: responseObject.old_adress ?? "",
+            new_adress: responseObject.new_adress ?? "",
+            changed: responseObject.changed === true
+          };
+        } else if (answer === "api_switch_bot_address") {
+          result = {
+            ok: true,
+            result: "api_switch_bot_address",
+            bot_id: responseObject.bot_id,
+            target: responseObject.target,
+            old_adress: responseObject.old_adress ?? "",
+            new_adress: responseObject.new_adress ?? ""
+          };
+        } else if (answer === "api_ping_position") {
+          result = {
+            ok: true,
+            result: "api_ping_position",
+            target: responseObject.target,
+            tmpid: responseObject.tmpid ?? "",
+            adress_used: responseObject.adress_used ?? "",
+            accepted: responseObject.accepted === true
+          };
+        } else if (answer === "api_ping_status") {
+          result = {
+            ok: true,
+            result: "api_ping_status",
+            tmpid: responseObject.tmpid ?? "",
+            status: responseObject.status ?? 0,
+            bot_found: responseObject.bot_found === true,
+            timed_out: responseObject.timed_out === true,
+            response: responseObject.response ?? null
           };
         } else {
           result = { ok: true, result: answer };

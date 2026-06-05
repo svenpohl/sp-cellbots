@@ -103,6 +103,8 @@ const {
       apicall_get_bots_by_prefix: runtime_get_bots_by_prefix,
       apicall_get_bots_in_region: runtime_get_bots_in_region,
       apicall_get_bot_info: runtime_get_bot_info,
+      apicall_ping_position: runtime_ping_position,
+      apicall_ping_status: runtime_ping_status,
       apicall_get_inactive_bots: runtime_get_inactive_bots,
       apicall_get_inactive_bot_by_xyz: runtime_get_inactive_bot_by_xyz,
       apicall_get_neighbors: runtime_get_neighbors
@@ -143,6 +145,7 @@ const {
       apicall_get_safe_adress: runtime_get_safe_adress,
       apicall_recalibrate_bot_address: runtime_recalibrate_bot_address,
       apicall_recalibrate_bot_addresses: runtime_recalibrate_bot_addresses,
+      apicall_switch_bot_address: runtime_switch_bot_address,
       apicall_apply_safe_mode_for_bot: runtime_apply_safe_mode_for_bot,
       apicall_apply_safe_mode_after_structure_change: runtime_apply_safe_mode_after_structure_change,
       apicall_set_safe_mode: runtime_set_safe_mode
@@ -3874,7 +3877,8 @@ for (let i=0; i<size; i++)
            signalbuffer += signal + " ";
            } else
              {
-             signal = "FIN";
+             signal = "FIN" + signalindex;
+             signalindex++;
              let signal_to_fin = {x:bot_to.x, y:bot_to.y, z:bot_to.z};
              if (mobility_mode == "vehicle_kinematics" && bot_to.vx !== undefined)
                 {
@@ -4152,6 +4156,122 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
     // not path found
     return ""; //  
 } // get_mb_returnaddr()
+
+
+//
+// get_mb_returnaddr_detour() – alternative route via intermediate bot
+// Currently wraps get_mb_returnaddr. Will be extended to exclude the
+// first-hop neighbor from the short address for guaranteed redundancy.
+//
+get_mb_returnaddr_detour(pos_from, pos_to, bots_tmp, blockedBots=[], options={})
+{
+// Step 1: find target bot
+let target_bot = null;
+for (let b of bots_tmp) {
+    if (Number(b.x) === Number(pos_to?.x) &&
+        Number(b.y) === Number(pos_to?.y) &&
+        Number(b.z) === Number(pos_to?.z)) {
+        target_bot = b;
+        break;
+    }
+}
+
+console.log("=== get_mb_returnaddr_detour ===");
+console.log("Target bot:", target_bot?.id, "at", pos_to?.x, pos_to?.y, pos_to?.z);
+console.log("Current adress:", target_bot?.adress ?? "");
+
+// Step 2: find a neighbor of target that is NOT on its current adress path
+// Use the last slot of the adress to determine the second-to-last bot
+let adr = String(target_bot?.adress ?? "").trim();
+let forbidden_key = "";
+
+if (adr.length >= 2) {
+    // The last slot of the adress points from second-to-last to target.
+    // Use the inverse: the slot from target back to second-to-last.
+    let last_slot = adr[adr.length - 1];
+    let reverse_slot = ({F:"B", B:"F", L:"R", R:"L", T:"D", D:"T"})[last_slot] || "";
+    if (reverse_slot && target_bot) {
+        let vx = Number(target_bot.vector_x ?? 0);
+        let vy = Number(target_bot.vector_y ?? 0);
+        let vz = Number(target_bot.vector_z ?? 0);
+        // simple slot -> delta mapping (relative to bot orientation)
+        let slot_delta = {F:[1,0,0], R:[0,0,-1], B:[-1,0,0], L:[0,0,1], T:[0,1,0], D:[0,-1,0]};
+        let d = slot_delta[reverse_slot] || [0,0,0];
+        // orientation-transform the delta (rotate vector by bot's facing)
+        // simplified: use the bot's vector_x/y/z as basis transform
+        let fx = Number(vx), fy = Number(vy), fz = Number(vz);
+        let rx = -fz, ry = 0, rz = fx; // right = cross(F, up)
+        let ux = 0, uy = 1, uz = 0;    // up = world Y
+        let world_dx = d[0]*fx + d[1]*rx + d[2]*ux;
+        let world_dy = d[0]*fy + d[1]*ry + d[2]*uy;
+        let world_dz = d[0]*fz + d[1]*rz + d[2]*uz;
+        let sx = Number(target_bot.x) + Math.round(world_dx);
+        let sy = Number(target_bot.y) + Math.round(world_dy);
+        let sz = Number(target_bot.z) + Math.round(world_dz);
+        forbidden_key = `${sx},${sy},${sz}`;
+        let second_last = bots_tmp.find(b =>
+            Number(b.x) === sx && Number(b.y) === sy && Number(b.z) === sz);
+        console.log("Second-to-last bot:", second_last?.id ?? "unknown", "at", sx, sy, sz);
+    }
+}
+
+// Step 3: find an intermediate bot within ±2, NOT second-to-last, NOT target
+let candidates = [];
+let tx = Number(pos_to?.x), ty = Number(pos_to?.y), tz = Number(pos_to?.z);
+for (let b of bots_tmp) {
+    if (b.id === "masterbot" || b.id === target_bot?.id) continue;
+    let bx = Number(b.x), by = Number(b.y), bz = Number(b.z);
+    if (`${bx},${by},${bz}` === forbidden_key) continue;
+    if (Math.abs(bx - tx) <= 2 && Math.abs(by - ty) <= 2 && Math.abs(bz - tz) <= 2) {
+        candidates.push(b);
+    }
+}
+let picked_intermediate = null;
+if (candidates.length > 0) {
+    picked_intermediate = candidates[Math.floor(Math.random() * candidates.length)];
+    console.log("Intermediate bot:", picked_intermediate.id, "at", picked_intermediate.x, picked_intermediate.y, picked_intermediate.z);
+} else {
+    console.log("No intermediate candidate within ±2 (excluding second-to-last)");
+}
+
+// Helper: walk an adress string from start_pos and return all bot coords as blockedBots array
+let walk_adress_to_blocked = (adr, start, bots_arr) => {
+    let coords = [];
+    let cx = Number(start.x), cy = Number(start.y), cz = Number(start.z);
+    let slot_to_delta = {F:[1,0,0], R:[0,0,-1], B:[-1,0,0], L:[0,0,1], T:[0,1,0], D:[0,-1,0]};
+    for (let s = 0; s < adr.length; s++) {
+        let cur = bots_arr.find(b => Number(b.x)===cx && Number(b.y)===cy && Number(b.z)===cz);
+        if (!cur) break;
+        let vx = Number(cur.vector_x??0), vy = Number(cur.vector_y??0), vz = Number(cur.vector_z??0);
+        let d = slot_to_delta[adr[s]] || [0,0,0];
+        // transform relative delta by bot orientation
+        let rx = -vz, rz = vx; // right = cross(F, up)
+        let wx = d[0]*vx + d[1]*rx + d[2]*0;
+        let wy = d[0]*vy + d[1]*0  + d[2]*1;
+        let wz = d[0]*vz + d[1]*rz + d[2]*0;
+        cx += Math.round(wx); cy += Math.round(wy); cz += Math.round(wz);
+        coords.push(`${cx},${cy},${cz}`);
+    }
+    return [...new Set(coords)].map(k => { let p = k.split(','); return {x:Number(p[0]), y:Number(p[1]), z:Number(p[2])}; });
+};
+
+// Step 4: if we have an intermediate, build a two-part detour path
+if (picked_intermediate) {
+    let mid_pos = {x: Number(picked_intermediate.x), y: Number(picked_intermediate.y), z: Number(picked_intermediate.z)};
+    let path1 = this.get_mb_returnaddr(pos_from, mid_pos, bots_tmp, blockedBots, options);
+    // Collect bots used in path1 and block them for path2 to avoid LLRR-style backtracking
+    let path1_blocked = walk_adress_to_blocked(path1, pos_from, bots_tmp);
+    let combined_blocked = [...(blockedBots || []), ...path1_blocked];
+    let path2 = this.get_mb_returnaddr(mid_pos, pos_to, bots_tmp, combined_blocked, options);
+    if (path1 && path2) {
+        let detour = path1 + path2;
+        console.log("Detour path (" + picked_intermediate.id + "):", detour);
+        return detour;
+    }
+    console.log("Detour path construction failed, falling back to standard BFS");
+}
+return(this.get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots, options));
+} // get_mb_returnaddr_detour()
 
 
  
@@ -6420,6 +6540,15 @@ return(runtime_recalibrate_bot_addresses(this, mode));
 
 
 //
+// apicall_switch_bot_address()
+//
+apicall_switch_bot_address( bot_id, target = "first" )
+{
+return(runtime_switch_bot_address(this, bot_id, target));
+} // apicall_switch_bot_address()
+
+
+//
 // apicall_apply_safe_mode_for_bot()
 //
 apicall_apply_safe_mode_for_bot(bot_id)
@@ -6615,6 +6744,24 @@ apicall_get_bot_info( bot_id )
 {
 return(runtime_get_bot_info(this, bot_id));
 } // apicall_get_bot_info()
+
+
+//
+// apicall_ping_position()
+//
+apicall_ping_position( x, y, z )
+{
+return(runtime_ping_position(this, x, y, z));
+} // apicall_ping_position()
+
+
+//
+// apicall_ping_status()
+//
+apicall_ping_status( tmpid )
+{
+return(runtime_ping_status(this, tmpid));
+} // apicall_ping_status()
 
 
 //
@@ -7172,7 +7319,104 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
     
    if (this.scan_waiting_info[bottmpid] === undefined) 
       {
-      if (logging) console.log("RINFO ignored: scan_waiting_info entry missing for " + bottmpid);
+      // Check ping_waiting_info (from ping_position command)
+      if (this.ping_waiting_info && this.ping_waiting_info[bottmpid] !== undefined)
+         {
+         this.ping_waiting_info[bottmpid].status = 1;
+         this.ping_waiting_info[bottmpid].botid = msgarray.botid;
+
+         // Register or update bot position (like scan_waiting_info does)
+         let p_info = this.ping_waiting_info[bottmpid];
+         let p_x = Number(p_info.x), p_y = Number(p_info.y), p_z = Number(p_info.z);
+         let p_addr = String(p_info.addr ?? "");
+         // Check if bot already exists by ID (NOT by position)
+         let existing_by_id = this.get_bot_by_id(msgarray.botid, this.bots);
+         if (existing_by_id !== null && existing_by_id !== undefined)
+            {
+            // Update existing bot's position and adress
+            this.bots[existing_by_id].x = p_x;
+            this.bots[existing_by_id].y = p_y;
+            this.bots[existing_by_id].z = p_z;
+            // Orientation: use STL info like scan does (calc_target_orientation_vector)
+            let ovx = 0, ovy = 0, ovz = 0;
+            let src_slot = String(msgarray.sourceslot ?? "").toUpperCase();
+            if (src_slot !== "T" && src_slot !== "D")
+               {
+               // Horizontal slot – derive orientation from STL bot
+               let stl_idx = null;
+               let stl_x = 0, stl_y = 0, stl_z = 0;
+               let stl_vx = 0, stl_vy = 0, stl_vz = 0;
+               let p_stl_id = String(p_info.stl_id ?? "");
+               if (p_stl_id === "MB")
+                  {
+                  stl_x = Number(this.mb.x); stl_y = Number(this.mb.y); stl_z = Number(this.mb.z);
+                  stl_vx = Number(this.mb.vx); stl_vy = Number(this.mb.vy); stl_vz = Number(this.mb.vz);
+                  } else
+                    {
+                    stl_idx = this.botindex[p_stl_id];
+                    if (stl_idx !== undefined)
+                       {
+                       stl_x = Number(this.bots[stl_idx].x);
+                       stl_y = Number(this.bots[stl_idx].y);
+                       stl_z = Number(this.bots[stl_idx].z);
+                       stl_vx = Number(this.bots[stl_idx].vector_x);
+                       stl_vy = Number(this.bots[stl_idx].vector_y);
+                       stl_vz = Number(this.bots[stl_idx].vector_z);
+                       }
+                    }
+               if (stl_idx !== undefined || p_stl_id === "MB")
+                  {
+                  let vec = this.calc_target_orientation_vector(stl_x, stl_y, stl_z, p_x, p_y, p_z, src_slot);
+                  if (vec) { ovx = Number(vec.vx); ovy = Number(vec.vy); ovz = Number(vec.vz); }
+                  }
+               } else
+                 {
+                 // T/D slot – same as scan: calc_target_orientation_vector_relative(stl_vx/y/z, msgarray.vx/y/z)
+                 let p_stl_id2 = String(p_info.stl_id ?? "");
+                 let rvec = null;
+                 if (p_stl_id2 === "MB")
+                    {
+                    rvec = this.calc_target_orientation_vector_relative(
+                        Number(this.mb.vx), Number(this.mb.vy), Number(this.mb.vz),
+                        Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
+                    } else
+                      {
+                      let si = this.botindex[p_stl_id2];
+                      if (si !== undefined)
+                         {
+                         rvec = this.calc_target_orientation_vector_relative(
+                             Number(this.bots[si].vector_x), Number(this.bots[si].vector_y), Number(this.bots[si].vector_z),
+                             Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
+                         }
+                      }
+                 if (rvec) { ovx = Number(rvec.vx); ovy = Number(rvec.vy); ovz = Number(rvec.vz); }
+                 }
+
+            this.bots[existing_by_id].vector_x = ovx;
+            this.bots[existing_by_id].vector_y = ovy;
+            this.bots[existing_by_id].vector_z = ovz;
+            this.bots[existing_by_id].adress = p_addr;
+            if (logging) console.log("Ping updated bot: " + msgarray.botid + " to " + p_x + "," + p_y + "," + p_z);
+            } else
+              {
+              // New bot – register it
+              let bot_obj = new bot_class_mini();
+              let stl_id = this.getKey_3d(p_x, p_y, p_z);
+              bot_obj.setvalues(
+                  msgarray.botid, stl_id, p_x, p_y, p_z,
+                  ovx, ovy, ovz,
+                  "888888"
+              );
+              bot_obj.adress = p_addr;
+              this.register_bot(bot_obj);
+              if (logging) console.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z);
+              }
+            // Refresh frontend after bot update/registration
+            this.apicall_gui_refresh();
+         } else
+           {
+           if (logging) console.log("RINFO ignored: no waiting entry for " + bottmpid);
+           }
       } else
         {
         this.scan_waiting_info[bottmpid].status = 1;
@@ -7329,7 +7573,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
 if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
    {
    // console.log("RALIFE");
-   // Logger.log("RALIFE " + msgarray.botid + " - " + msgarray.bottmpid);
+   Logger.log("RALIFE " + msgarray.botid + " - " + msgarray.bottmpid);
  
 
 
@@ -8900,931 +9144,16 @@ async handleAPIMessage_internal(message, socket) {
 
         if (decodedobject.cmd === 'describe') {
             const describe_head = build_api_describe_head(this);
-            answer = JSON.stringify({
-                ...describe_head,
-                commands: [
-                    {
-                        cmd: "describe",
-                        params: {},
-                        returns: {
-                            answer: "api_description",
-                            commands: "list"
-                        },
-                        description: "Returns a machine-readable description of the API interface."
-                    },
-                    {
-                        cmd: "version",
-                        params: {},
-                        returns: {
-                            answer: "api_version",
-                            version: "string"
-                        },
-                        description: "Returns the current BotController version."
-                    },
-                    {
-                        cmd: "get_status",
-                        params: {},
-                        returns: {
-                            answer: "api_status",
-                            loaded_bots: "number",
-                            mobility_mode: "string",
-                            communication_mode: "string"
-                        },
-                        description: "Returns the number of currently loaded bots in the BotController."
-                    },
-                    {
-                        cmd: "get_status_extended",
-                        params: {},
-                        returns: {
-                            answer: "api_status_extended",
-                            loaded_bots_total: "number",
-                            loaded_cluster_bots: "number",
-                            mobility_mode: "string",
-                            communication_mode: "string",
-                            bounding_box: "object"
-                        },
-                        description: "Returns an extended BotController status including cluster bounding box."
-                    },
-                    {
-                        cmd: "get_masterbot",
-                        params: {},
-                        returns: {
-                            answer: "api_get_masterbot",
-                            position: "{x,y,z}",
-                            orientation: "{x,y,z}",
-                            connection_slot: "string"
-                        },
-                        description: "Returns the current Masterbot reference data used by the BotController."
-                    },
-                    {
-                        cmd: "get_scan_state",
-                        params: {},
-                        returns: {
-                            answer: "api_get_scan_state",
-                            level1: "object",
-                            level2: "object"
-                        },
-                        description: "Returns the current running state of Scan Level 1 and Scan Level 2."
-                    },
-                    {
-                        cmd: "gui_set_marker",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            size: "number",
-                            color: "red|green|blue|yellow|cyan|white"
-                        },
-                        returns: {
-                            answer: "api_gui_set_marker",
-                            accepted: "boolean",
-                            frontend_attached: "boolean"
-                        },
-                        description: "Draws one semi-transparent marker cube in the WebGUI."
-                    },
-                    {
-                        cmd: "gui_clear_markers",
-                        params: {},
-                        returns: {
-                            answer: "api_gui_clear_markers",
-                            accepted: "boolean",
-                            frontend_attached: "boolean"
-                        },
-                        description: "Clears all API marker cubes from the WebGUI."
-                    },
-                    {
-                        cmd: "gui_refresh",
-                        params: {},
-                        returns: {
-                            answer: "api_gui_refresh",
-                            accepted: "boolean",
-                            frontend_attached: "boolean"
-                        },
-                        description: "Requests the BotController WebGUI to reload the current cluster world from the controller."
-                    },
-                    {
-                        cmd: "debug_move",
-                        params: {
-                            mode: "on|off|status"
-                        },
-                        returns: {
-                            answer: "api_debug_move",
-                            debug_move_enabled: "boolean"
-                        },
-                        description: "Enables, disables or queries the global MOVE diagnostics flag in the BotController."
-                    },
-                    {
-                        cmd: "safe_mode",
-                        params: {
-                            mode: "0|1|2|on|off|status"
-                        },
-                        returns: {
-                            answer: "api_safe_mode",
-                            safe_mode: "number"
-                        },
-                        description: "Enables, disables or queries the address recalibration safety level. Mode 0 disables recalibration, mode 1 recalibrates one addressed bot before bot-scoped API actions, and mode 2 globally recalibrates all bot addresses after successful structural changes. Default is 2."
-                    },
-                    {
-                        cmd: "recalibrate_bot_address",
-                        params: {
-                            bot_id: "string",
-                            mode: "standard|minimal (optional)"
-                        },
-                        returns: {
-                            answer: "api_recalibrate_bot_address",
-                            old_adress: "string",
-                            new_adress: "string",
-                            changed: "boolean"
-                        },
-                        description: "Recalculates the current local address of one known bot from the existing BotController world model without performing a full scan. Optional mode=minimal prefers shorter and simpler routes."
-                    },
-                    {
-                        cmd: "recalibrate_bot_addresses",
-                        params: {
-                            mode: "standard|minimal (optional)"
-                        },
-                        returns: {
-                            answer: "api_recalibrate_bot_addresses",
-                            count: "number",
-                            changed_count: "number"
-                        },
-                        description: "Recalculates the current local addresses of all known non-master bots from the existing BotController world model. Optional mode=minimal prefers shorter and simpler routes."
-                    },
-                    {
-                        cmd: "diagnose_ack_route",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            vx: "number|null",
-                            vy: "number|null",
-                            vz: "number|null"
-                        },
-                        returns: {
-                            answer: "api_diagnose_ack_route",
-                            ack_target_addr: "string",
-                            ack_retaddr: "string",
-                            ack_target_neighbors_debug: "array",
-                            ack_target_neighbors_live_debug: "array",
-                            ack_stl_debug: "object|null"
-                        },
-                        description: "Diagnoses the target-side address and ALIFE/RALIFE return route for a hypothetical bot target pose without executing a move."
-                    },
-                    {
-                        cmd: "forbidden_add",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_forbidden_add",
-                            changed: "boolean",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Adds one forbidden grid cell to the runtime structure roles. The update is idempotent and triggers a WebGUI refresh."
-                    },
-                    {
-                        cmd: "forbidden_remove",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_forbidden_remove",
-                            changed: "boolean",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Removes one forbidden grid cell from the runtime structure roles and triggers a WebGUI refresh."
-                    },
-                    {
-                        cmd: "forbidden_clear",
-                        params: {},
-                        returns: {
-                            answer: "api_forbidden_clear",
-                            removed_count: "number",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Clears all forbidden runtime cells and triggers a WebGUI refresh."
-                    },
-                    {
-                        cmd: "forbidden_list",
-                        params: {},
-                        returns: {
-                            answer: "api_forbidden_list",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Returns the current runtime list of forbidden cells."
-                    },
-                    {
-                        cmd: "servicebay_add",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_servicebay_add",
-                            changed: "boolean",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Adds one service-bay (X) grid cell to the runtime structure roles and triggers a WebGUI refresh. Direct movers can be recycled immediately when they end on X, while carried payload bots are marked pending on X and are recycled on release."
-                    },
-                    {
-                        cmd: "servicebay_remove",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_servicebay_remove",
-                            changed: "boolean",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Removes one service-bay (X) grid cell from the runtime structure roles and triggers a WebGUI refresh."
-                    },
-                    {
-                        cmd: "servicebay_clear",
-                        params: {},
-                        returns: {
-                            answer: "api_servicebay_clear",
-                            removed_count: "number",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Clears all runtime service-bay (X) cells and triggers a WebGUI refresh."
-                    },
-                    {
-                        cmd: "servicebay_list",
-                        params: {},
-                        returns: {
-                            answer: "api_servicebay_list",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Returns the current runtime list of service-bay (X) cells used by automatic recycle."
-                    },
-                    {
-                        cmd: "structurescan",
-                        params: {},
-                        returns: {
-                            answer: "api_structurescan_started",
-                            accepted: "boolean"
-                        },
-                        description: "Starts Scan Level 1 for active structure discovery."
-                    },
-                    {
-                        cmd: "structurescan_lvl2",
-                        params: {},
-                        returns: {
-                            answer: "api_structurescan_lvl2_started",
-                            accepted: "boolean"
-                        },
-                        description: "Starts Scan Level 2 for inactive-bot diagnostics."
-                    },
-                    {
-                        cmd: "structurescan_radio",
-                        params: {},
-                        returns: {
-                            answer: "api_structurescan_radio_started",
-                            accepted: "boolean"
-                        },
-                        description: "Starts Scan Radio skeleton mode. This is currently a placeholder flow for direct_radio-specific scan orchestration."
-                    },
-                    {
-                        cmd: "search_bot",
-                        params: {
-                            bot_id: "string",
-                            level: "optional number, default 1 (1=only this bot, 2=this bot + known neighbors)"
-                        },
-                        returns: {
-                            answer: "api_search_bot_started",
-                            accepted: "boolean",
-                            queued_ids: "list"
-                        },
-                        description: "Starts a targeted direct_radio NBH resync for one bot. Level 1 queries only the target bot, level 2 additionally queries its currently known neighbors for a more robust local relocalization."
-                    },
-                    {
-                        cmd: "morph_get_structures",
-                        params: {},
-                        returns: {
-                            answer: "api_morph_get_structures",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Returns the available morph structure JSON names from botcontroller/structures."
-                    },
-                    {
-                        cmd: "morph_get_algos",
-                        params: {},
-                        returns: {
-                            answer: "api_morph_get_algos",
-                            count: "number",
-                            list: "list"
-                        },
-                        description: "Returns the currently available morph algorithms with ids, names and descriptions."
-                    },
-                    {
-                        cmd: "morph_start",
-                        params: {
-                            algo: "string",
-                            structure: "string"
-                        },
-                        returns: {
-                            answer: "api_morph_start",
-                            accepted: "boolean"
-                        },
-                        description: "Starts a morph calculation and subsequent sequence execution for one known structure with one known morph algorithm."
-                    },
-                    {
-                        cmd: "morph_check_progress",
-                        params: {},
-                        returns: {
-                            answer: "api_morph_check_progress",
-                            running: "boolean",
-                            phase: "string",
-                            progress: "number",
-                            success: "boolean|null",
-                            message: "string"
-                        },
-                        description: "Returns the current structured morph progress state, including planning phases like calculation_success and the final finished state after sequence execution."
-                    },
-                    {
-                        cmd: "get_bot_by_id",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_get_bot_by_id",
-                            position: "{x,y,z}",
-                            orientation: "{x,y,z}"
-                        },
-                        description: "Returns position and orientation of a known bot by ID."
-                    },
-                    {
-                        cmd: "get_bots",
-                        params: {
-                            mode: "cube",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            radius: "number"
-                        },
-                        returns: {
-                            answer: "api_get_bots",
-                            count: "number",
-                            bots: "list"
-                        },
-                        description: "Returns all bots inside a local cube around a given center coordinate."
-                    },
-                    {
-                        cmd: "get_bots_by_prefix",
-                        params: {
-                            prefix: "string"
-                        },
-                        returns: {
-                            answer: "api_get_bots_by_prefix",
-                            count: "number",
-                            bots: "list"
-                        },
-                        description: "Returns all known bots whose IDs start with the given prefix."
-                    },
-                    {
-                        cmd: "get_bots_in_region",
-                        params: {
-                            x1: "number",
-                            y1: "number",
-                            z1: "number",
-                            x2: "number",
-                            y2: "number",
-                            z2: "number"
-                        },
-                        returns: {
-                            answer: "api_get_bots_in_region",
-                            count: "number",
-                            bots: "list",
-                            region: "object"
-                        },
-                        description: "Returns all bots inside an axis-aligned bounding box. Example: get_bots_in_region 4 1 0 4 -1 0 returns 2 stacked bots at x=4,z=0."
-                    },
-                    {
-                        cmd: "get_bot_info",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_get_bot_info",
-                            bot_id: "string",
-                            position: "object",
-                            orientation: "object",
-                            adress: "string",
-                            carried_payload_bot_id: "string|null",
-                            neighbors: "object"
-                        },
-                        description: "Returns detailed information about one bot: position, orientation, adress, carried payload and all slot neighbors."
-                    },
-                    {
-                        cmd: "get_inactive_bots",
-                        params: {},
-                        returns: {
-                            answer: "api_get_inactive_bots",
-                            count: "number",
-                            bots: "list"
-                        },
-                        description: "Returns the inactive bots detected by Scan Level 2."
-                    },
-                    {
-                        cmd: "get_neighbors",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_get_neighbors",
-                            neighbors: "object with F/R/B/L/T/D"
-                        },
-                        description: "Returns the direct local neighbors of a known bot, including active, inactive or empty slots."
-                    },
-                    {
-                        cmd: "get_grab_positions",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_get_grab_positions",
-                            feasible_count: "number",
-                            candidates: "list"
-                        },
-                        description: "Returns up to four carrier grab candidates around a target coordinate, including required orientation, anchor checks and blocking reasons."
-                    },
-                    {
-                        cmd: "get_turn_positions",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            radius: "optional number, default 1"
-                        },
-                        returns: {
-                            answer: "api_get_turn_positions",
-                            turnable_same_y_count: "number",
-                            turnable_strict_count: "number",
-                            candidates: "list"
-                        },
-                        description: "Returns rotation-capable candidate cells in a local 3D cube around a coordinate. turnable_same_y requires four free orthogonal neighbors on the same y-plane."
-                    },
-                    {
-                        cmd: "is_occupied",
-                        params: {
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_is_occupied",
-                            occupied: "boolean",
-                            state: "active|inactive|empty"
-                        },
-                        description: "Checks whether a specific coordinate is occupied by an active or inactive bot."
-                    },
-                    {
-                        cmd: "get_slot_status",
-                        params: {
-                            bot_id: "string",
-                            slot: "F|R|B|L|T|D"
-                        },
-                        returns: {
-                            answer: "api_get_slot_status",
-                            target: "occupancy object"
-                        },
-                        description: "Returns the status of one relative slot of a bot, respecting the bot orientation."
-                    },
-                    {
-                        cmd: "probe_move_bot",
-                        params: {
-                            bot_id: "string",
-                            move: "single primitive move, e.g. F_TF_D"
-                        },
-                        returns: {
-                            answer: "api_probe_move_bot",
-                            possible: "boolean",
-                            predicted_target: "{x,y,z}"
-                        },
-                        description: "Performs a conservative local plausibility check for one single translational move primitive."
-                    },
-                    {
-                        cmd: "can_reach_position",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            vx: "optional number",
-                            vy: "optional number",
-                            vz: "optional number"
-                        },
-                        returns: {
-                            answer: "api_can_reach_position",
-                            reachable: "boolean",
-                            reason: "string"
-                        },
-                        description: "Performs a conservative surface check whether a target coordinate looks locally reachable."
-                    },
-                    {
-                        cmd: "find_path_for_bot",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_find_path_for_bot",
-                            path_found: "boolean",
-                            path: "list of coordinates"
-                        },
-                        description: "Calculates a first surface path candidate for a bot to reach a target coordinate."
-                    },
-                    {
-                        cmd: "find_path_for_bot_payload",
-                        params: {
-                            bot_id: "string",
-                            payload_bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_find_path_for_bot_payload",
-                            path_found: "boolean",
-                            path: "list of coordinates"
-                        },
-                        description: "Calculates a payload-aware path candidate for a carrier bot with a virtual or real payload bot attached in F-direction."
-                    },
-                    {
-                        cmd: "suggest_simple_move",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_suggest_simple_move",
-                            suggested: "boolean",
-                            move_candidate: "single primitive move or null"
-                        },
-                        description: "Suggests one simple primitive move candidate that matches the beginning of a calculated path."
-                    },
-                    {
-                        cmd: "move_bot_to",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_move_bot_to",
-                            executable: "boolean",
-                            executed: "boolean",
-                            path_found: "boolean",
-                            turn_positions_on_path: "list"
-                        },
-                        description: "Plans and executes one complete translated MOVE command for a bot, including ALIFE/RALIFE handling when a return route is available. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
-                    },
-                    {
-                        cmd: "would_split_cluster",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_would_split_cluster",
-                            would_split_cluster: "boolean",
-                            disconnected_bots: "list"
-                        },
-                        description: "Checks whether removing one bot from the currently known cluster would split the remaining structure into disconnected parts."
-                    },
-                    {
-                        cmd: "diagnose_move_bot_to",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            vx: "optional number",
-                            vy: "optional number",
-                            vz: "optional number"
-                        },
-                        returns: {
-                            answer: "api_diagnose_move_bot_to",
-                            path_found: "boolean",
-                            would_split_cluster: "boolean",
-                            disconnected_bots: "list",
-                            planned_moves: "list",
-                            planned_primitives: "list",
-                            turn_positions_on_path: "list"
-                        },
-                        description: "Plans a move like move_bot_to but stops before execution and returns path, primitives and MOVE translation for diagnostics. Also checks whether removing the bot from its current position would split the cluster. In vehicle_kinematics mode, an optional goal orientation can be supplied as vx/vy/vz."
-                    },
-                    {
-                        cmd: "rotate_bot",
-                        params: {
-                            bot_id: "string",
-                            direction: "L|R"
-                        },
-                        returns: {
-                            answer: "api_rotate_bot",
-                            executed: "boolean",
-                            target_orientation: "{x,y,z}"
-                        },
-                        description: "Rotates one bot left or right and appends ALIFE so the local world model can update without a full scan."
-                    },
-                    {
-                        cmd: "rotate_bot_to",
-                        params: {
-                            bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number"
-                        },
-                        returns: {
-                            answer: "api_rotate_bot_to",
-                            executed: "boolean",
-                            target_orientation: "{x,y,z}",
-                            rotation_plan: "list"
-                        },
-                        description: "Rotates one bot to an absolute horizontal target orientation vector and executes the required one-step or two-step spin plan as one bundled MOVE block with ALIFE/RALIFE."
-                    },
-                    {
-                        cmd: "grab_bot",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_grab_bot",
-                            executed: "boolean"
-                        },
-                        description: "Sends a direct GF command for one bot and appends ALIFE when a return route is available."
-                    },
-                    {
-                        cmd: "release_bot",
-                        params: {
-                            bot_id: "string"
-                        },
-                        returns: {
-                            answer: "api_release_bot",
-                            executed: "boolean"
-                        },
-                        description: "Sends a direct G command for one bot and appends ALIFE when a return route is available. If a carried payload is pending on a service-bay (X) cell, release finalizes the recycle and removes that payload from active bots."
-                    },
-                    {
-                        cmd: "move_payload_to",
-                        params: {
-                            carrier_bot_id: "string",
-                            payload_bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            release_after: "optional boolean"
-                        },
-                        returns: {
-                            answer: "api_move_payload_to",
-                            ok: "boolean",
-                            steps: "list"
-                        },
-                        description: "Small convenience transport command that grabs a payload directly in front of a carrier, moves the carrier to a target coordinate and can optionally release afterwards. The target coordinate currently refers to the carrier, not the payload."
-                    },
-                    {
-                        cmd: "move_carrier_to",
-                        params: {
-                            carrier_bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            vx: "number",
-                            vy: "number",
-                            vz: "number",
-                            release_after: "optional boolean"
-                        },
-                        returns: {
-                            answer: "api_move_carrier_to",
-                            ok: "boolean",
-                            steps: "list"
-                        },
-                        description: "Moves one carrier bot to a target coordinate, automatically using payload-aware path planning when the carrier currently holds a payload. It can then optionally rotate to a target orientation and optionally release afterwards. Use 0,0,0 as orientation when the final orientation is irrelevant."
-                    },
-                    {
-                        cmd: "diagnose_move_carrier_to",
-                        params: {
-                            carrier_bot_id: "string",
-                            x: "number",
-                            y: "number",
-                            z: "number",
-                            vx: "number",
-                            vy: "number",
-                            vz: "number",
-                            release_after: "optional boolean"
-                        },
-                        returns: {
-                            answer: "api_diagnose_move_carrier_to",
-                            ok: "boolean",
-                            executable: "boolean",
-                            steps: "list"
-                        },
-                        description: "Plans one carrier move like move_carrier_to but stops before execution and returns transport, rotation and optional release planning data."
-                    },
-                    {
-                        cmd: "calc_crater",
-                        params: {
-                            tx: "number",
-                            ty: "number",
-                            tz: "number",
-                            vx: "number",
-                            vy: "number",
-                            vz: "number",
-                            sx: "number",
-                            sy: "number",
-                            sz: "number",
-                            mode: "optional string, default plan",
-                            max_depth: "optional number; when omitted, future implementations may auto-expand toward outer region"
-                        },
-                        returns: {
-                            answer: "api_calc_crater",
-                            implemented: "boolean",
-                            error: "string"
-                        },
-                        description: "Calculates a crater planning stub around a target coordinate. The vector defines the dig direction, while sx/sy/sz define the shaft stamp shape (cross-section) relative to that direction."
-                    },
-                    {
-                        cmd: "crater_start",
-                        params: {
-                            crater_id: "optional string, default crater_default",
-                            tx: "number",
-                            ty: "number",
-                            tz: "number",
-                            vx: "number",
-                            vy: "number",
-                            vz: "number",
-                            sx: "number",
-                            sy: "number",
-                            sz: "number",
-                            max_depth: "optional number"
-                        },
-                        returns: {
-                            answer: "api_crater_start",
-                            accepted: "boolean",
-                            session_id: "number",
-                            total_steps: "number"
-                        },
-                        description: "Starts an asynchronous crater execution process. The controller plans pair_order via calc_crater and executes moves step-by-step with ACK handling."
-                    },
-                    {
-                        cmd: "crater_check_progress",
-                        params: {
-                            crater_id: "optional string, defaults to active crater session"
-                        },
-                        returns: {
-                            answer: "api_crater_check_progress",
-                            running: "boolean",
-                            phase: "string",
-                            progress: "number",
-                            success: "boolean|null",
-                            total_steps: "number",
-                            completed_steps: "number"
-                        },
-                        description: "Returns progress and state for one crater execution session, similar to morph_check_progress."
-                    },
-                    {
-                        cmd: "crater_fill",
-                        params: {
-                            crater_id: "string",
-                            mode: "plan|execute (default execute)"
-                        },
-                        returns: {
-                            answer: "api_crater_fill",
-                            accepted: "boolean",
-                            fillable: "boolean",
-                            blocked_steps: "list"
-                        },
-                        description: "Builds an inverted fill plan from one stored crater id. In mode=plan it only runs prechecks; in mode=execute it starts asynchronous fill execution if prechecks pass."
-                    },
-                    {
-                        cmd: "crater_list",
-                        params: {},
-                        returns: {
-                            answer: "api_crater_list",
-                            count: "number",
-                            craters: "list"
-                        },
-                        description: "Lists known crater sessions by crater_id with their current status and plan availability."
-                    },
-                    {
-                        cmd: "get_last_moves",
-                        params: {
-                            limit: "optional integer, default 10"
-                        },
-                        returns: {
-                            answer: "api_get_last_moves",
-                            moves: "list"
-                        },
-                        description: "Returns the most recent API actions stored in the BotController action ring buffer."
-                    },
-                    {
-                        cmd: "get_bot_history",
-                        params: {
-                            bot_id: "string",
-                            limit: "optional integer, default 10"
-                        },
-                        returns: {
-                            answer: "api_get_bot_history",
-                            history: "list"
-                        },
-                        description: "Returns recent bot-specific API history entries with state snapshots."
-                    },
-                    {
-                        cmd: "get_last_raw_cmds",
-                        params: {
-                            limit: "optional integer, default 10"
-                        },
-                        returns: {
-                            answer: "api_get_last_raw_cmds",
-                            raw_cmds: "list"
-                        },
-                        description: "Returns the most recent raw_cmd strings sent through the API."
-                    },
-                    {
-                        cmd: "raw_cmd",
-                        params: {
-                            value: "string"
-                        },
-                        returns: {
-                            answer: "api_raw_cmd",
-                            accepted: "boolean"
-                        },
-                        description: "Sends a raw OP-Code command directly to the Masterbot."
-                    },
-                    {
-                        cmd: "poll_masterbot_queue",
-                        params: {},
-                        returns: {
-                            answer: "api_poll_masterbot_queue",
-                            accepted: "boolean"
-                        },
-                        description: "Triggers one explicit pop cycle from the Masterbot response queue."
-                    },
-                    {
-                        cmd: "reset_api_message_log",
-                        params: {},
-                        returns: {
-                            answer: "api_reset_api_message_log",
-                            accepted: "boolean",
-                            cleared: "boolean"
-                        },
-                        description: "Clears the internal API message ring buffer."
-                    },
-                    {
-                        cmd: "get_api_messages",
-                        params: {
-                            cmd_filter: "optional string, e.g. RCHECK",
-                            limit: "optional integer, default 50"
-                        },
-                        returns: {
-                            answer: "api_get_api_messages",
-                            count: "number",
-                            messages: "list"
-                        },
-                        description: "Returns recent parsed Masterbot responses from the internal API message ring buffer."
-                    }
-                ]
-            }) + "\n";
-
-            socket.write(answer, () => {
-                socket.end();
-            });
+            // File-based describe: load text from api_ref/ files
+            let mode = decodedobject.mode || "core";
+            let filePath = path.join(__dirname, "api_ref",
+                mode === "all" ? "all_commands.txt" : "core_commands.txt");
+            let fileContent = "";
+            try { fileContent = fs.readFileSync(filePath, "utf8"); }
+            catch (e) { fileContent = "Error loading commands: " + e.message; }
+            answer = JSON.stringify({ ok: true, answer: "api_description", text: fileContent }) + "\n";
+            socket.write(answer, () => { socket.end(); });
             return;
-        } // if
-
-        let query_handled = await handle_readonly_api_command(this, decodedobject, socket);
-        if (query_handled === true)
-           {
-           return;
-           } // if
-
-        let gui_roles_handled = await handle_gui_roles_api_command(this, decodedobject, socket);
-        if (gui_roles_handled === true)
-           {
-           return;
            } // if
 
         let ack_handled = await handle_ack_api_command(this, decodedobject, socket);
@@ -9841,6 +9170,12 @@ async handleAPIMessage_internal(message, socket) {
 
         let orchestration_handled = await handle_orchestration_api_command(this, decodedobject, socket);
         if (orchestration_handled === true)
+           {
+           return;
+           } // if
+
+        let query_handled = await handle_readonly_api_command(this, decodedobject, socket);
+        if (query_handled === true)
            {
            return;
            } // if

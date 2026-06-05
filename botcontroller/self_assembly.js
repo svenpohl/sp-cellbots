@@ -50,22 +50,23 @@ this.blockState = [];           // reminds current index of each block (e.g. how
 
 addsignal ( caller, signal )
 {
-  
   this.signals.add(signal);
   
-if ( signal == "FIN" ) 
-   {
-   // console.log("Finish Morph Process!");
-   caller.notify_frontend_console("Finish morph process!");
-   this.assembly_status = 0;
-   
-   // Notify caller that the morph sequence has finished (all ACKs received)
-   // This allows the botcontroller to persist final positions/orientations from morphLog
-   if (typeof caller.onMorphSequenceFinished === "function")
-      {
-      caller.onMorphSequenceFinished();
-      }
-   }
+  // Prüfe ob ALLE FIN-Signale aus signal_botids empfangen wurden
+  if ( String(signal).startsWith("FIN") && caller.signal_botids )
+     {
+     let all_fin = Object.keys(caller.signal_botids).filter(k => String(k).startsWith("FIN"));
+     let all_received = all_fin.every(k => this.signals.has(k));
+     if (all_received)
+        {
+        caller.notify_frontend_console("Finish morph process!");
+        this.assembly_status = 0;
+        if (typeof caller.onMorphSequenceFinished === "function")
+           {
+           caller.onMorphSequenceFinished();
+           }
+        }
+     }
    
 } // addsignal ( signal )
 
