@@ -65,11 +65,20 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.7.9**  
+Current version: **1.8**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.8** (07.06.2026)  
+**NightWatch – watch_region auto-ping system for world model consistency**  
+  - `watch_region`: Create/update observed 3D regions with periodic random pings  
+  - `create_watch_region`: High-level shortcut with auto-ID and outer_bots filter  
+  - `ping_position` / `ping_status`: Ping a coordinate and verify bot presence  
+  - `watch_region poll`: Detects BOT_MISSING, UNEXPECTED_BOT changes vs snapshot  
+  - Auto-snapshot on region creation, masterbot excluded from pings  
+  - `outer_bots`: Only monitors cluster-surface bots (<6 neighbors)
 
 - **1.7.9** (05.06.2026)  
 **ping_position / ping_status API – BotController world model improvements**  
