@@ -38,11 +38,16 @@ Available commands:
     - bounding_box: object
 - get_masterbot
   Returns the current Masterbot reference data used by the BotController.
+  params:
+    - (no parameters)
   returns:
     - answer: api_get_masterbot
+    - id: string
+    - name: string
+    - connected: boolean
+    - connection_slot: string
     - position: {x,y,z}
     - orientation: {x,y,z}
-    - connection_slot: string
 - get_scan_state
   Returns the current running state of Scan Level 1 and Scan Level 2.
   returns:
@@ -645,6 +650,51 @@ Available commands:
     - status: number
     - bot_found: boolean
     - response: object|null
+- watch_region
+  Manages observed 3D regions for the NightWatch auto-ping system.
+  Actions: set, get, list, poll, addbot, removebot.
+  When action=set with coordinates, creates or updates a region.
+  Parameters can be passed positionally or as key=value pairs.
+  The NightWatch thread pings random/iterative coordinates inside
+  the region at the given interval_ms and logs all results.
+  params (positional mode):
+    - action: set|get|list|poll|addbot|removebot
+    - id: string (required for set/get/addbot/removebot)
+    - x1,y1,z1,x2,y2,z2: region bounding box (set only)
+    - interval_ms: ping interval in ms (set only, default 5000)
+    - mode: random|iteration (set only, default iteration)
+    - watch_action: active|inactive|remove|snapshot (set only)
+  params (key=value mode for set):
+    - action: set
+    - id: string
+    - action=active|inactive|remove|snapshot
+    - interval_ms=number
+    - mode=random|iteration
+    - wakeup=on|off
+  returns:
+    - answer: api_watch_region
+    - info: string
+    - region_id: string|null
+    - region: object|null
+    - count: number|null
+- create_watch_region
+  High-level shortcut to create a NightWatch region with automatic ID.
+  type=box generates all cells in the bounding box,
+  type=outer_bots generates only edge cells of the bounding box.
+  Default interval is 5000ms, mode iteration, action active.
+  params:
+    - x1: number
+    - y1: number
+    - z1: number
+    - x2: number
+    - y2: number
+    - z2: number
+    - type: box|outer_bots (default box)
+  returns:
+    - answer: api_create_watch_region
+    - region_id: string
+    - bot_count: number
+    - type: string
 - poll_masterbot_queue
   Triggers one explicit pop cycle from the Masterbot response queue.
   returns:

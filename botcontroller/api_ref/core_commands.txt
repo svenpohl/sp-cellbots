@@ -98,8 +98,12 @@ node api.js recalibrate_bot_addresses
 node api.js get_bots_in_region 0 1 0 20 20 20
 -> Quick scan of all bots above y=0
 
-node api.js batch <file.json>
--> Execute multiple move commands sequentially from a JSON file
+node api.js ping_position <x> <y> <z>
+-> Ping a coordinate (like scan) and register the bot if found.
+   Use 'ping_status <tmpid>' to check the result.
+
+node api.js ping_status <tmpid>
+-> Check if a previous ping_position found a bot.
 
 ---
 
