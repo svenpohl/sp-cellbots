@@ -33,6 +33,7 @@ const WebSocket = require('ws');
 const http      = require('http');
 
 const self_assembly   = require('./self_assembly'); 
+const NightWatch      = require('./libs/nightwatch'); 
 const signature_class = require('../common/signature/signature_class'); 
 const { console_format_log } = require('../common/system_utils');
 const { parse_config_file } = require('../common/config_parser');
@@ -234,6 +235,8 @@ class botcontroller_class
 constructor() 
    {            
    this.self_assembly_obj   = new self_assembly( );
+   this.nightwatch          = new NightWatch(this);
+   this.nightwatch.start();
    this.signature_class_obj = new signature_class( );
    
       
@@ -7331,72 +7334,72 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
          let p_addr = String(p_info.addr ?? "");
          // Check if bot already exists by ID (NOT by position)
          let existing_by_id = this.get_bot_by_id(msgarray.botid, this.bots);
+         let ovx = 0, ovy = 0, ovz = 0;
+         // Orientation: use STL info like scan does (calc_target_orientation_vector)
+         let src_slot = String(msgarray.sourceslot ?? "").toUpperCase();
+         if (src_slot !== "T" && src_slot !== "D")
+            {
+            // Horizontal slot – derive orientation from STL bot
+            let stl_idx = null;
+            let stl_x = 0, stl_y = 0, stl_z = 0;
+            let stl_vx = 0, stl_vy = 0, stl_vz = 0;
+            let p_stl_id = String(p_info.stl_id ?? "");
+            if (p_stl_id === "MB")
+               {
+               stl_x = Number(this.mb.x); stl_y = Number(this.mb.y); stl_z = Number(this.mb.z);
+               stl_vx = Number(this.mb.vx); stl_vy = Number(this.mb.vy); stl_vz = Number(this.mb.vz);
+               } else
+                 {
+                 stl_idx = this.botindex[p_stl_id];
+                 if (stl_idx !== undefined)
+                    {
+                    stl_x = Number(this.bots[stl_idx].x);
+                    stl_y = Number(this.bots[stl_idx].y);
+                    stl_z = Number(this.bots[stl_idx].z);
+                    stl_vx = Number(this.bots[stl_idx].vector_x);
+                    stl_vy = Number(this.bots[stl_idx].vector_y);
+                    stl_vz = Number(this.bots[stl_idx].vector_z);
+                    }
+                 }
+            if (stl_idx !== undefined || p_stl_id === "MB")
+               {
+               let vec = this.calc_target_orientation_vector(stl_x, stl_y, stl_z, p_x, p_y, p_z, src_slot);
+               if (vec) { ovx = Number(vec.vx); ovy = Number(vec.vy); ovz = Number(vec.vz); }
+               }
+            } else
+              {
+              // T/D slot – same as scan: calc_target_orientation_vector_relative(stl_vx/y/z, msgarray.vx/y/z)
+              let p_stl_id2 = String(p_info.stl_id ?? "");
+              let rvec = null;
+              if (p_stl_id2 === "MB")
+                 {
+                 rvec = this.calc_target_orientation_vector_relative(
+                     Number(this.mb.vx), Number(this.mb.vy), Number(this.mb.vz),
+                     Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
+                 } else
+                   {
+                   let si = this.botindex[p_stl_id2];
+                   if (si !== undefined)
+                      {
+                      rvec = this.calc_target_orientation_vector_relative(
+                          Number(this.bots[si].vector_x), Number(this.bots[si].vector_y), Number(this.bots[si].vector_z),
+                          Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
+                      }
+                   }
+              if (rvec) { ovx = Number(rvec.vx); ovy = Number(rvec.vy); ovz = Number(rvec.vz); }
+              }
+
          if (existing_by_id !== null && existing_by_id !== undefined)
             {
-            // Update existing bot's position and adress
+            // Update existing bot's position, orientation and adress
             this.bots[existing_by_id].x = p_x;
             this.bots[existing_by_id].y = p_y;
             this.bots[existing_by_id].z = p_z;
-            // Orientation: use STL info like scan does (calc_target_orientation_vector)
-            let ovx = 0, ovy = 0, ovz = 0;
-            let src_slot = String(msgarray.sourceslot ?? "").toUpperCase();
-            if (src_slot !== "T" && src_slot !== "D")
-               {
-               // Horizontal slot – derive orientation from STL bot
-               let stl_idx = null;
-               let stl_x = 0, stl_y = 0, stl_z = 0;
-               let stl_vx = 0, stl_vy = 0, stl_vz = 0;
-               let p_stl_id = String(p_info.stl_id ?? "");
-               if (p_stl_id === "MB")
-                  {
-                  stl_x = Number(this.mb.x); stl_y = Number(this.mb.y); stl_z = Number(this.mb.z);
-                  stl_vx = Number(this.mb.vx); stl_vy = Number(this.mb.vy); stl_vz = Number(this.mb.vz);
-                  } else
-                    {
-                    stl_idx = this.botindex[p_stl_id];
-                    if (stl_idx !== undefined)
-                       {
-                       stl_x = Number(this.bots[stl_idx].x);
-                       stl_y = Number(this.bots[stl_idx].y);
-                       stl_z = Number(this.bots[stl_idx].z);
-                       stl_vx = Number(this.bots[stl_idx].vector_x);
-                       stl_vy = Number(this.bots[stl_idx].vector_y);
-                       stl_vz = Number(this.bots[stl_idx].vector_z);
-                       }
-                    }
-               if (stl_idx !== undefined || p_stl_id === "MB")
-                  {
-                  let vec = this.calc_target_orientation_vector(stl_x, stl_y, stl_z, p_x, p_y, p_z, src_slot);
-                  if (vec) { ovx = Number(vec.vx); ovy = Number(vec.vy); ovz = Number(vec.vz); }
-                  }
-               } else
-                 {
-                 // T/D slot – same as scan: calc_target_orientation_vector_relative(stl_vx/y/z, msgarray.vx/y/z)
-                 let p_stl_id2 = String(p_info.stl_id ?? "");
-                 let rvec = null;
-                 if (p_stl_id2 === "MB")
-                    {
-                    rvec = this.calc_target_orientation_vector_relative(
-                        Number(this.mb.vx), Number(this.mb.vy), Number(this.mb.vz),
-                        Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
-                    } else
-                      {
-                      let si = this.botindex[p_stl_id2];
-                      if (si !== undefined)
-                         {
-                         rvec = this.calc_target_orientation_vector_relative(
-                             Number(this.bots[si].vector_x), Number(this.bots[si].vector_y), Number(this.bots[si].vector_z),
-                             Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0));
-                         }
-                      }
-                 if (rvec) { ovx = Number(rvec.vx); ovy = Number(rvec.vy); ovz = Number(rvec.vz); }
-                 }
-
             this.bots[existing_by_id].vector_x = ovx;
             this.bots[existing_by_id].vector_y = ovy;
             this.bots[existing_by_id].vector_z = ovz;
             this.bots[existing_by_id].adress = p_addr;
-            if (logging) console.log("Ping updated bot: " + msgarray.botid + " to " + p_x + "," + p_y + "," + p_z);
+            Logger.log("Ping updated bot: " + msgarray.botid + " to " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
             } else
               {
               // New bot – register it
@@ -7409,7 +7412,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
               );
               bot_obj.adress = p_addr;
               this.register_bot(bot_obj);
-              if (logging) console.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z);
+              Logger.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
               }
             // Refresh frontend after bot update/registration
             this.apicall_gui_refresh();
@@ -7423,9 +7426,10 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
         }
    
    
-   // Register new detected Cellbot to internals structure...
+   // Register new detected Cellbot (scan-only, skip for ping)
+   if (this.scan_waiting_info[bottmpid])
+      {
    let bot_class_mini_obj = new bot_class_mini();
- 
    let target_x      = this.scan_waiting_info[bottmpid]['x'];
    let target_y      = this.scan_waiting_info[bottmpid]['y'];
    let target_z      = this.scan_waiting_info[bottmpid]['z'];
@@ -7567,6 +7571,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
    
 
    
+      } // end if scan_waiting_info
    } // CMD_RINFO
    
    
@@ -8662,38 +8667,17 @@ const slotnames = ['f','r','b','l','t','d'];
 
      if (this.scan_status == 1)
         {
-        
         this.scan_step();
-        
-        
-        
-        // Pop...
-        let param = "";              
-        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
-                    
-        this.client.write(cmd_pop);
-                
         } /// if (scan_status == 1)
-
 
      if (this.scan_status_lvl2 == 1)
         {
         this.scan_step_lvl2();
-
-        let param = "";
-        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
-
-        this.client.write(cmd_pop);
         } /// if (scan_status_lvl2 == 1)
 
      if (this.scan_status_radio == 1)
         {
         this.scan_step_radio();
-
-        let param = "";
-        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
-
-        this.client.write(cmd_pop);
         } /// if (scan_status_radio == 1)
 
      
@@ -8723,16 +8707,15 @@ const slotnames = ['f','r','b','l','t','d'];
                 
                }
         
-        // Pop...
-        let param = "";              
-        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\""+param+"\" }\n";
-                    
-        this.client.write(cmd_pop);
-        
         } // if (assembly_status == 1)
     
         
-     this.threadcounter++;         
+     this.threadcounter++;
+
+     // Immer Pop, damit Nachrichten (RINFO, RALIFE, etc.) aus ClusterSim-Queue geholt werden
+     let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\"\" }\n";
+     this.client.write(cmd_pop);
+         
      } // if (0)    
          
      } // if (MASTERBOT_CONNECTED)
@@ -9154,6 +9137,32 @@ async handleAPIMessage_internal(message, socket) {
             answer = JSON.stringify({ ok: true, answer: "api_description", text: fileContent }) + "\n";
             socket.write(answer, () => { socket.end(); });
             return;
+           } // if
+
+        // NightWatch routing
+        if (decodedobject.cmd === 'watch_region')
+           {
+           let action = String(decodedobject.action ?? "").trim().toLowerCase();
+           let obj = null;
+           if (action === "set") {
+             let wa = decodedobject.watch_action || decodedobject.action || "";
+             obj = this.nightwatch.set(decodedobject.id, decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2, decodedobject.interval_ms, decodedobject.mode, wa);
+           }
+           else if (action === "addbot") obj = this.nightwatch.addbot(decodedobject.id, decodedobject.x, decodedobject.y, decodedobject.z);
+           else if (action === "removebot") obj = this.nightwatch.removebot(decodedobject.id, decodedobject.x, decodedobject.y, decodedobject.z);
+           else if (action === "get") obj = this.nightwatch.get(decodedobject.id);
+           else if (action === "poll") obj = this.nightwatch.poll(decodedobject.id);
+           else obj = this.nightwatch.list();
+           answer = JSON.stringify(obj) + "\n";
+           socket.write(answer, () => { socket.end(); });
+           return;
+           } // if
+        if (decodedobject.cmd === 'create_watch_region')
+           {
+           let obj = this.nightwatch.create(decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2, decodedobject.type);
+           answer = JSON.stringify(obj) + "\n";
+           socket.write(answer, () => { socket.end(); });
+           return;
            } // if
 
         let ack_handled = await handle_ack_api_command(this, decodedobject, socket);

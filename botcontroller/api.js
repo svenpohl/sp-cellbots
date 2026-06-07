@@ -322,6 +322,45 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "watch_region") {
+    let action = process.argv[3] ?? "list";
+    let obj = { cmd: "watch_region", action: action };
+    if (action === "set" || action === "get" || action === "addbot" || action === "removebot") obj.id = process.argv[4] ?? "";
+    if (action === "set") {
+      // Prüfe ob Parameter als Key=Value übergeben wurden
+      let arg5 = process.argv[5] ?? "";
+      if (arg5 === "action" || arg5 === "interval_ms" || arg5 === "mode" || arg5 === "wakeup" || arg5 === "interval") {
+        // Key=Value Modus
+        for (let i = 5; i < process.argv.length; i += 2) {
+          let key = process.argv[i];
+          let val = process.argv[i + 1];
+          if (key === "action") obj.watch_action = val;
+          else if (key === "mode") obj.mode = val;
+          else if (key === "wakeup") obj.wakeup = val;
+          if (key === "interval_ms" || key === "interval") obj.interval_ms = Number(val ?? 0);
+        }
+      } else {
+        obj.x1 = Number(process.argv[5] ?? 0); obj.y1 = Number(process.argv[6] ?? 0); obj.z1 = Number(process.argv[7] ?? 0);
+        obj.x2 = Number(process.argv[8] ?? 0); obj.y2 = Number(process.argv[9] ?? 0); obj.z2 = Number(process.argv[10] ?? 0);
+        obj.interval_ms = Number(process.argv[11] ?? 0); obj.mode = process.argv[12] ?? ""; obj.watch_action = process.argv[13] ?? "";
+      }
+    }
+    if (action === "addbot" || action === "removebot") {
+      obj.x = Number(process.argv[5] ?? 0); obj.y = Number(process.argv[6] ?? 0); obj.z = Number(process.argv[7] ?? 0);
+    }
+    if (action === "poll") obj.id = process.argv[4] ?? "";
+    return obj;
+  } // if
+
+  if (cmd == "create_watch_region") {
+    return {
+      cmd: "create_watch_region",
+      x1: Number(process.argv[3] ?? 0), y1: Number(process.argv[4] ?? 0), z1: Number(process.argv[5] ?? 0),
+      x2: Number(process.argv[6] ?? 0), y2: Number(process.argv[7] ?? 0), z2: Number(process.argv[8] ?? 0),
+      type: process.argv[9] ?? "box"
+    };
+  } // if
+
   if (cmd == "get_neighbors") {
     return {
       cmd: "get_neighbors",
@@ -1037,6 +1076,17 @@ function main() {
             count: responseObject.count,
             bots: responseObject.bots
           };
+        } else if (answer === "api_get_masterbot") {
+          result = {
+            ok: true,
+            result: "api_get_masterbot",
+            id: responseObject.id ?? "",
+            name: responseObject.name ?? "",
+            connected: responseObject.connected === true,
+            connection_slot: responseObject.connection_slot ?? "",
+            position: responseObject.position ?? null,
+            orientation: responseObject.orientation ?? null
+          };
         } else if (answer === "api_get_bot_info") {
           result = {
             ok: true,
@@ -1126,6 +1176,29 @@ function main() {
             bot_found: responseObject.bot_found === true,
             timed_out: responseObject.timed_out === true,
             response: responseObject.response ?? null
+          };
+        } else if (answer === "api_watch_region") {
+          result = {
+            ok: true,
+            result: "api_watch_region",
+            info: responseObject.info ?? "",
+            region_id: responseObject.region_id ?? null,
+            region: responseObject.region ?? null,
+            regions: responseObject.regions ?? null,
+            count: responseObject.count ?? null,
+            bot_count: responseObject.bot_count ?? null,
+            changed: responseObject.changed ?? null,
+            changes: responseObject.changes ?? null,
+            error: responseObject.error ?? null
+          };
+        } else if (answer === "api_create_watch_region") {
+          result = {
+            ok: true,
+            result: "api_create_watch_region",
+            info: responseObject.info ?? "",
+            region_id: responseObject.region_id ?? null,
+            bot_count: responseObject.bot_count ?? null,
+            type: responseObject.type ?? null
           };
         } else {
           result = { ok: true, result: answer };
