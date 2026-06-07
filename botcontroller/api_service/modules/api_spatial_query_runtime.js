@@ -425,9 +425,9 @@ let tmpid = "PING" + controller.ping_seq;
 if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
 
 // STL-ID berechnen (second-to-last bot) via get_next_target_coor
-let stl_id = "";
-let path_to_stl = adr.length > 1 ? adr.slice(0, -1) : "";
-if (path_to_stl) {
+let stl_id = "MB";
+if (adr.length > 1) {
+    let path_to_stl = adr.slice(0, -1);
     let cx = Number(controller.mb.x), cy = Number(controller.mb.y), cz = Number(controller.mb.z);
     for (let s = 0; s < path_to_stl.length; s++) {
         let cur = controller.bots.find(b => Number(b.x)===cx && Number(b.y)===cy && Number(b.z)===cz);
@@ -456,8 +456,13 @@ cmd = controller.sign(cmd);
 let cellbot_cmd = '{ "cmd":"push", "param":"' + cmd + '" }\n';
 if (controller.client && typeof controller.client.write === "function") {
     controller.client.write(cellbot_cmd);
+    // Pop, damit RINFO aus ClusterSim-Queue geholt und von handle_answer() verarbeitet wird
+    let cmd_pop = '{ "cmd":"pop", "param":"" }\n';
+    controller.client.write(cmd_pop);
 }
 
+const Logger = require('../../logger');
+Logger.log("Ping sent to (" + tx + "," + ty + "," + tz + ") adr='" + adr + "' tmpid=" + tmpid);
 return({
        ok: true,
        answer: "api_ping_position",
