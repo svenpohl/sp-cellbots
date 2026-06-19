@@ -110,6 +110,30 @@ Available commands:
     - answer: api_recalibrate_bot_addresses
     - count: number
     - changed_count: number
+- switch_bot_address
+  Switches a bot's primary address to an alternative route (short, detour, first, standard).
+  Useful for testing multi-route redundancy and hMB connectivity.
+  params:
+    - bot_id: string
+    - target: short|detour|first|standard
+  returns:
+    - answer: api_switch_bot_address
+    - old_adress: string
+    - new_adress: string
+    - changed: boolean
+- set_bot_address
+  Authoritatively sets a bot's address to an arbitrary value.
+  Useful for manually assigning routes (e.g. for hMBs) or overriding
+  a compromised/misrouted bot. Use recalibrate to recalculate later.
+  params:
+    - bot_id: string
+    - adress: string (e.g. "FFRBTL")
+  returns:
+    - answer: api_set_bot_address
+    - bot_id: string
+    - adress: string
+    - old_adress: string
+    - changed: boolean
 - diagnose_ack_route
   Diagnoses the target-side address and ALIFE/RALIFE return route for a hypothetical bot target pose without executing a move.
   params:
@@ -366,6 +390,21 @@ Available commands:
     - answer: api_probe_move_bot
     - possible: boolean
     - predicted_target: {x,y,z}
+- build_address
+  Calculates the mesh address between two arbitrary coordinates (bots must exist).
+  Useful for testing multi-slot routing and hMB connectivity.
+  params:
+    - x1: number (from)
+    - y1: number
+    - z1: number
+    - x2: number (to)
+    - y2: number
+    - z2: number
+  returns:
+    - answer: api_build_address
+    - found: boolean
+    - adress: string (e.g. "FFRBTL")
+    - hops: number
 - can_reach_position
   Performs a conservative surface check whether a target coordinate looks locally reachable.
   params:
@@ -620,12 +659,104 @@ Available commands:
     - answer: api_get_last_raw_cmds
     - raw_cmds: list
 - raw_cmd
-  Sends a raw OP-Code command directly to the Masterbot.
+  Sends a raw OP-Code command directly to the Masterbot or an ADC connector.
+  Supports three routing modes:
+    1) No connector + bot assigned to hMB → auto-routing via ADC
+    2) Connector parameter set → explicit routing via that connector
+    3) No connector + no assignment → legacy MasterBot (backward compatible)
   params:
     - value: string
+    - connector: optional string (e.g. "C0", "C1", "C2")
   returns:
     - answer: api_raw_cmd
     - accepted: boolean
+    - connector: string (if ADC was used)
+    - auto_routed: boolean (if auto-routing was triggered)
+    - target_bot: string (resolved bot ID)
+  examples:
+    - node api.js raw_cmd "FFFT#MOVE"                  → legacy (masterbot)
+    - node api.js raw_cmd "FFFT#MOVE" C0               → via connector C0
+    - node api.js raw_cmd "FFFT#MOVE"                  → auto-route if target bot is assigned
+
+- assign_bot_to_mb
+  Assigns a normal bot to a helper MasterBot (hMB).
+  The ADC stores the mapping for automatic connector routing.
+  params:
+    - bot_id: string
+    - hmb_id: string
+  returns:
+    - answer: api_assign_bot_to_mb
+    - ok: boolean
+    - hmb_id: string
+    - connector_id: string
+    - error: string (if failed)
+  examples:
+    - node api.js assign_bot_to_mb SB1 hMB2
+
+- get_assigned_bots
+  Lists all bot-to-hMB assignments stored in the ADC.
+  returns:
+    - answer: api_get_assigned_bots
+    - count: number
+    - assignments: object (bot_id → { hmb_id, connector_id, host, port, channel })
+  examples:
+    - node api.js get_assigned_bots
+
+- get_status_adc
+  Summarises the ADC domain configuration: which MBs/hMBs are configured,
+  their connector/position, and how many bots are assigned to each.
+  returns:
+    - answer: api_get_status_adc
+    - total_assigned: number
+    - domains: object (mb_id → { role, connector, position, assigned_bots })
+  examples:
+    - node api.js get_status_adc
+- disable_mb
+  Deactivates a helper MB. Primary MB (MB) cannot be disabled.
+  All bots assigned to this MB are reassigned to remaining active MBs.
+  params:
+    - mb_id: string (e.g. "hMB1", "hMB2")
+  returns:
+    - answer: api_disable_mb
+    - mb_id: string
+    - active: boolean
+    - reassigned: object
+  examples:
+    - node api.js disable_mb hMB2
+- enable_mb
+  Re-activates a helper MB. Bots in range may switch to it via proximity assignment.
+  params:
+    - mb_id: string (e.g. "hMB1", "hMB2")
+  returns:
+    - answer: api_enable_mb
+    - mb_id: string
+    - active: boolean
+    - reassigned: object
+  examples:
+    - node api.js enable_mb hMB2
+- generate_detour_address
+  Calculates an alternative (detour) return address for a bot via an intermediate bot.
+  Useful when the primary mesh route is blocked and a redundant path is needed.
+  The detour address is stored in the bot's adress_detour field.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_generate_detour_address
+    - bot_id: string
+    - adress_detour: string
+  examples:
+    - node api.js generate_detour_address B54
+- adc_assign_proximity
+  Reassigns all non-MB bots to the nearest MB/hMB based on Manhattan distance.
+  Bots that are already assigned to their nearest MB are not changed.
+  Useful after morphing to restore proximity-optimal ADC assignments.
+  returns:
+    - answer: api_adc_assign_proximity
+    - total_assigned: number
+    - changed: number
+    - assignments: object (bot_id → mb_id)
+  examples:
+    - node api.js adc_assign_proximity
 - ping_position
   Pings a coordinate by sending an INFO opcode via sign+push (like scan).
   If a bot responds, the world model is updated and frontend refreshed.
@@ -652,25 +783,13 @@ Available commands:
     - response: object|null
 - watch_region
   Manages observed 3D regions for the NightWatch auto-ping system.
-  Actions: set, get, list, poll, addbot, removebot.
-  When action=set with coordinates, creates or updates a region.
-  Parameters can be passed positionally or as key=value pairs.
-  The NightWatch thread pings random/iterative coordinates inside
-  the region at the given interval_ms and logs all results.
-  params (positional mode):
-    - action: set|get|list|poll|addbot|removebot
-    - id: string (required for set/get/addbot/removebot)
-    - x1,y1,z1,x2,y2,z2: region bounding box (set only)
-    - interval_ms: ping interval in ms (set only, default 5000)
-    - mode: random|iteration (set only, default iteration)
-    - watch_action: active|inactive|remove|snapshot (set only)
-  params (key=value mode for set):
-    - action: set
-    - id: string
-    - action=active|inactive|remove|snapshot
-    - interval_ms=number
-    - mode=random|iteration
-    - wakeup=on|off
+    watch_region set [id] [x1] [y1] [z1] [x2] [y2] [z2] [interval_ms] [mode] [action]
+    watch_region addbot [id] [x] [y] [z]
+    watch_region removebot [id] [x] [y] [z]
+    watch_region get [id]
+    watch_region poll [id]
+    watch_region list
+  All parameters for set are optional. Default interval 5000ms, mode iteration, action active.
   returns:
     - answer: api_watch_region
     - info: string
@@ -679,17 +798,10 @@ Available commands:
     - count: number|null
 - create_watch_region
   High-level shortcut to create a NightWatch region with automatic ID.
+    create_watch_region [x1] [y1] [z1] [x2] [y2] [z2] [type]
   type=box generates all cells in the bounding box,
   type=outer_bots generates only edge cells of the bounding box.
-  Default interval is 5000ms, mode iteration, action active.
-  params:
-    - x1: number
-    - y1: number
-    - z1: number
-    - x2: number
-    - y2: number
-    - z2: number
-    - type: box|outer_bots (default box)
+  Default interval 5000ms, mode iteration, action active.
   returns:
     - answer: api_create_watch_region
     - region_id: string

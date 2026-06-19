@@ -8,6 +8,8 @@ Important movement rule: In VK mode, a bot can only move if its F-side points in
 
 Important stacking rule: Always dismantle from top to bottom (highest bot first) and build from bottom to top (with ground contact at y=0). If you remove a bot that carries others, you will tear the cluster apart.
 
+Coordinate system: Centered at (0,0,0) on the primary MasterBot. The MB's F-slot points in +X direction (east). +Y points upward. +Z points backward into space (deep).
+
 ---
 
 API Commands (ordered by priority)
@@ -104,6 +106,17 @@ node api.js ping_position <x> <y> <z>
 
 node api.js ping_status <tmpid>
 -> Check if a previous ping_position found a bot.
+
+node api.js raw_cmd <opcode> [connector]
+-> Send a raw OP-Code. Optional connector (C0/C1/C2) for ADC routing.
+   If target bot is assigned to an hMB, auto-routes via that connector.
+   Without connector and no assignment: uses legacy MasterBot.
+
+node api.js assign_bot_to_mb <bot_id> <hmb_id>
+-> Assign a bot to a helper MasterBot for automatic connector routing.
+
+node api.js get_assigned_bots
+-> List all current bot-to-hMB assignments.
 
 ---
 
