@@ -13,6 +13,7 @@ structures.
 - **Rich API:** Numerous manipulation and diagnostic tools, optimized for LLM-driven control via Codex, Deepseek or Gemini CLI  
 - **Structure Morphing:** Support for `full_edge`, sequential and **parallel** VK morphing algorithms  
 - **Cryptographic Signatures:** ED25519-based message signing to protect against unauthorized access (pre-configured; generate your own keys before practical deployment)
+- **AccessDomainController (ADC):** Multi-MB infrastructure with primary and helper MasterBots, each connected via dedicated WebSocket connectors. Enables higher throughput, lower latency, redundancy, and automatic proximity-based bot-to-MB assignment.
 
 <table>
   <tr>
@@ -65,11 +66,24 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.8**  
+Current version: **1.9**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9** (19.06.2026)  
+**AccessDomainController (ADC) – Multi-MB infrastructure**  
+  - Legacy single-MasterBot replaced by primary MB + helper MBs (hMB1, hMB2)  
+  - Each MB connected via dedicated connector (shared/exclusive WebSocket slots)  
+  - Configuration via `config_mb.xml`  
+  - Parallel cluster scanning across all MBs for higher throughput  
+  - Automatic proximity-based bot-to-MB assignment (`adc_assign_proximity`)  
+  - Disable/enable MBs at runtime (`disable_mb`, `enable_mb`) with automatic bot redistribution  
+  - `adc_auto_assign_proximity` config flag for post-move reassignment  
+  - FullEdge BFS wavefront morphing fully operational over new ADC infrastructure  
+  - Vehicle kinematics morphing runs stably over ADC  
+  - New API: `generate_detour_address`, `adc_assign_proximity`, `disable_mb`, `enable_mb`
 
 - **1.8** (07.06.2026)  
 **NightWatch – watch_region auto-ping system for world model consistency**  
