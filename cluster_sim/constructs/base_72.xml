@@ -14,6 +14,108 @@
 </masterbot>
 
 <cell>
+  <id>SB1</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>3</x>
+    <y>1</y>
+    <z>1</z>
+    <vx>-1</vx>
+    <vy>0</vy>
+    <vz>0</vz>
+  </pos>
+  <mobility>true</mobility> 
+</cell>
+
+<!--
+<cell>
+  <id>SB2</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>4</x>
+    <y>1</y>
+    <z>1</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+  <mobility>true</mobility> 
+</cell>
+-->
+
+<!--
+<cell>
+  <id>C1</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>0</x>
+    <y>0</y>
+    <z>-1</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+</cell>
+
+<cell>
+  <id>C2</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>1</x>
+    <y>0</y>
+    <z>-1</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+</cell>
+
+
+<cell>
+  <id>C3</id>
+  <col>eeeeff</col>
+  <pos>
+      <x>2</x>
+    <y>0</y>
+    <z>-1</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+</cell>
+
+
+<cell>
+  <id>C4</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>0</x>
+    <y>0</y>
+    <z>1</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+</cell>
+-->
+
+<!--
+<cell>
+  <id>C5</id>
+  <col>eeeeff</col>
+  <pos>
+    <x>-1</x>
+    <y>0</y>
+    <z>0</z>
+    <vx>0</vx>
+    <vy>0</vy>
+    <vz>1</vz>
+  </pos>
+</cell>
+
+-->
+
+<cell>
   <id>B1</id>
   <col>eeeeff</col>
   <pos>
@@ -377,6 +479,7 @@
   </pos>
 </cell>
 
+<!-- -->
 <cell>
   <id>B30</id>
   <col>eeeeff</col>
@@ -389,6 +492,7 @@
     <vz>0</vz>
   </pos>
 </cell>
+
 
 <cell>
   <id>B31</id>
