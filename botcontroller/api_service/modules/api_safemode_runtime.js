@@ -1,3 +1,5 @@
+const Logger = require('../../logger');
+
 function apicall_get_bot_by_id(controller, bot_id)
 {
 let botindex = controller.get_bot_by_id(bot_id, controller.bots);
@@ -151,7 +153,7 @@ new_adress = controller.get_mb_returnaddr(
                                           },
                                           controller.bots,
                                           [],
-                                          { routing_mode: normalized_mode }
+                                          { routing_mode: normalized_mode, exclude_masterbots: true }
                                           );
 
 controller.bots[botindex].adress_short = new_adress;
@@ -395,9 +397,42 @@ return({
 } // apicall_switch_bot_address()
 
 
+//
+// apicall_set_bot_address()
+//
+function apicall_set_bot_address(controller, bot_id, adress)
+{
+if (!bot_id || String(bot_id).trim() === "")
+   {
+   return({ ok: false, answer: "api_set_bot_address", error: "BOT_ID_EMPTY" });
+   } // if
+
+let bot_index = controller.get_bot_by_id(bot_id, controller.bots);
+if (bot_index === null || bot_index === undefined)
+   {
+   return({ ok: false, answer: "api_set_bot_address", error: "BOT_NOT_FOUND", bot_id: bot_id });
+   } // if
+
+let old_adress = String(controller.bots[bot_index].adress ?? "");
+controller.bots[bot_index].adress = String(adress ?? "");
+
+Logger.log("set_bot_address: " + bot_id + " old=" + old_adress + " new=" + adress);
+
+return({
+       ok: true,
+       answer: "api_set_bot_address",
+       bot_id: bot_id,
+       adress: adress,
+       old_adress: old_adress,
+       changed: (old_adress !== String(adress ?? ""))
+       });
+} // apicall_set_bot_address()
+
+
 module.exports = {
                  apicall_get_bot_by_id,
                  apicall_switch_bot_address,
+                 apicall_set_bot_address,
                  apicall_get_safe_adress,
                  apicall_recalibrate_bot_address,
                  apicall_recalibrate_bot_addresses,

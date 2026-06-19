@@ -133,7 +133,15 @@ if (payload_bot_id)
                                             );
    } // if
 
-raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
+// ADC-Routing: Check if bot is assigned to a connector
+let grabConnector = "";
+if (controller.accessDomainController) {
+    let connInfo = controller.accessDomainController.adc_getConnectorForBot(bot_id);
+    if (connInfo) {
+        grabConnector = connInfo.connector_id;
+    }
+}
+raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, grabConnector);
 controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
 controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
 
@@ -264,7 +272,15 @@ if (String(payload_bot_id ?? "").trim() != "")
    controller.apicall_clear_payload_link(bot_id);
    } // if
 
-raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
+// ADC-Routing: Check if bot is assigned to a connector
+let releaseConnector = "";
+if (controller.accessDomainController) {
+    let connInfo = controller.accessDomainController.adc_getConnectorForBot(bot_id);
+    if (connInfo) {
+        releaseConnector = connInfo.connector_id;
+    }
+}
+raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, releaseConnector);
 controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
 controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
 

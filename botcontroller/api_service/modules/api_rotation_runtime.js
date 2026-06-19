@@ -100,6 +100,7 @@ return(true);
 function apicall_rotate_bot(controller, bot_id, direction)
 {
 let normalized_direction = String(direction ?? "").trim().toUpperCase();
+let normalized_bot_id = String(bot_id ?? "").trim();
 let safe_prepare_ret = controller.apicall_apply_safe_mode_for_bot(bot_id);
 let bot_snapshot = controller.apicall_get_bot_snapshot(bot_id);
 
@@ -225,7 +226,15 @@ if (planned_raw_cmd)
                                       );
       } // if
 
-   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
+   // ADC-Routing: Check if bot is assigned to a connector
+   let rotationConnector = "";
+   if (controller.accessDomainController) {
+       let connInfo = controller.accessDomainController.adc_getConnectorForBot(normalized_bot_id);
+       if (connInfo) {
+           rotationConnector = connInfo.connector_id;
+       }
+   }
+   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, rotationConnector);
    controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
    controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
 
@@ -384,7 +393,15 @@ if (planned_raw_cmd)
                                       );
       } // if
 
-   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
+   // ADC-Routing: Check if bot is assigned to a connector
+   let rotationConnector = "";
+   if (controller.accessDomainController) {
+       let connInfo = controller.accessDomainController.adc_getConnectorForBot(normalized_bot_id);
+       if (connInfo) {
+           rotationConnector = connInfo.connector_id;
+       }
+   }
+   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, rotationConnector);
    controller.append_api_raw_cmd_log(planned_raw_cmd, normalized_bot_id, raw_ret.accepted ?? false);
    controller.append_api_bot_history(normalized_bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
 

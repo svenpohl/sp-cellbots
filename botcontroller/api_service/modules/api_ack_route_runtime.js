@@ -35,7 +35,8 @@ for (let i = 0; i < controller.bots.length; i++)
                    vector_y: Number(bot.vector_y),
                    vector_z: Number(bot.vector_z),
                    adress: bot.adress,
-                   color: bot.color
+                   color: bot.color,
+                   masterbot: Number(bot.masterbot ?? 0)
                    });
     } // for
 
@@ -447,7 +448,8 @@ for (let i = 0; i < bots_tmp_ack.length; i++)
                                                         z: Number(bots_tmp_ack[i].z)
                                                         },
                                                         bots_tmp_ack,
-                                                        []
+                                                        [],
+                                                        { exclude_masterbots: true }
                                                         );
 
     if (String(bots_tmp_ack[i].adress ?? "").trim() == "")

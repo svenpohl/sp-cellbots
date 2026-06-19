@@ -435,7 +435,8 @@ controller.bots[payload_index].vector_z = Number(payload_orientation_target.z);
 controller.bots[payload_index].adress = controller.get_mb_returnaddr(
                                                                {x:controller.mb.x, y:controller.mb.y, z:controller.mb.z },
                                                                {x:payload_target.x, y:payload_target.y, z:payload_target.z },
-                                                               controller.bots
+                                                               controller.bots, [],
+                                                               { exclude_masterbots: true }
                                                                );
 
 const events = [];

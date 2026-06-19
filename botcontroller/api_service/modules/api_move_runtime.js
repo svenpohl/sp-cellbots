@@ -1,3 +1,5 @@
+const Logger = require('../../logger');
+
 function apicall_can_reach_position(controller, bot_id, x, y, z)
 {
 let botindex = controller.get_bot_by_id(bot_id, controller.bots);
@@ -591,6 +593,7 @@ let carried_payload_bot_id = controller.apicall_get_carried_payload_bot_id(bot_i
 let excluded_bot_ids = [];
 let should_execute_move = (execute_move === true);
 let live_botindex = null;
+let moveConnector = "";
 let send_address = "";
 let mobility_mode = String(controller?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
 let normalized_goal_orientation = null;
@@ -711,11 +714,11 @@ if (path_ret.path_found !== true)
           });
     } // if
 
-// Sicherheitscheck: path_ret.path muss ein Array mit mindestens 2 Elementen sein,
-// sonst können translate_path_to_primitive_paths und calc_move_*_cmds nicht arbeiten.
-// (Der path_found-check oben garantiert nicht, dass path_ret.path ein Array ist,
-//  da der Path-Planner für hybrid_kinematics/vehicle_kinematics ein Objekt
-//  mit .states/.states_full/.path zurückgeben kann.)
+// Safety check: path_ret.path must be an array with at least 2 elements,
+// otherwise translate_path_to_primitive_paths and calc_move_*_cmds cannot work.
+// (The path_found check above does not guarantee that path_ret.path is an array,
+//  since the path planner for hybrid_kinematics/vehicle_kinematics may return an object
+//  with .states/.states_full/.path.)
 if (!Array.isArray(path_ret.path) || path_ret.path.length < 2)
    {
    return({
@@ -870,11 +873,24 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
 
    if (ack_botindex != null)
       {
+      // For assigned bots: retaddr to hMB instead of legacy MB
+      let ack_mb_origin = controller.apicall_get_bot_origin(bot_id);
+      let ack_mb_pos = {
+          x: Number(ack_mb_origin.x),
+          y: Number(ack_mb_origin.y),
+          z: Number(ack_mb_origin.z)
+      };
+
       try
          {
       bots_tmp_ack[ack_botindex].x = target_x;
       bots_tmp_ack[ack_botindex].y = target_y;
       bots_tmp_ack[ack_botindex].z = target_z;
+      // Also update orientation to target orientation so get_mb_returnaddr()
+      // uses correct slot directions for BFS routing from the target position.
+      bots_tmp_ack[ack_botindex].vector_x = Number(ack_target_orientation.x);
+      bots_tmp_ack[ack_botindex].vector_y = Number(ack_target_orientation.y);
+      bots_tmp_ack[ack_botindex].vector_z = Number(ack_target_orientation.z);
 
       for (let b = 0; b < bots_tmp_ack.length; b++)
           {
@@ -889,7 +905,8 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
                                                            {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
                                                            {x: bots_tmp_ack[b].x, y: bots_tmp_ack[b].y, z: bots_tmp_ack[b].z},
                                                            bots_tmp_ack,
-                                                           cleanedBlockedBots
+                                                           cleanedBlockedBots,
+                                                           { exclude_masterbots: true }
                                                            );
           } // for
 
@@ -936,7 +953,23 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
                                                                                  );
          } // if
 
-      if (
+      // PRIMARY: BFS return path directly to the responsible MB (ack_mb_pos).
+      // Finds the shortest path and is guaranteed to end at the new MB, not the legacy one.
+      if (ack_retaddr == "")
+         {
+         ack_retaddr = controller.get_mb_returnaddr(
+                                                    {x: target_x, y: target_y, z: target_z},
+                                                    {x: Number(ack_mb_pos.x), y: Number(ack_mb_pos.y), z: Number(ack_mb_pos.z)},
+                                                    bots_tmp_ack,
+                                                    [],
+                                                    { exclude_masterbots: true }
+                                                    );
+         } // if
+
+      Logger.log("[DEBUG ack_retaddr] bot_id=" + bot_id + " target=(" + target_x + "," + target_y + "," + target_z + ") ack_mb_pos=(" + ack_mb_pos.x + "," + ack_mb_pos.y + "," + ack_mb_pos.z + ") ack_retaddr=[" + ack_retaddr + "] ack_target_orientation=(" + ack_target_orientation.x + "," + ack_target_orientation.y + "," + ack_target_orientation.z + ")");
+
+      // FALLBACK 1: STL-based retaddr (only if BFS found no path)
+      if (ack_retaddr == "" &&
           legacy_move_ret &&
           typeof legacy_move_ret.final_lastanchor == "string" &&
           legacy_move_ret.final_lastanchor != "" &&
@@ -960,7 +993,7 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
          if (stl_index !== undefined)
             {
             let stl_addr = String(bots_tmp_ack[stl_index].adress ?? "").trim();
-            let masterbot_key = controller.getKey_3d(Number(controller.mb.x), Number(controller.mb.y), Number(controller.mb.z));
+            let masterbot_key = controller.getKey_3d(Number(ack_mb_pos.x), Number(ack_mb_pos.y), Number(ack_mb_pos.z));
 
             ack_stl_debug.stl_id = bots_tmp_ack[stl_index].id ?? "";
             ack_stl_debug.stl_addr = stl_addr;
@@ -1003,20 +1036,10 @@ if (typeof planned_movecmds_legacy == "string" && planned_movecmds_legacy.trim()
                                                                          );
          } // if
 
-      if (ack_retaddr == "")
-         {
-         ack_retaddr = controller.get_mb_returnaddr(
-                                                    {x: target_x, y: target_y, z: target_z},
-                                                    {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
-                                                    bots_tmp_ack,
-                                                    []
-                                                    );
-         } // if
-
       if (ack_retaddr == "" && ack_target_addr != "")
          {
          let botindex_map_ack = controller.apicall_build_botindex_map_for_bots(bots_tmp_ack);
-         let masterbot_key = controller.getKey_3d(Number(controller.mb.x), Number(controller.mb.y), Number(controller.mb.z));
+         let masterbot_key = controller.getKey_3d(Number(ack_mb_pos.x), Number(ack_mb_pos.y), Number(ack_mb_pos.z));
 
          ack_retaddr = controller.apicall_get_inverse_address_for_bots(
                                                                        masterbot_key,
@@ -1079,7 +1102,14 @@ if (should_execute_move === true && planned_raw_cmd)
                                       );
       } // if
 
-   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd);
+   // ADC-Routing: Check if bot is assigned to a connector
+   if (controller.accessDomainController) {
+       let connInfo = controller.accessDomainController.adc_getConnectorForBot(bot_id);
+       if (connInfo) {
+           moveConnector = connInfo.connector_id;
+       }
+   }
+   raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, moveConnector);
    controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
    controller.append_api_bot_history(bot_id, "raw_cmd", { value: planned_raw_cmd }, { ok: raw_ret.ok, answer: raw_ret.answer, accepted: raw_ret.accepted ?? false });
 
@@ -1324,7 +1354,7 @@ function apicall_diagnose_move_bot_to(controller, bot_id, x, y, z, goal_orientat
 {
 let ret = apicall_move_bot_to(controller, bot_id, x, y, z, false, goal_orientation);
 
-// Prüfe ob der Move den Cluster splitten würde
+// Check if the move would split the cluster
 let split_check = controller.apicall_would_split_cluster(bot_id);
 if (split_check && split_check.ok === true)
    {

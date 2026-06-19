@@ -354,6 +354,31 @@ try {
     if (neigh_ret && neigh_ret.neighbors) neighbors = neigh_ret.neighbors;
     } catch(e) { /* ignore */ }
 
+// Masterbot-Rolle bestimmen
+const mbRole = Number(bot.masterbot ?? 0);
+const masterbotStr = mbRole === 0 ? "no" : (mbRole === 1 ? "MasterBot" : "helperMasterbot");
+
+// Determine connector from ADC (two ways):
+// 1. Bot is itself an hMB → connector from helper_masterbots
+// 2. Bot is assigned to an hMB → connector from botMap
+let connectorId = "";
+if (controller.accessDomainController) {
+    // Check if the bot itself is a MasterBot (for MB/hMB1/hMB2)
+    if (controller.accessDomainController.helper_masterbots) {
+        let hmb = controller.accessDomainController.helper_masterbots[String(bot.id).trim()];
+        if (hmb && hmb.type === "masterbot" && hmb.connector_id) {
+            connectorId = hmb.connector_id;
+        }
+    }
+    // Check if the bot is assigned to an hMB (for assigned bots like SB1)
+    if (!connectorId && controller.accessDomainController.botMap) {
+        let assignment = controller.accessDomainController.botMap[String(bot.id).trim()];
+        if (assignment && assignment.connector_id) {
+            connectorId = assignment.connector_id;
+        }
+    }
+}
+
 return({
        ok: true,
        answer: "api_get_bot_info",
@@ -373,7 +398,9 @@ return({
        adress_short: String(bot.adress_short ?? ""),
        adress_detour: String(bot.adress_detour ?? ""),
        carried_payload_bot_id: carried_payload,
-       neighbors: neighbors
+       neighbors: neighbors,
+       masterbot: masterbotStr,
+       connector: connectorId
        });
 } // apicall_get_bot_info()
 
@@ -385,7 +412,7 @@ let tx = Number(x), ty = Number(y), tz = Number(z);
 let adr = controller.get_mb_returnaddr(
     {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
     {x: tx, y: ty, z: tz},
-    controller.bots, [], { routing_mode: "standard" }
+    controller.bots, [], { routing_mode: "standard", exclude_masterbots: true }
 );
 
 if (!adr || adr === "")
@@ -413,7 +440,7 @@ if (!adr || adr === "")
    let neighbor_adr = controller.get_mb_returnaddr(
        {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
        {x: Number(neighbor_bot.x), y: Number(neighbor_bot.y), z: Number(neighbor_bot.z)},
-       controller.bots, [], { routing_mode: "standard" });
+       controller.bots, [], { routing_mode: "standard", exclude_masterbots: true });
    if (!neighbor_adr) neighbor_adr = "";
    adr = neighbor_adr + neighbor_slot;
    } // if
@@ -421,10 +448,10 @@ if (!adr || adr === "")
 controller.ping_seq = (controller.ping_seq || 0) + 1;
 let tmpid = "PING" + controller.ping_seq;
 
-// Eintrag in ping_waiting_info (wird vom RINFO-Handler befüllt)
+// Entry in ping_waiting_info (filled by RINFO handler)
 if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
 
-// STL-ID berechnen (second-to-last bot) via get_next_target_coor
+// Calculate STL-ID (second-to-last bot) via get_next_target_coor
 let stl_id = "MB";
 if (adr.length > 1) {
     let path_to_stl = adr.slice(0, -1);
@@ -448,7 +475,7 @@ controller.ping_waiting_info[tmpid] = {
     timestamp: Date.now()
 };
 
-// Rückadresse via get_inverse_address berechnen und senden
+// Calculate and send return address via get_inverse_address
 let firstindex = controller.getKey_3d(controller.mb.x, controller.mb.y, controller.mb.z);
 let retaddr = controller.get_inverse_address(firstindex, adr);
 let cmd = adr + "#INFO#" + tmpid + "#" + retaddr;
@@ -456,7 +483,7 @@ cmd = controller.sign(cmd);
 let cellbot_cmd = '{ "cmd":"push", "param":"' + cmd + '" }\n';
 if (controller.client && typeof controller.client.write === "function") {
     controller.client.write(cellbot_cmd);
-    // Pop, damit RINFO aus ClusterSim-Queue geholt und von handle_answer() verarbeitet wird
+    // Pop so RINFO is fetched from ClusterSim queue and processed by handle_answer()
     let cmd_pop = '{ "cmd":"pop", "param":"" }\n';
     controller.client.write(cmd_pop);
 }
@@ -505,6 +532,42 @@ return({
 } // apicall_ping_status()
 
 
+//
+// apicall_build_address()
+//
+function apicall_build_address(controller, x1, y1, z1, x2, y2, z2)
+{
+let adr = controller.get_mb_returnaddr(
+    {x: Number(x1), y: Number(y1), z: Number(z1)},
+    {x: Number(x2), y: Number(y2), z: Number(z2)},
+    controller.bots, [], { routing_mode: "standard", exclude_masterbots: true }
+);
+
+if (!adr || adr === "")
+   {
+   return({
+          ok: true,
+          answer: "api_build_address",
+          from: {x: Number(x1), y: Number(y1), z: Number(z1)},
+          to: {x: Number(x2), y: Number(y2), z: Number(z2)},
+          found: false,
+          adress: "",
+          hops: 0
+          });
+   } // if
+
+return({
+       ok: true,
+       answer: "api_build_address",
+       from: {x: Number(x1), y: Number(y1), z: Number(z1)},
+       to: {x: Number(x2), y: Number(y2), z: Number(z2)},
+       found: true,
+       adress: adr,
+       hops: adr.length
+       });
+} // apicall_build_address()
+
+
 module.exports = {
                   apicall_get_bots,
                   apicall_get_bots_by_prefix,
@@ -512,6 +575,7 @@ module.exports = {
                   apicall_get_bot_info,
                   apicall_ping_position,
                   apicall_ping_status,
+                  apicall_build_address,
                   apicall_get_inactive_bots,
                   apicall_get_inactive_bot_by_xyz,
                   apicall_get_neighbors

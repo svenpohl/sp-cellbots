@@ -4,10 +4,10 @@ const fs = require('fs');
 //
 //
 //
-// start  : Vehicle-Startzustand als Objekt { x, y, z, vx, vy, vz }
-// goal   : Vehicle-Zielzustand als Objekt { x, y, z, vx, vy, vz }
-// world  : Gesamtwelt mit Terrain/S-Bots und world.forbidden
-// options: Zusatzoptionen wie max_search_steps, max_debug_rejections, Debug-Flags
+// start  : Vehicle start state as object { x, y, z, vx, vy, vz }
+// goal   : Vehicle goal state as object { x, y, z, vx, vy, vz }
+// world  : Complete world with terrain/S-Bots and world.forbidden
+// options: Additional options such as max_search_steps, max_debug_rejections, Debug flags
 function calc_hybrid_kinematics_path(start, goal, world, options = {})
 {
 
@@ -1164,13 +1164,13 @@ if (result.actions?.length > 0) {
 }
 */
 
-    // DEBUG: best_partial bei fehlgeschlagener Pfadsuche in Datei loggen (nur wenn debug_log=true in options)
+    // DEBUG: log best_partial to file when pathfinding fails (only if debug_log=true in options)
     if (!extra.ok && options.debug_log === true) {
       const logDir = __dirname + '/../../logs';
       if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
       const logFile = logDir + '/hybrid_path_debug.json';
 
-      // best_partial aus extra.best_partial (falls vorhanden), sonst aus publicPathData
+      // best_partial from extra.best_partial (if present), otherwise from publicPathData
       const bp = extra.best_partial ?? null;
       const bestPartialData = bp ? {
         states: decoratePathDataForOutput(bp)?.states ?? [],
@@ -1184,7 +1184,7 @@ if (result.actions?.length > 0) {
         total_cost: publicPathData?.total_cost ?? 0,
       };
 
-      // --- Pfad-Analyse: kompakte Schrittliste + terminal-Analyse ---
+      // --- Path analysis: compact step list + terminal analysis ---
       const pathAnalysis = (() => {
         const steps = [];
         const bpStates = bestPartialData.states ?? [];

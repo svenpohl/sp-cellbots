@@ -75,7 +75,10 @@ if (cmd === "structurescan")
       return(true);
       } // if
 
-   controller.start_scan(1);
+   // Clear GUI (like WebGUI button: removeAllCubes(false) + getclusterdata)
+   controller.notify_frontend([{ event: 'clearscene' }]);
+   controller.notify_frontend([{ event: 'refreshworld' }]);
+   controller.adc_start_scan(1);
    let ret = {
              ok: true,
              answer: "api_structurescan_started",
@@ -289,7 +292,21 @@ if (cmd === "crater_list")
 
 if (cmd === "raw_cmd")
    {
-   let ret = controller.apicall_raw_cmd(decodedobject.value);
+   let connector = String(decodedobject.connector ?? "").trim();
+
+   // Auto-Routing: No connector set → check if target bot has an ADC assignment
+   if (connector === "" && controller.accessDomainController) {
+       let raw_parts = String(decodedobject.value ?? "").split("#");
+       let targetBotId = controller.apicall_resolve_bot_id_by_address(raw_parts[0] ?? "");
+       if (targetBotId) {
+           let assignment = controller.accessDomainController.adc_getAssignment(targetBotId);
+           if (assignment) {
+               connector = assignment.connector_id;
+           }
+       }
+   }
+
+   let ret = controller.apicall_raw_cmd(decodedobject.value, connector);
    let raw_parts = String(decodedobject.value ?? "").split("#");
    let raw_target_bot_id = controller.apicall_resolve_bot_id_by_address(raw_parts[0] ?? "");
    controller.append_api_action_log("raw_cmd", { value: decodedobject.value }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted ?? false });
@@ -301,6 +318,171 @@ if (cmd === "raw_cmd")
       } // if
 
    await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "assign_bot_to_mb")
+   {
+   let bot_id = String(decodedobject.bot_id ?? "").trim();
+   let hmb_id = String(decodedobject.hmb_id ?? "").trim();
+
+   if (!bot_id || !hmb_id)
+      {
+      let ret = { ok: false, answer: "api_assign_bot_to_mb", error: "MISSING_PARAMETERS" };
+      await write_and_close(socket, ret);
+      return(true);
+      }
+
+   if (!controller.accessDomainController)
+      {
+      let ret = { ok: false, answer: "api_assign_bot_to_mb", error: "ADC_NOT_AVAILABLE" };
+      await write_and_close(socket, ret);
+      return(true);
+      }
+
+   let ret = controller.accessDomainController.adc_assignBot(hmb_id, bot_id);
+   ret.answer = "api_assign_bot_to_mb";
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "get_assigned_bots")
+   {
+   let map = {};
+   if (controller.accessDomainController) {
+       map = controller.accessDomainController.botMap || {};
+   }
+   let ret = {
+       ok: true,
+       answer: "api_get_assigned_bots",
+       assignments: map,
+       count: Object.keys(map).length
+   };
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "get_status_adc")
+   {
+   let ret = {
+       ok: true,
+       answer: "api_get_status_adc",
+       domains: {},
+       total_assigned: 0
+   };
+
+   if (controller.accessDomainController && controller.accessDomainController.helper_masterbots)
+      {
+      let botMap = controller.accessDomainController.botMap || {};
+      let assigned_counts = {};
+
+      for (let botId in botMap)
+          {
+          let hmb_id = botMap[botId].hmb_id || "unknown";
+          if (!assigned_counts[hmb_id]) assigned_counts[hmb_id] = 0;
+          assigned_counts[hmb_id]++;
+          }
+
+      for (let id in controller.accessDomainController.helper_masterbots)
+          {
+          let mb = controller.accessDomainController.helper_masterbots[id];
+          if (mb.type !== "masterbot") continue;
+          ret.domains[id] = {
+              role: mb.role || "helper",
+              connector: mb.connector_id || "",
+              position: mb.pos || { x:0, y:0, z:0 },
+              assigned_bots: assigned_counts[id] || 0
+          };
+          ret.total_assigned += assigned_counts[id] || 0;
+          }
+      }
+
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "adc_assign_proximity")
+   {
+   let ret = { ok: false, answer: "api_adc_assign_proximity", error: "ADC_NOT_AVAILABLE" };
+   if (controller.accessDomainController)
+      {
+      ret = controller.accessDomainController.adc_assign_proximity();
+      ret.answer = "api_adc_assign_proximity";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "disable_mb")
+   {
+   let mb_id = String(decodedobject.mb_id ?? "").trim();
+   if (!mb_id)
+      {
+      let ret = { ok: false, answer: "api_disable_mb", error: "MISSING_MB_ID" };
+      await write_and_close(socket, ret);
+      return(true);
+      }
+   let ret = { ok: false, answer: "api_disable_mb", error: "ADC_NOT_AVAILABLE" };
+   if (controller.accessDomainController)
+      {
+      ret = controller.accessDomainController.adc_disable_mb(mb_id);
+      ret.answer = "api_disable_mb";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "enable_mb")
+   {
+   let mb_id = String(decodedobject.mb_id ?? "").trim();
+   if (!mb_id)
+      {
+      let ret = { ok: false, answer: "api_enable_mb", error: "MISSING_MB_ID" };
+      await write_and_close(socket, ret);
+      return(true);
+      }
+   let ret = { ok: false, answer: "api_enable_mb", error: "ADC_NOT_AVAILABLE" };
+   if (controller.accessDomainController)
+      {
+      ret = controller.accessDomainController.adc_enable_mb(mb_id);
+      ret.answer = "api_enable_mb";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "generate_detour_address")
+   {
+   let bot_id = String(decodedobject.bot_id ?? "").trim();
+   if (!bot_id)
+      {
+      await write_and_close(socket, { ok: false, answer: "api_generate_detour_address", error: "MISSING_BOT_ID" });
+      return(true);
+      }
+   let botindex = controller.get_bot_by_id(bot_id, controller.bots);
+   if (botindex == null || botindex === undefined)
+      {
+      await write_and_close(socket, { ok: false, answer: "api_generate_detour_address", error: "BOT_NOT_FOUND" });
+      return(true);
+      }
+   let detour = controller.get_mb_returnaddr_detour(
+      {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+      {
+         x: Number(controller.bots[botindex].x),
+         y: Number(controller.bots[botindex].y),
+         z: Number(controller.bots[botindex].z)
+      },
+      controller.bots,
+      [],
+      {}
+   );
+   controller.bots[botindex].adress_detour = detour;
+   await write_and_close(socket, {
+      ok: true,
+      answer: "api_generate_detour_address",
+      bot_id: bot_id,
+      adress_detour: detour
+   });
    return(true);
    } // if
 

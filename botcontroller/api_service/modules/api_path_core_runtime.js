@@ -107,7 +107,8 @@ for (let i=0; i<controller.bots.length; i++)
     remaining_bots.push(bot);
     position_map[`${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`] = bot;
 
-    if (bot.id == "masterbot")
+    // ADC: Wurzel ist der primary MB (masterbot == 1), nicht der legacy "masterbot"
+    if ((bot.masterbot ?? 0) == 1)
        {
        root_bot = bot;
        } // if
@@ -132,12 +133,20 @@ if (remaining_bots.length == 0)
 
 if (root_bot === null)
    {
-   return({
-          ok: false,
-          answer: "api_would_split_cluster",
-          bot_id: normalized_bot_id,
-          error: "MASTERBOT_NOT_FOUND"
-          });
+   // Fallback: ersten verbleibenden Bot als Wurzel verwenden
+   if (remaining_bots.length > 0)
+      {
+      root_bot = remaining_bots[0];
+      console.log("[SPLIT] No primary MB found – using bot '" + root_bot.id + "' as root fallback.");
+      } else
+        {
+        return({
+               ok: false,
+               answer: "api_would_split_cluster",
+               bot_id: normalized_bot_id,
+               error: "NO_BOTS_REMAINING"
+               });
+        }
    } // if
 
 const key_for_bot = (bot) => `${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`;
@@ -192,10 +201,19 @@ for (let i=0; i<remaining_bots.length; i++)
                               x: bot.x,
                               y: bot.y,
                               z: bot.z,
-                              adress: controller.apicall_get_safe_adress(bot)
+                              adress: controller.apicall_get_safe_adress(bot),
+                              masterbot: bot.masterbot ?? 0
                               });
        } // if
     } // for
+
+// ADC: Check if an MB/hMB would be disconnected
+let disconnected_mbs = disconnected_bots.filter(b => (b.masterbot ?? 0) > 0);
+if (disconnected_mbs.length > 0)
+   {
+   let mb_list = disconnected_mbs.map(b => b.id + "@(" + b.x + "," + b.y + "," + b.z + ")").join(", ");
+   console.log("[SPLIT] WARNING: " + disconnected_mbs.length + " MB(s) would be disconnected: " + mb_list);
+   }
 
 let would_split_cluster = (disconnected_bots.length > 0);
 
@@ -590,8 +608,8 @@ const getAllowedMoves3D = (startX, startY, startZ) => {
             } // if
          } // if
 
-      // Für normale Bot-Moves reicht ein gültiger Rule-Anchor aus; ein zusätzlicher Wrapped-Cell-Zwang
-      // würde gültige Schritte wie T_RT_L künstlich blockieren.
+      // For regular bot moves a valid rule anchor is sufficient; an additional wrapped cell constraint
+      // would artificially block valid steps like T_RT_L.
 
       if (rejection_reason)
          {

@@ -271,6 +271,18 @@ return({
 function apicall_is_occupied(controller, x, y, z)
 {
 let target_bot_index = controller.get_3d(x, y, z);
+// Fallback: if get_3d finds nothing, search directly in this.bots by position
+if (target_bot_index == null && Array.isArray(controller.bots)) {
+    for (let i = 0; i < controller.bots.length; i++) {
+        if (controller.bots[i] &&
+            Number(controller.bots[i].x) === Number(x) &&
+            Number(controller.bots[i].y) === Number(y) &&
+            Number(controller.bots[i].z) === Number(z)) {
+            target_bot_index = i;
+            break;
+        }
+    }
+}
 let inactive_bot = controller.apicall_get_inactive_bot_by_xyz(x, y, z);
 
 if (target_bot_index != null)

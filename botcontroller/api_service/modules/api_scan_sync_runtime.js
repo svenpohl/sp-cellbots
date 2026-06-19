@@ -54,23 +54,38 @@ return({
 
 function apicall_get_masterbot(controller)
 {
+// Use ADC primary MB if available, otherwise legacy masterbot
+let mb_id = "masterbot";
+let mb_name = controller.masterbot_name || "Default Swarm";
+let mb_connected = (controller.MASTERBOT_CONNECTED == 1);
+let mb_slot = String(controller.mb['connection'] ?? "").toUpperCase();
+let mb_pos = { x: Number(controller.mb['x']), y: Number(controller.mb['y']), z: Number(controller.mb['z']) };
+let mb_ori = { x: Number(controller.mb['vx']), y: Number(controller.mb['vy']), z: Number(controller.mb['vz']) };
+
+if (controller.accessDomainController && controller.accessDomainController.helper_masterbots) {
+    for (let mid in controller.accessDomainController.helper_masterbots) {
+        let mb = controller.accessDomainController.helper_masterbots[mid];
+        if (mb.type === "masterbot" && mb.role === "primary") {
+            mb_id = mid;
+            mb_name = mid + " (ADC primary)";
+            mb_connected = true;
+            mb_slot = String(mb.connector_id ?? "").toUpperCase();
+            mb_pos = { x: Number(mb.pos.x), y: Number(mb.pos.y), z: Number(mb.pos.z) };
+            mb_ori = { x: Number(mb.orientation.x), y: Number(mb.orientation.y), z: Number(mb.orientation.z) };
+            break;
+        }
+    }
+}
+
 return({
        ok: true,
        answer: "api_get_masterbot",
-       id: "masterbot",
-       name: controller.masterbot_name,
-       connected: (controller.MASTERBOT_CONNECTED == 1),
-       connection_slot: String(controller.mb['connection'] ?? "").toUpperCase(),
-       position: {
-                  x: Number(controller.mb['x']),
-                  y: Number(controller.mb['y']),
-                  z: Number(controller.mb['z'])
-                  },
-       orientation: {
-                    x: Number(controller.mb['vx']),
-                    y: Number(controller.mb['vy']),
-                    z: Number(controller.mb['vz'])
-                    }
+       id: mb_id,
+       name: mb_name,
+       connected: mb_connected,
+       connection_slot: mb_slot,
+       position: mb_pos,
+       orientation: mb_ori
        });
 } // apicall_get_masterbot()
 

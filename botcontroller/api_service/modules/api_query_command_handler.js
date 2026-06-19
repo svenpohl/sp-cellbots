@@ -183,6 +183,14 @@ if (cmd === "get_slot_status")
    return(true);
    } // if
 
+if (cmd === "build_address")
+   {
+   let ret = controller.apicall_build_address(decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2);
+   controller.append_api_action_log("build_address", { from: {x: decodedobject.x1, y: decodedobject.y1, z: decodedobject.z1}, to: {x: decodedobject.x2, y: decodedobject.y2, z: decodedobject.z2} }, { ok: ret.ok, answer: ret.answer, found: ret.found ?? false });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "get_last_moves")
    {
    let ret = { ok: true, ...controller.apicall_get_last_moves(decodedobject.limit) };

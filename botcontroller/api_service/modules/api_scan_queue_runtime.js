@@ -9,6 +9,55 @@ if ( typeof raw_value != "string" || raw_value.trim() == "" )
           });
    } // if
 
+const connectorId = (typeof arguments[2] === "string") ? arguments[2].trim() : "";
+
+// ADC-Weg: Connector-Parameter gesetzt
+if (connectorId !== "")
+   {
+   if (!controller.accessDomainController)
+      {
+      return({
+             ok: false,
+             answer: "api_raw_cmd",
+             error: "ADC_NOT_AVAILABLE"
+             });
+      } // if
+
+   let param = controller.sign( raw_value.trim() );
+   let sent = controller.accessDomainController.adc_sendPush(connectorId, param);
+
+   if (!sent)
+      {
+      return({
+             ok: false,
+             answer: "api_raw_cmd",
+             error: "CONNECTOR_NOT_AVAILABLE",
+             connector: connectorId
+             });
+      } // if
+
+   return({
+          ok: true,
+          answer: "api_raw_cmd",
+          accepted: true,
+          raw_value: raw_value.trim(),
+          connector: connectorId
+          });
+   } // if (connectorId !== "")
+
+// Legacy-Weg: Connector-Parameter NICHT gesetzt
+if (controller.disableLegacy === true)
+   {
+   const Logger = require('../../logger');
+   Logger.log("[LEGACY] BLOCKED: apicall_raw_cmd legacy push – raw_value=\"" + raw_value.trim() + "\"");
+   console.log("[LEGACY] BLOCKED – legacy MasterBot push attempted: \"" + raw_value.trim().substring(0, 80) + "...\"");
+   return({
+          ok: false,
+          answer: "api_raw_cmd",
+          error: "LEGACY_MASTERBOT_DISABLED"
+          });
+   } // if
+
 if ( controller.MASTERBOT_CONNECTED != 1 )
    {
    return({

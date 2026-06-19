@@ -2,10 +2,10 @@
 //
 //
 //
-// start  : Vehicle-Startzustand als Objekt { x, y, z, vx, vy, vz }
-// goal   : Vehicle-Zielzustand als Objekt { x, y, z, vx, vy, vz }
-// world  : Gesamtwelt mit Terrain/S-Bots und world.forbidden
-// options: Zusatzoptionen wie max_search_steps, max_debug_rejections, Debug-Flags
+// start  : Vehicle start state as object { x, y, z, vx, vy, vz }
+// goal   : Vehicle goal state as object { x, y, z, vx, vy, vz }
+// world  : Complete world with terrain/S-Bots and world.forbidden
+// options: Additional options such as max_search_steps, max_debug_rejections, Debug flags
 function calc_vehicle_kinematics_payload_path(start, goal, world, options = {})
 {
 if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_kinematics_payload_path AUFGERUFEN");
