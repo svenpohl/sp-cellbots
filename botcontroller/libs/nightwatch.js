@@ -11,7 +11,7 @@ class NightWatch {
         this.thread_active = false;
         this.id_counter = 0;
         this._intervalId = null;
-        this._botIndex = {}; // region-id -> aktueller Index für iteration-mode
+        this._botIndex = {}; // region-id -> current index for iteration-mode
         this._pendingPings = {}; // tmpid -> {region_id, key, expected, timestamp}
     }
 
@@ -31,7 +31,7 @@ class NightWatch {
         this.thread_active = false;
     }
 
-    // Wird alle 100ms aufgerufen (prüft regions-interval_ms)
+    // Called every 100ms (checks regions-interval_ms)
     _tick() {
         let now = Date.now();
         // Ausstehende Pings auswerten
@@ -53,7 +53,7 @@ class NightWatch {
                 this._botIndex[id]++;
             }
             if (!bot) continue;
-            // Masterbot-Position nicht anpingen (keine Route zu sich selbst)
+            // Do not ping masterbot position (no route to self)
             let mb = this.controller.mb || {};
             if (Number(bot.x) === Number(mb.x) && Number(bot.y) === Number(mb.y) && Number(bot.z) === Number(mb.z)) continue;
             reg._lastPing = now;
@@ -61,7 +61,7 @@ class NightWatch {
         }
     }
 
-    // Ausstehende Pings prüfen (RINFO inzwischen verarbeitet?)
+    // Check pending pings (RINFO processed yet?)
     _checkPendingPings() {
         let now = Date.now();
         let ctrl = this.controller;
@@ -91,7 +91,7 @@ class NightWatch {
         for (let t of toRemove) delete this._pendingPings[t];
     }
 
-    // Pingt eine Koordinate an und prüft die Antwort
+    // Pings a coordinate and checks the response
     _pingBot(bot, reg) {
         let ctrl = this.controller;
         let key = `${Number(bot.x)},${Number(bot.y)},${Number(bot.z)}`;
@@ -99,7 +99,7 @@ class NightWatch {
         if (result && result.accepted && result.tmpid) {
             let tmpid = result.tmpid;
             Logger.log("WatchPing accepted: (" + bot.x + "," + bot.y + "," + bot.z + ") adr=" + (result.adress_used ?? "?") + " tmpid=" + tmpid);
-            // Pending-Ping merken für spätere Auswertung in _tick()
+            // Remember pending ping for later evaluation in _tick()
             this._pendingPings[tmpid] = {
                 region_id: reg.id,
                 key: key,
@@ -109,7 +109,7 @@ class NightWatch {
         } else {
             let reason = result?.error ?? result?.reason ?? "UNKNOWN";
             Logger.log("WatchPing failed: (" + bot.x + "," + bot.y + "," + bot.z + ") reason=" + reason);
-            // Auch Fehlschlag auswerten: Bot könnte fehlen
+            // Also evaluate failures: bot might be missing
             this._evaluatePingResult(reg, key, null, null);
         }
     }
@@ -148,12 +148,12 @@ class NightWatch {
         }
     }
 
-    // Nächste freie ID generieren
+    // Generate next free ID
     _nextId() {
         return "watch_" + (this.id_counter++);
     }
 
-    // Region anlegen / ändern / löschen / snapshot / active / inactive
+    // Create / modify / delete / snapshot / active / inactive region
     set(id, x1, y1, z1, x2, y2, z2, interval_ms, mode, watch_action) {
         if (!id || String(id).trim() === "") {
             return { ok: false, answer: "api_watch_region", error: "ID_EMPTY" };
@@ -167,7 +167,7 @@ class NightWatch {
             return { ok: true, answer: "api_watch_region", info: "removed", region_id: id };
         }
 
-        // Existierende Region holen oder neue anlegen
+        // Get existing region or create new one
         if (!this.regions[id]) {
             this.regions[id] = {
                 id: id, x1: 0, y1: 0, z1: 0, x2: 0, y2: 0, z2: 0,
@@ -208,7 +208,7 @@ class NightWatch {
                 let bot = (this.controller.bots || []).find(bc => Number(bc.x)===Number(b.x) && Number(bc.y)===Number(b.y) && Number(bc.z)===Number(b.z));
                 reg.reference[key] = bot ? { id: bot.id, x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) } : null;
             }
-            // Ausstehende Pings für diese Region löschen
+            // Clear pending pings for this region
             for (let tmpid in this._pendingPings) {
                 if (this._pendingPings[tmpid].region_id === id) delete this._pendingPings[tmpid];
             }
@@ -219,7 +219,7 @@ class NightWatch {
         return { ok: true, answer: "api_watch_region", info: "ok", region_id: id, bot_count: reg.bots.length };
     }
 
-    // Einzelne Koordinate zu Region hinzufügen (mit Auto-Snapshot)
+    // Add single coordinate to region (with auto-snapshot)
     addbot(id, x, y, z) {
         let reg = this.regions[id];
         if (!reg) return { ok: false, answer: "api_watch_region", error: "REGION_NOT_FOUND", region_id: id };
@@ -232,7 +232,7 @@ class NightWatch {
         return { ok: true, answer: "api_watch_region", info: "bot added", region_id: id, bot_count: reg.bots.length };
     }
 
-    // Koordinate aus Region entfernen
+    // Remove coordinate from region
     removebot(id, x, y, z) {
         let reg = this.regions[id];
         if (!reg) return { ok: false, answer: "api_watch_region", error: "REGION_NOT_FOUND", region_id: id };
@@ -255,7 +255,7 @@ class NightWatch {
         };
     }
 
-    // Änderungen seit letztem Poll
+    // Changes since last poll
     poll(id) {
         if (id && String(id).trim() !== "") {
             let reg = this.regions[String(id).trim()];
@@ -304,7 +304,7 @@ class NightWatch {
             for (let by = Math.min(reg.y1, reg.y2); by <= Math.max(reg.y1, reg.y2); by++)
                 for (let bz = Math.min(reg.z1, reg.z2); bz <= Math.max(reg.z1, reg.z2); bz++) {
                     if (t === "outer_bots") {
-                        // Nur Bots mit weniger als 6 orthogonalen Nachbarn (Cluster-Aussenseite)
+                        // Only bots with fewer than 6 orthogonal neighbors (cluster edge)
                         let botExists = (this.controller.bots || []).some(b => Number(b.x)===bx && Number(b.y)===by && Number(b.z)===bz);
                         if (botExists) {
                             let neighborDirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
@@ -318,7 +318,7 @@ class NightWatch {
                         reg.bots.push({ x: bx, y: by, z: bz });
                     }
                 }
-        // Auto-Snapshot für alle generierten Koordinaten
+        // Auto-snapshot for all generated coordinates
         for (let b of reg.bots) {
             let key = `${Number(b.x)},${Number(b.y)},${Number(b.z)}`;
             let bot = (this.controller.bots || []).find(bc => Number(bc.x)===Number(b.x) && Number(bc.y)===Number(b.y) && Number(bc.z)===Number(b.z));
