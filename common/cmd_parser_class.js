@@ -327,7 +327,7 @@ if (trimmedcmd[1] == "MOVE")
        //      
        // Spin       
        //
-       if ( sub.includes("S") ) 
+       if ( sub.match(/^._S[RL]_.$/) ) 
           {
           if (locallogging) console.log("Spin!");
           
