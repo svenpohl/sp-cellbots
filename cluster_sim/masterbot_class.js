@@ -39,6 +39,7 @@ Logger.log("Start cluster_sim");
 
 
 const LoggerBlender = require('./logger_blender');
+const AccessDomainSimulator = require('./libs/accessdomainsimulator');
 
 
 
@@ -107,6 +108,9 @@ class masterbot_class
   
   // Start stopwatch
   this._stopwatchStart = Date.now();
+
+  // AccessDomainSimulator (parallel zum bestehenden Code, nur lesend)
+  this.ads = new AccessDomainSimulator(this);
       
   } // constructor
 
@@ -368,6 +372,12 @@ const xml2js = require('xml2js');
                            this.config.public_key_or_secret
                                                   
                            );
+
+      // mobility aus XML setzen (optional, Default true)
+      if (cell.mobility !== undefined) {
+          let mobStr = String(cell.mobility[0] ?? "").trim().toLowerCase();
+          bot_class_obj.mobility = (mobStr !== "false" && mobStr !== "0");
+      }
                            
                            /*
                            # Sigining
@@ -387,13 +397,33 @@ private_key_or_secret = c25f5d256a3a0104c9eabab81f6d87abc2f9f75179101de2f527de53
     
 
     this.XMLLOADED = 1; 
-     
-      
-   
-   
-      
-      
-      
+
+    // ADS: hMBs aus config_mb.xml als Bots registrieren
+    if (this.ads && this.ads.config_loaded) {
+        for (let mb_id in this.ads.masterbots) {
+            let mb_cfg = this.ads.masterbots[mb_id];
+            let exists = this.bots.some(b => Number(b.x) === mb_cfg.pos.x && Number(b.y) === mb_cfg.pos.y && Number(b.z) === mb_cfg.pos.z);
+            if (exists) continue;
+
+            let role = (mb_cfg.role === "primary") ? bot_class.MB_PRIMARY : bot_class.MB_HELPER;
+            let bot = new bot_class();
+            bot.setvalues(
+                mb_cfg.id, "",
+                mb_cfg.pos.x, mb_cfg.pos.y, mb_cfg.pos.z,
+                mb_cfg.orientation.x, mb_cfg.orientation.y, mb_cfg.orientation.z,
+                0, 0, "999999",
+                this.config.physical_bot_move_delay || 0,
+                this.config.enable_signing,
+                this.config.signature_type,
+                this.config.public_key_or_secret,
+                false,
+                role
+            );
+            this.bots.push(bot);
+            Logger.log("[ADS] Registered " + mb_cfg.role + " masterbot " + mb_id + " at " + mb_cfg.pos.x + "," + mb_cfg.pos.y + "," + mb_cfg.pos.z);
+        }
+    }
+
     // Find neighbors          
     this.init_cells_xml_neighbors();
     
@@ -1015,6 +1045,11 @@ loadconfig(filePath) {
 
   // Add config to global space
   this.config = config;
+
+  // ADS: config_mb.xml parallel einlesen (nicht-invasiv)
+  if (this.ads) {
+      this.ads.loadConfig();
+  }
   
   return config;
 } // loadconfig()
@@ -1269,7 +1304,8 @@ for (let i=0; i < this.bots.length; i++)
     jsondata += "   \"vy\": "+this.bots[i].vector_y +",  ";
     jsondata += "   \"vz\": "+this.bots[i].vector_z +",  ";
 
-    jsondata += "   \"col\": \""+this.bots[i].color +"\"  ";
+    jsondata += "   \"col\": \""+this.bots[i].color +"\",  ";
+    jsondata += "   \"masterbot\": "+this.bots[i].masterbot +"  ";
     
     jsondata += "   }    ";
     
@@ -1679,8 +1715,25 @@ for (let i=0; i < this.bots.length; i++)
        // Destination: self
        if (destslot == "")
           {   
-          
-          await this.bots[i].run_cmd( msgarray, this );
+          // MBs/hMBs (masterbot > 0): Response-Typen direkt an BotController,
+          // ohne signature_check in run_cmd() – identisch zum legacy MasterBot.
+          if ((this.bots[i].masterbot ?? 0) > 0)
+             {
+             let cmd = msgarray['cmd'] ?? null;
+             if (
+                cmd == cmd_parser_class_obj.CMD_RINFO ||
+                cmd == cmd_parser_class_obj.CMD_RALIFE ||
+                cmd == cmd_parser_class_obj.CMD_RCHECK ||
+                cmd == cmd_parser_class_obj.CMD_RNBH ||
+                cmd == cmd_parser_class_obj.CMD_RET_OK
+                )
+                {
+                this.bots[i].push_botcontroller_queue(message);
+                }
+             } else
+               {
+               await this.bots[i].run_cmd( msgarray, this );
+               }
 
           } // if (destslot == "")
 

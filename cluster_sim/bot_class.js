@@ -36,8 +36,11 @@ constructor()
   this.active = 1;
   this.inactive = 0;
   this.servicebay = 0;
+  this.mobility   = true;      // false = immobile (pseudo-bot, hMB, fixed anchor)
+  this.masterbot  = bot_class.MB_NONE;  // MB_NONE | MB_PRIMARY | MB_HELPER
   
   this.msgqueue        = [];
+  this.msgqueue_bc     = [];   // Queue for BotController (pollable per bot)
   this.index_neighbors = [];
   
   this.index_neighbors['f'] = -1;
@@ -76,7 +79,9 @@ constructor()
 setvalues( id, rid = "", x,y,z, vx,vy,vz, inactive = 0, servicebay = 0, color, physical_bot_move_delay,                           
            enable_signing,
            signature_type,
-           public_key_or_secret
+           public_key_or_secret,
+           mobility = true,
+           masterbot_role = 0
 )
 {
 this.id = id;
@@ -127,6 +132,9 @@ this.physical_bot_move_delay = physical_bot_move_delay;
 this.enable_signing       = enable_signing;
 this.signature_type       = signature_type;
 this.public_key_or_secret = public_key_or_secret;
+
+this.mobility   = mobility;
+this.masterbot  = masterbot_role;
 
 } // setvalues()
 
@@ -339,6 +347,54 @@ return(message);
 } // push_msg
 
 
+//
+// push_botcontroller_queue()
+// Pushes a message into the BotController queue (msgqueue_bc).
+// Analogous to masterbot_class.push_botcontroller_queue().
+//
+push_botcontroller_queue( msg )
+{
+if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
+   {
+   return;
+   }
+
+let size = this.msgqueue_bc.length;
+
+if (size < this.max_msgqueue)
+   {
+   this.msgqueue_bc.push( msg );
+   }
+} // push_botcontroller_queue()
+
+
+//
+// pop_botcontroller_queue()
+// Reads and clears the BotController queue (msgqueue_bc).
+// Returns a JSON string, analogous to masterbot_class.pop_botcontroller_queue().
+//
+pop_botcontroller_queue()
+{
+let jsondata = "";
+jsondata += "{ \"msgqueue_bc\": [ ";
+
+let size = this.msgqueue_bc.length;
+for (let i=0; i<size; i++)
+    {
+    jsondata += "\"" + this.msgqueue_bc[i] + "\"";
+    if (i < (size-1))
+       {
+       jsondata += ", ";
+       }
+    }
+
+jsondata += " ] }";
+
+// Queue leeren
+this.msgqueue_bc = [];
+
+return(jsondata);
+} // pop_botcontroller_queue()
 
 
 
@@ -366,6 +422,8 @@ if ( this.locked.includes( tmp_sourceslot ) )
    return (false);
    }
 // <- lock check
+
+Logger.log("[RUN_CMD] ENTER bot=" + this.id + " pos=(" + this.x + "," + this.y + "," + this.z + ") orient=(" + this.vector_x + "," + this.vector_y + "," + this.vector_z + ") cmd=" + cmdarray.cmdname + " subcmd_count=" + (Array.isArray(cmdarray.subcmd) ? cmdarray.subcmd.length : "?"));
 
 
 
@@ -617,13 +675,19 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_NBH )
 
 
 if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
-   {   
+   {
+   // Immobile bots (mobility=false) do not execute MOVE commands
+   if (!this.mobility) {
+       Logger.log("MOVE rejected: bot " + this.id + " is immobile (mobility=false)");
+       return;
+   }
    const mobility_mode = this.get_mobility_mode(caller);
    let size = cmdarray.subcmd.length;
    let move_sequence_aborted = false;
    this.servicebay_extracted = false;
 
    Logger.log("MOVE mobility_mode=" + mobility_mode + " bot=" + this.id + " subcmd_count=" + size);
+   Logger.log("[MOVE_STATE] bot=" + this.id + " pos=(" + this.x + "," + this.y + "," + this.z + ") orient=(" + this.vector_x + "," + this.vector_y + "," + this.vector_z + ") adr=" + this.adress + " sign_type=" + this.signature_type);
 
    for (let i=0; i<size; i++)
        {
@@ -805,6 +869,8 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
        
        } // for i
    
+   Logger.log("[RUN_CMD] AFTER_MOVE bot=" + this.id + " pos=(" + this.x + "," + this.y + "," + this.z + ") orient=(" + this.vector_x + "," + this.vector_y + "," + this.vector_z + ")");
+   
    } // CMD_MOVE
    
    
@@ -914,6 +980,8 @@ let carrier_x_old = this.x;
 let carrier_y_old = this.y;
 let carrier_z_old = this.z;
 
+Logger.log("[MOTORIC] ENTER bot=" + this.id + " pos=(" + this.x + "," + this.y + "," + this.z + ") orient=(" + this.vector_x + "," + this.vector_y + "," + this.vector_z + ") dir=" + direction_slot + " fa=" + fa + " la=" + la);
+
 let grabbed_x, grabbed_y, grabbed_z;
 let grabbed_botid;
 
@@ -1010,7 +1078,8 @@ if (fa != "")
    {
    start_hasneighbours = caller.has_neighbour( this.x, this.y, this.z, this.vector_x, this.vector_y, this.vector_z, this.x, this.y, this.z, fa );
    }
-   
+Logger.log("[MOTORIC] bot=" + this.id + " FA=" + fa + " start_hasneighbours=" + start_hasneighbours + " pos=(" + this.x + "," + this.y + "," + this.z + ")");
+
 // Last Anchor - Check
 let target_hasneighbours = true;
 
@@ -1018,6 +1087,7 @@ if (la != "")
    {
    target_hasneighbours = caller.has_neighbour( target_x, target_y, target_z, this.vector_x, this.vector_y, this.vector_z, this.x, this.y, this.z, la );
    }
+Logger.log("[MOTORIC] bot=" + this.id + " LA=" + la + " target_hasneighbours=" + target_hasneighbours + " target=(" + target_x + "," + target_y + "," + target_z + ")");
  
 // <-- FA-LA - Check
 
@@ -1042,6 +1112,8 @@ if (
      }
 
 
+
+Logger.log("[MOTORIC] bot=" + this.id + " collision=" + collision + " start_hasneighbours=" + start_hasneighbours + " target_hasneighbours=" + target_hasneighbours + " -> update_carrier_bot=" + (!collision && start_hasneighbours && target_hasneighbours));
 
 // Set new position
 if ( !collision && start_hasneighbours && target_hasneighbours )
@@ -1211,6 +1283,7 @@ if ( update_carrier_bot )
    this.x = target_x;
    this.y = target_y;
    this.z = target_z;
+   Logger.log("[MOTORIC] MOVED bot=" + this.id + " from=(" + carrier_x_old + "," + carrier_y_old + "," + carrier_z_old + ") to=(" + this.x + "," + this.y + "," + this.z + ") dir=" + direction_slot);
    }
    
 if ( update_grabbed_bot )
@@ -1867,5 +1940,9 @@ return new Promise(resolve => setTimeout(resolve, ms));
   
 } // class bot_class 
 
+// Bot constants (static)
+bot_class.MB_NONE    = 0;
+bot_class.MB_PRIMARY = 1;
+bot_class.MB_HELPER  = 2;
 
 module.exports = bot_class;
