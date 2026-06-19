@@ -596,6 +596,9 @@ constructor(startBots, targetBots, params)
          {
          this.MASTER_BOT_POSITION = { x: 0, y: 0, z: 0 };
          }
+
+    // Immobile obstacles (e.g. hMBs) that must be avoided by the path planner
+    this.forbiddenCells = Array.isArray(params.forbiddenCells) ? params.forbiddenCells : [];
    
     
     
@@ -696,7 +699,7 @@ return this.getAllBots(this.cluster_target).some(t => t.x === x && t.y === y && 
 }
 
 isTargetCovered(target, bots) {
-  // true, wenn irgendein Bot exakt auf target sitzt
+  // true, if any bot sits exactly on target
   return bots.some(b => b.x === target.x && b.y === target.y && b.z === target.z);
 }
 
@@ -832,10 +835,15 @@ hasClusterContact(x, y, z, collection = this.cells) {
 
 
 //
-// Returns true if the position (x, y, z) is not occupied by any bot in the collection.
+// Returns true if the position (x, y, z) is not occupied by any bot in the collection
+// and not blocked by a forbidden cell (e.g. immobile hMBs).
 //
 isFree(x, y, z, collection = this.cells) {
-  return !collection.some(c => c.x === x && c.y === y && c.z === z);
+  if (collection.some(c => c.x === x && c.y === y && c.z === z))
+     return false;
+  if (this.forbiddenCells.some(c => c.x === x && c.y === y && c.z === z))
+     return false;
+  return true;
 }
 
  
@@ -999,7 +1007,7 @@ choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets 
     this.hasContact(t.x, t.y, t.z, collection)
   );
 
-  // 2b. Sort free targets by neighbor count (descending) - "Zuschütten"-Heuristik.
+  // 2b. Sort free targets by neighbor count (descending) - "backfill" heuristic.
   //     Targets with the most orthogonal neighbors are filled first.
   //     This prevents blocking the entrance to inner positions by filling
   //     the "deepest" positions first (most surrounded by existing bots).
@@ -1105,8 +1113,9 @@ evaluateCondition(expr, context, collection = this.cells) {
   const is_empty = (x, y, z) => this.isInside(x, y, z) && !bots.some(b => b.x === x && b.y === y && b.z === z);
   const has_contact = (x, y, z) => this.hasContact(x, y, z, collection, originX, originY, originZ);
 */
+  const is_forbidden = (x, y, z) => this.forbiddenCells.some(c => c.x === x && c.y === y && c.z === z);
   const is_bot = (x, y, z) =>  bots.some(b => b.x === x && b.y === y && b.z === z);
-  const is_empty = (x, y, z) =>  !bots.some(b => b.x === x && b.y === y && b.z === z);
+  const is_empty = (x, y, z) =>  !bots.some(b => b.x === x && b.y === y && b.z === z) && !is_forbidden(x, y, z);
   const has_contact = (x, y, z) => this.hasContact(x, y, z, collection, originX, originY, originZ);
 
   // optional: for more complex climbing conditions in the future
@@ -1795,7 +1804,7 @@ pathsCollideContact(path1, path2) {
             const dz = Math.abs(c1[2] - c2[2]);
             const dist = dx + dy + dz;
             if (dist === 1) {
-                return true; // Kontakt/Berührung gefunden!
+                return true; // Contact/touch found!
             }
         }
     }

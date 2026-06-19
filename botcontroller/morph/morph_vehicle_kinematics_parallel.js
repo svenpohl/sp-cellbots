@@ -80,6 +80,16 @@ class MorphVehicleKinematics extends MorphBase
              this.MASTER_BOT_POSITION = { x: 0, y: 0, z: 0 };
              }
 
+        // Anchors: hMBs/MBs as static connection nodes for wouldSplitCluster.
+        // These bots are not in this.cells (they are not moved), but they
+        // are considered essential nodes in BFS so that the
+        // morph does not disconnect them from the cluster.
+        this.anchors = [];
+        if (params.anchors !== undefined && Array.isArray(params.anchors))
+           {
+           this.anchors = params.anchors;
+           }
+
         // Log object for morphing process: stores initial bot setup (optional) and all morphing waves
         this.morphLog =
            {
@@ -366,6 +376,27 @@ class MorphVehicleKinematics extends MorphBase
 
         // Get all bots except the one to be (temporarily) removed
         const bots = this.getAllBots(collection).filter(b => b.id !== bot.id);
+
+        // Add anchors (hMBs) as static nodes for BFS check.
+        // They are not in this.cells (not moved by the morph), but
+        // they exist physically in the cluster and must stay connected.
+        const anchors = this.anchors || [];
+        for (const a of anchors) {
+            const alreadyInBots = bots.some(b =>
+                Number(b.x) === Number(a.x) &&
+                Number(b.y) === Number(a.y) &&
+                Number(b.z) === Number(a.z)
+            );
+            if (!alreadyInBots) {
+                bots.push({
+                    id: `anchor_${a.x}_${a.y}_${a.z}`,
+                    x: Number(a.x),
+                    y: Number(a.y),
+                    z: Number(a.z)
+                });
+            }
+        }
+
         if (bots.length === 0) {
             return false;
         }
@@ -374,14 +405,33 @@ class MorphVehicleKinematics extends MorphBase
         const key = (b) => `${b.x},${b.y},${b.z}`;
 
         // Find the master bot (the cluster's anchor, usually at a fixed position)
-        const master = this.getAllBots(collection).find(b =>
+        // Zuerst in der Collection suchen, dann in den Ankern
+        let master = this.getAllBots(collection).find(b =>
             b.x === this.MASTER_BOT_POSITION.x &&
             b.y === this.MASTER_BOT_POSITION.y &&
             b.z === this.MASTER_BOT_POSITION.z
         );
 
+        // Fallback: Master in Ankern suchen (z.B. primary MB als Anchor)
+        if (!master && anchors.length > 0) {
+            const anchorMaster = anchors.find(a =>
+                Number(a.x) === Number(this.MASTER_BOT_POSITION.x) &&
+                Number(a.y) === Number(this.MASTER_BOT_POSITION.y) &&
+                Number(a.z) === Number(this.MASTER_BOT_POSITION.z)
+            );
+            if (anchorMaster) {
+                master = {
+                    id: `anchor_master`,
+                    x: Number(anchorMaster.x),
+                    y: Number(anchorMaster.y),
+                    z: Number(anchorMaster.z)
+                };
+                bots.push(master);
+            }
+        }
+
         if (!master) {
-            console.warn("No master bot present in the cluster!");
+            console.warn("wouldSplitCluster: No master bot or anchor at MASTER_BOT_POSITION!");
             return true;
         }
 
@@ -489,7 +539,7 @@ class MorphVehicleKinematics extends MorphBase
             this.hasContact(t.x, t.y, t.z, collection)
         );
 
-        // 2b. Sort free targets by neighbor count (descending) - "Zuschütten"-Heuristik.
+        // 2b. Sort free targets by neighbor count (descending) - "backfill" heuristic.
         //     Targets with the most orthogonal neighbors are filled first.
         //     This prevents blocking the entrance to inner positions by filling
         //     the "deepest" positions first (most surrounded by existing bots).
