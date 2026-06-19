@@ -23,6 +23,9 @@ constructor()
   
   this.color = "000000";
   
+  this.masterbot = 0; // 0=normal, 1=primary MB, 2=helper MB
+  this.mobility = true; // false = immobile (hMB, config bot)
+
   this.checked = 0;
   
   this.checked_neighbors = [];  

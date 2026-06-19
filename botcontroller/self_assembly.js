@@ -52,7 +52,7 @@ addsignal ( caller, signal )
 {
   this.signals.add(signal);
   
-  // Prüfe ob ALLE FIN-Signale aus signal_botids empfangen wurden
+  // Check if ALL FIN signals from signal_botids have been received
   if ( String(signal).startsWith("FIN") && caller.signal_botids )
      {
      let all_fin = Object.keys(caller.signal_botids).filter(k => String(k).startsWith("FIN"));
@@ -81,7 +81,7 @@ this.assembly_status    = 0;
 this.sequencelist       = [];
 this.sequenceindex      = 0; 
 
-// important (!) - reset for next morph-cycld
+// important (!) - reset for next morph-cycle
 this.parsed     = [];               
 this.signals    = new Set();    // received signals (e.g. by addSignal)
 this.blockState = [];           // reminds current index of each block (e.g. how much proceeded)
@@ -91,7 +91,7 @@ this.blockState = [];           // reminds current index of each block (e.g. how
 let filepath =  __dirname + '/sequences/' + filename  + '.sequence';
 const input = fs.readFileSync(filepath, 'utf-8');
 let parsed = this.parseBlocks(input);
-console.dir(this.parsed, { depth: null });
+// console.dir(this.parsed, { depth: null });
 
 this.assembly_status = 1;
  
@@ -131,7 +131,7 @@ parseBlocks(input) {
       currentBlock = null;
       insideBlock = false;
     } else if (insideBlock && currentBlock) {
-      // komplette Zeile als eine Anweisung speichern
+      // save entire line as a single instruction
       currentBlock.instructions.push(line);
     }
   }

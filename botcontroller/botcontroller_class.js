@@ -33,7 +33,8 @@ const WebSocket = require('ws');
 const http      = require('http');
 
 const self_assembly   = require('./self_assembly'); 
-const NightWatch      = require('./libs/nightwatch'); 
+const NightWatch      = require('./libs/nightwatch');
+const AccessDomainController = require('./libs/accessdomaincontroller');
 const signature_class = require('../common/signature/signature_class'); 
 const { console_format_log } = require('../common/system_utils');
 const { parse_config_file } = require('../common/config_parser');
@@ -106,6 +107,7 @@ const {
       apicall_get_bot_info: runtime_get_bot_info,
       apicall_ping_position: runtime_ping_position,
       apicall_ping_status: runtime_ping_status,
+      apicall_build_address: runtime_build_address,
       apicall_get_inactive_bots: runtime_get_inactive_bots,
       apicall_get_inactive_bot_by_xyz: runtime_get_inactive_bot_by_xyz,
       apicall_get_neighbors: runtime_get_neighbors
@@ -138,6 +140,7 @@ const {
       apicall_morph_get_structures: runtime_morph_get_structures,
       apicall_morph_get_algos: runtime_morph_get_algos,
       apicall_morph_start: runtime_morph_start,
+      apicall_morph_start_headless: runtime_morph_start_headless,
       apicall_update_morph_status: runtime_update_morph_status,
       apicall_get_morph_status: runtime_get_morph_status
       } = require('./api_service/modules/api_morph_runtime');
@@ -147,6 +150,7 @@ const {
       apicall_recalibrate_bot_address: runtime_recalibrate_bot_address,
       apicall_recalibrate_bot_addresses: runtime_recalibrate_bot_addresses,
       apicall_switch_bot_address: runtime_switch_bot_address,
+      apicall_set_bot_address: runtime_set_bot_address,
       apicall_apply_safe_mode_for_bot: runtime_apply_safe_mode_for_bot,
       apicall_apply_safe_mode_after_structure_change: runtime_apply_safe_mode_after_structure_change,
       apicall_set_safe_mode: runtime_set_safe_mode
@@ -237,6 +241,9 @@ constructor()
    this.self_assembly_obj   = new self_assembly( );
    this.nightwatch          = new NightWatch(this);
    this.nightwatch.start();
+   this.accessDomainController = new AccessDomainController(this);
+   this.accessDomainController.loadConfig();
+   // this.accessDomainController.init(config_hmb); // TODO: in v1.9/v2.0 aktivieren
    this.signature_class_obj = new signature_class( );
    
       
@@ -253,6 +260,11 @@ constructor()
    
    this.bots           = [];
    this.botindex       = [];
+
+   // ADC: hMBs aus config_mb.xml registrieren (ohne Structurescan)
+   if (this.accessDomainController) {
+       this.accessDomainController.registerConfigBots();
+   }
 
    this.structure_roles = {
                           carrier: [],
@@ -298,6 +310,10 @@ constructor()
    this.scan_waiting_info          = {}; 
    this.scan_waiting_check         = {};
    this.scan_waiting_radio         = {};
+   this.adc_scan_status            = 0;  // ADC-Scan: 0=off, 1=active
+   this.adc_tmpid_cnt              = 0;  // ADC-Scan: own tmpid counter
+   this.adc_scan_waiting_info      = {}; // ADC-Scan: eigene Warteschlange
+   this.disableLegacy              = true;  // true = legacy MasterBot @ (0,0,0) deaktiviert
    this.scan_targets_lvl2          = [];
    this.scan_targets_lvl2_index    = 0;
    this.scan_timeout = 0;
@@ -341,6 +357,8 @@ constructor()
    this.crater_active_id = this.api_crater_default_id;
    this.debug_move_enabled = false;
    this.debug_vk_exports = false;
+   this.debug_fe_exports = false;
+   this.adc_auto_assign_proximity = (String(this.config.adc_auto_assign_proximity ?? "false").trim() === "true");
    this.safe_mode = 2;
    this.direct_radio_id_rid_map = {};
    this.direct_radio_rid_id_map = {};
@@ -473,7 +491,7 @@ constructor()
       {
       console.log("[config] auto_structurescan = true → starting scan in 3 seconds...");
       setTimeout(() => {
-                       this.start_scan(1);
+                       this.adc_start_scan(1);
                        }, 3000);
       } // if
 
@@ -770,6 +788,12 @@ apicall_update_morph_status(patch = {})
 {
 return(runtime_update_morph_status(this, patch));
 } // apicall_update_morph_status()
+
+
+apicall_morph_start_headless(algo, structure, output_file, socket)
+{
+return(runtime_morph_start_headless(this, algo, structure, output_file, socket));
+} // apicall_morph_start_headless()
 
 
 apicall_get_morph_status()
@@ -2285,7 +2309,7 @@ connect_to_external_masterbot() {
 
 //
 // start_masterbot_autoconnect()
-//  - versucht Verbindung → reconnect bei Fehler
+//  - tries connection → reconnect on error
 //
 start_masterbot_autoconnect() {
 
@@ -2304,8 +2328,8 @@ start_masterbot_autoconnect() {
             // Status anfordern
             this.client.write('{ "cmd":"status" }\n');
 
-            // !!! WICHTIG:
-            // nach erfolgreichem Connect wieder Listener aktivieren
+            // !!! IMPORTANT:
+            // after successful connect, re-enable listeners
             this.setup_masterbot_data_listener();
         });
 
@@ -2314,11 +2338,11 @@ start_masterbot_autoconnect() {
 
             this.MASTERBOT_CONNECTED = 0;
 
-            // Nach 2s erneut versuchen
+            // Retry after 2s
             setTimeout(tryConnect, 2000);
         });
 
-        // NEU: sauberer close-Listener
+        // NEW: clean close-listener
         this.client.on('close', () => {
 
             console.log("[BotController] Connection closed.");
@@ -2345,10 +2369,10 @@ afterMasterbotConnected() {
 
     this.MASTERBOT_CONNECTED = 1;
 
-    // initial Status holen
+    // get initial status
     this.client.write('{ "cmd": "status" }\n');
 
-    // ✨ alte Event-Handler wieder aktivieren
+    // ✨ re-activate old event handlers
     this.setup_readline_interface();
     this.setup_masterbot_data_listener();
 } // afterMasterbotConnected
@@ -2593,8 +2617,8 @@ setup_readline_interface() {
               let retstruct = this.create_opcode_sequence( "" );
               let opcodes = retstruct.opcodes;
               
-              console.log("RETSTRUCT: ");
-              console.log( retstruct );
+              // console.log("RETSTRUCT: ");
+              // console.log( retstruct );
   
               // Write opcodes to file  
               const filePath = path.join(__dirname, 'sequences', 'morph.sequence');
@@ -2637,7 +2661,7 @@ setup_masterbot_data_listener() {
 
 /*
     this.client.on('data', (data) => {
-        // dein alter JSON-Parsing-Code hier rein
+        // your old JSON parsing code goes here
     });
   */  
     
@@ -2703,13 +2727,13 @@ this.client.on('close', () => {
     this.MASTERBOT_CONNECTED = 0;
     this.masterbot_incoming_buffer = "";
 
-    // Versuche nicht, neu zu verbinden, falls der Benutzer absichtlich "quit" gedrückt hat
+    // Do not try to reconnect if the user intentionally pressed "quit"
     if (this._shutdownRequested) {
         console.log("Shutting down BotController.");
         process.exit(0);
     }
 
-    // Andernfalls einfach die Schleife weiterlaufen lassen:
+    // Otherwise just let the loop continue:
     console.log("Waiting for MasterBot to come online...");
 });
 
@@ -2722,78 +2746,7 @@ this.client.on('close', () => {
 
 
 
-
-  /*
-//
-// connect_to_external_masterbot()
-// 
-connect_to_external_masterbot()
-{
-let param = "";
-
-this.client = new net.Socket();
-
-this.rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-
  
-
-
-
-if (this.connect_masterbot == 1)
-{
-
-this.client.connect( this.PORT, this.HOST, () => {
-  console.log('Connected with MasterBot');
-  console.log('Enter command (gettime/getstatus) or "quit":');
-  
-  this.MASTERBOT_CONNECTED = 1;
-  let cmd = "";
-  
-    
-  // ask for initial status 
-  cmd = "{ \"cmd\":\"status\" }\n";
-  this.client.write(cmd);
-  
-    
-
-}); // this.client.connect
-
-
-
-
-
-
- 
-
-
-this.client.on('close', () => {
-  console.log('Connection closed!');
-  process.exit(0);
-});
-
-
-} // if (connect_masterbot == 1)
-else
-{
-
-}
-
-
-
- 
-
-
-} // connect_to_external_masterbot()
-  
-  
-  
-
-*/
-
 
 
 
@@ -2803,7 +2756,7 @@ else
 //
 setup_console_interface() {
 
-    // Falls später schon gesetzt, abbrechen (sicherheitscheck)
+    // If already set, abort (safety check)
     if (this.rl) {
         console.log("[setup_console_interface] readline already active.");
         return;
@@ -2829,8 +2782,8 @@ setup_console_interface() {
             process.exit(0);
         }
 
-        // Alle anderen Eingaben erstmal NICHT verändern!
-        // Deine alte Console-Logik darf sich erstmal weiter darum kümmern.
+        // Do NOT modify any other input for now!
+        // Your old console logic can continue handling it for now.
         console.log("[Console passthrough]", input);
     });
 
@@ -2886,6 +2839,14 @@ shutdown()
 start_scan( reset = 1)
 {
 
+// Save hMBs/config bots with masterbot role (before deletion)
+const savedMasterBots = [];
+for (let i = 0; i < this.bots.length; i++) {
+    if ((this.bots[i].masterbot ?? 0) > 0) {
+        savedMasterBots.push(this.bots[i]);
+    }
+}
+
 this.bots     = [];  
 this.botindex = [];
 
@@ -2939,7 +2900,19 @@ bot_class_mini_obj.adress += this.mb['connection'].toUpperCase();
 
 this.register_bot( bot_class_mini_obj );
 
- 
+// Restore saved hMBs/config bots
+for (let i = 0; i < savedMasterBots.length; i++) {
+    let hmb = savedMasterBots[i];
+    // Mark hMBs as fully checked – the scan should skip them,
+    // since they have no mesh addresses and are only known via config.
+    hmb.checked = 1;
+    hmb.checked_neighbors = hmb.checked_neighbors || {};
+    let slotNames = ['f', 'r', 'b', 'l', 't', 'd'];
+    for (let s = 0; s < slotNames.length; s++) {
+        hmb.checked_neighbors[slotNames[s]] = 1;
+    }
+    this.register_bot(hmb);
+}
 
 this.scanwaitingcounter = 0;
 this.scan_status        = 1;
@@ -2949,6 +2922,125 @@ this.threadcounter      = 0;
 
 } // start_scan()
 
+
+//
+// adc_start_scan() – ADC-based structure scan across multiple MBs/hMBs.
+// Sends INFO from each active MB's F-Slot, stores scan_origin_mb
+// for later auto-assignment in adc_scan_step().
+//
+adc_start_scan( reset = 1)
+{
+this.adc_scan_status = 0;
+
+if (reset == 1)
+   {
+   // Reset entire world state (like old start_scan())
+   this.bots = [];
+   this.botindex = [];
+   this.scan_waiting_info = {};
+   this.adc_tmpid_cnt = 0;
+   this.scanwaitingcounter = 0;
+
+   // Reset ADC bot assignments (will be reassigned during scan)
+   if (this.accessDomainController) {
+       this.accessDomainController.botMap = {};
+       this.accessDomainController.registerConfigBots();
+       // Initialize MBs/hMBs for scan: checked=1, checked_neighbors={f:0, r:1, b:1, l:1, t:1, d:1}
+       // Only F-Slot is scanned during initial ping, the others are considered known (immobile).
+       for (let i = 0; i < this.bots.length; i++) {
+           if ((this.bots[i].masterbot ?? 0) > 0) {
+               this.bots[i].checked = 1;
+               this.bots[i].checked_neighbors = { f: 0, r: 1, b: 1, l: 1, t: 1, d: 1 };
+           }
+       }
+   }
+   // console.log("[ADC-SCAN] World reset complete – re-registered MBs/hMBs");
+   }
+
+// Dynamically load all MBs/hMBs from ADC config (config_mb.xml)
+let scan_mbs = [];
+if (this.accessDomainController && this.accessDomainController.helper_masterbots)
+   {
+   for (let id in this.accessDomainController.helper_masterbots)
+       {
+       let mb = this.accessDomainController.helper_masterbots[id];
+       if (mb.type === "masterbot" && mb.connector_id)
+          {
+          scan_mbs.push({ id: mb.id, connector: mb.connector_id });
+          }
+       }
+   }
+
+if (!this.accessDomainController || scan_mbs.length == 0)
+   {
+   console.log("[ADC-SCAN] ERROR: no MBs/hMBs available");
+   return;
+   }
+
+// console.log("[ADC-SCAN] Scanning " + scan_mbs.length + " MB(s): " + scan_mbs.map(m => m.id + "(" + m.connector + ")").join(", "));
+
+for (let m = 0; m < scan_mbs.length; m++)
+    {
+    let mb_id = scan_mbs[m].id;
+    let connector_id = scan_mbs[m].connector;
+    let mb_idx = this.get_bot_by_id(mb_id, this.bots);
+
+    if (mb_idx == null || mb_idx === undefined)
+       {
+       console.log("[ADC-SCAN] WARNING: " + mb_id + " not found in bots[] – skipping");
+       continue;
+       }
+
+    let mb_bot = this.bots[mb_idx];
+    let cmd_slot = "F";
+
+    // Mark MB/hMB as fully checked
+    mb_bot.checked = 1;
+    mb_bot.checked_neighbors = mb_bot.checked_neighbors || {};
+    mb_bot.checked_neighbors['f'] = 0; // F-Slot will be scanned next
+
+    // Calculate target coordinate
+    let target_coor = this.get_next_target_coor(
+       mb_bot.x, mb_bot.y, mb_bot.z,
+       mb_bot.vector_x, mb_bot.vector_y, mb_bot.vector_z,
+       cmd_slot
+       );
+
+    // Retaddr = "S" (reply through the same slot)
+    let retaddr = "S";
+    let tmpid = this.tmpid_cnt++;
+
+    // Store in scan_waiting_info (with scan_origin_mb for auto-assign)
+    this.scan_waiting_info[tmpid] = {
+       tmpid: tmpid,
+       addr: cmd_slot,
+       status: 0,
+       x: target_coor.x,
+       y: target_coor.y,
+       z: target_coor.z,
+       color: "eeeeee",
+       stl_id: this.getKey_3d(mb_bot.x, mb_bot.y, mb_bot.z),
+       scan_origin_mb: mb_id
+       };
+
+    // Build INFO command and send via ADC-Connector
+    let cmd = cmd_slot + "#INFO#" + tmpid + "#" + retaddr;
+    cmd = this.sign(cmd);
+    this.accessDomainController.adc_sendPush(connector_id, cmd);
+
+    // console.log("[ADC-SCAN] Sent INFO via " + connector_id + " (" + mb_id + " F-Slot → "
+    //    + target_coor.x + "," + target_coor.y + "," + target_coor.z + ") tmpid=" + tmpid);
+
+    // F-Slot als gescannt markieren
+    mb_bot.checked_neighbors['f'] = 1;
+    } // for scan_mbs
+
+if (scan_mbs.length > 0)
+   {
+   this.adc_scan_status = 1;
+   // console.log("[ADC-SCAN] Status=1 – waiting for RINFO...");
+   }
+} // adc_start_scan()
 
 
 //
@@ -2991,6 +3083,11 @@ if (communication_mode != "direct_radio")
 
 this.bots = [];
 this.botindex = [];
+
+// ADC: hMBs aus config_mb.xml registrieren (ohne Structurescan)
+if (this.accessDomainController) {
+    this.accessDomainController.registerConfigBots();
+}
 this.scan_waiting_radio = {};
 this.scan_radio_pending_ids = [];
 this.scan_radio_requested_ids = {};
@@ -3264,6 +3361,11 @@ let size      = this.bots.length;
 for (let i=0; i<size; i++)
     {
     let bot = this.bots[i];
+
+    // Include primary MB in cells (as root anchor for wouldSplitCluster).
+    // Exclude hMBs (masterbot == 2) and legacy masterbot (id == "masterbot").
+    if ((bot.masterbot ?? 0) == 2 || bot.id == "masterbot") continue;
+
     // The bot object uses vector_x/vector_y/vector_z for orientation (from botexport.json).
     // Map them to vx/vy/vz for the morph planner.
     let { id, x, y, z, vector_x, vector_y, vector_z } = bot;
@@ -3295,6 +3397,38 @@ this.structure_roles = {
 
  
 
+// ADC: Primary MB position for morph (instead of legacy this.mb @ 0,0,0)
+let morph_mb_pos = { x: Number(this.mb.x), y: Number(this.mb.y), z: Number(this.mb.z) };
+let primary_mb_idx = this.get_bot_by_id("MB", this.bots);
+if (primary_mb_idx != null && primary_mb_idx !== undefined)
+   {
+   morph_mb_pos = {
+       x: Number(this.bots[primary_mb_idx].x),
+       y: Number(this.bots[primary_mb_idx].y),
+       z: Number(this.bots[primary_mb_idx].z)
+       };
+   }
+
+// hMBs as static anchors for wouldSplitCluster
+// and as forbiddenCells for the BFS planner (immobile obstacles)
+let morph_anchors = [];
+let forbiddenCells = [];
+for (let i = 0; i < this.bots.length; i++) {
+    let bot = this.bots[i];
+    if ((bot.masterbot ?? 0) == 2) { // hMBs (masterbot == 2)
+        morph_anchors.push({
+            x: Number(bot.x),
+            y: Number(bot.y),
+            z: Number(bot.z)
+        });
+        forbiddenCells.push({
+            x: Number(bot.x),
+            y: Number(bot.y),
+            z: Number(bot.z)
+        });
+    }
+}
+
 let params = {};
 let algo = null;
 
@@ -3302,7 +3436,8 @@ if ( this.morphAlgorithmSelected == "bfs_wavefront" )
    {
    console.log("Prepare bfs_wavefront...");
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3318,7 +3453,8 @@ if ( this.morphAlgorithmSelected == "bfs_simple" )
    console.log("Prepare bfs_simple...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 1, // Only one Bot per wave
             max_attempts_to_find_pair: 50
             };
@@ -3334,7 +3470,8 @@ if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
    console.log("Prepare vehicle_kinematics...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3348,7 +3485,8 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
    console.log("Prepare parallel_vehicle_kinematics...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3400,12 +3538,55 @@ this.apicall_update_morph_status(
 // Set to global space
 this.morphAlgorithmSelected = algo_selected;
 
+// ADC: Primary MB position for morph (instead of legacy this.mb @ 0,0,0)
+let morph_mb_pos = { x: Number(this.mb.x), y: Number(this.mb.y), z: Number(this.mb.z) };
+let primary_mb_idx = this.get_bot_by_id("MB", this.bots);
+if (primary_mb_idx != null && primary_mb_idx !== undefined)
+   {
+   morph_mb_pos = {
+       x: Number(this.bots[primary_mb_idx].x),
+       y: Number(this.bots[primary_mb_idx].y),
+       z: Number(this.bots[primary_mb_idx].z)
+       };
+   }
+
+// hMBs as static anchors for wouldSplitCluster
+let morph_anchors = [];
+for (let i = 0; i < this.bots.length; i++) {
+    let bot = this.bots[i];
+    if ((bot.masterbot ?? 0) == 2) { // hMBs (masterbot == 2)
+        morph_anchors.push({
+            x: Number(bot.x),
+            y: Number(bot.y),
+            z: Number(bot.z)
+        });
+    }
+}
+
+// hMBs as forbiddenCells for the BFS planner (immobile obstacles)
+let forbiddenCells = [];
+for (let i = 0; i < this.bots.length; i++) {
+    let bot = this.bots[i];
+    if ((bot.masterbot ?? 0) == 2) {
+        forbiddenCells.push({
+            x: Number(bot.x),
+            y: Number(bot.y),
+            z: Number(bot.z)
+        });
+    }
+}
+
 let startBots = [];
 let size      = this.bots.length;
 
 for (let i=0; i<size; i++)
     {
     let bot = this.bots[i];
+
+    // Include primary MB in the cells (as root anchor for wouldSplitCluster).
+    // hMBs (masterbot == 2) and legacy masterbot (id == "masterbot") excluded.
+    if ((bot.masterbot ?? 0) == 2 || bot.id == "masterbot") continue;
+
     let { id, x, y, z, vector_x, vector_y, vector_z } = bot;
     let vx = vector_x;
     let vy = vector_y;
@@ -3443,7 +3624,8 @@ if ( this.morphAlgorithmSelected == "bfs_wavefront" )
    {
    console.log("Headless prepare bfs_wavefront...");
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3459,7 +3641,8 @@ if ( this.morphAlgorithmSelected == "bfs_simple" )
    console.log("Headless prepare bfs_simple...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 1,
             max_attempts_to_find_pair: 50
             };
@@ -3476,7 +3659,8 @@ if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
    console.log("Headless prepare vehicle_kinematics...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3490,7 +3674,8 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
    console.log("Headless prepare parallel_vehicle_kinematics...");
 
    params = {
-            masterbot : { x: Number(this.mb['x']), y: Number(this.mb['y']), z:   Number(this.mb['z'])    },
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3563,6 +3748,20 @@ fs.writeFileSync("logs/morphresult.json", JSON.stringify(morphLog, null, 2));
 
   
   
+    // Remove hMBs/config bots from morphLog (immobile, not participating in morph)
+             if (morphLog && morphLog.waves) {
+                 for (let w = 0; w < morphLog.waves.length; w++) {
+                     let wave = morphLog.waves[w];
+                     if (wave.moves) {
+                         wave.moves = wave.moves.filter(mv => {
+                             let keep = true;
+                             let bot = this.bots.find(b => String(b.id ?? "") === String(mv.id ?? ""));
+                             if (bot) keep = (bot.mobility !== false && (bot.masterbot ?? 0) === 0);
+                             return keep;
+                         });
+                     }
+                 }
+             }
              let retstruct      = this.create_opcode_sequence( morphLog );
              let opcodes        = retstruct.opcodes;
              this.signal_botids = retstruct.signal_botids;
@@ -3732,15 +3931,15 @@ let ret = "";
  
 
 let bots_tmp = this.bots.map(b => ({
-  id: b.id,
-  x: b.x,
-  y: b.y,
-  z: b.z,
-  vector_x: b.vector_x,
-  vector_y: b.vector_y,
-  vector_z: b.vector_z,
-  adress: b.adress
-}));
+    id: b.id,
+    x: b.x,
+    y: b.y,
+    z: b.z,
+    vector_x: b.vector_x,
+    vector_y: b.vector_y,
+    vector_z: b.vector_z,
+    adress: b.adress
+  }));
   
 let size = morphLog.waves.length;
 if (locallog) console.log("size: " + size);
@@ -3779,7 +3978,7 @@ for (let i=0; i<size; i++)
     for (let i2=0; i2<size2; i2++)
         {
         
-        if (locallog) console.log(morphLog.waves[i].moves[i2]);
+        // if (locallog) console.log(morphLog.waves[i].moves[i2]);
         let thebotid = morphLog.waves[i].moves[i2].id;
        
         
@@ -3824,7 +4023,16 @@ for (let i=0; i<size; i++)
        
 
        
-        // Adress-Update (all bots!)
+        // Address update (all bots!) – start from primary MB instead of legacy this.mb
+        let addr_from_x = this.mb.x;
+        let addr_from_y = this.mb.y;
+        let addr_from_z = this.mb.z;
+        let prime_i = this.get_bot_by_id("MB", this.bots);
+        if (prime_i != null && prime_i !== undefined) {
+            addr_from_x = Number(this.bots[prime_i].x);
+            addr_from_y = Number(this.bots[prime_i].y);
+            addr_from_z = Number(this.bots[prime_i].z);
+        }
         for (let b = 0; b < bots_tmp.length; b++)
             {
 
@@ -3834,9 +4042,9 @@ for (let i=0; i<size; i++)
              !(b2.x === bots_tmp[b].x && b2.y === bots_tmp[b].y && b2.z === bots_tmp[b].z)
             );
             bots_tmp[b].adress = this.get_mb_returnaddr(
-             {x: this.mb.x, y: this.mb.y, z: this.mb.z},
+             {x: addr_from_x, y: addr_from_y, z: addr_from_z},
              {x: bots_tmp[b].x, y: bots_tmp[b].y, z: bots_tmp[b].z},
-             bots_tmp, cleanedBlockedBots
+             bots_tmp, cleanedBlockedBots, { exclude_masterbots: false }
             );
 
            if (bots_tmp[b].adress  == "" )
@@ -3895,9 +4103,7 @@ for (let i=0; i<size; i++)
                   }
              signal_botids[signal] = { thebotid:thebotid, to:signal_to_fin };
              }
-    
-    
-    
+
         let cmd = "";
     
     
@@ -3944,7 +4150,7 @@ for (let i=0; i<size; i++)
     
       
       
-        // UPDATE bots_tmp: verschiebe den aktuellen Bot auf die neue Position
+        // UPDATE bots_tmp: move the current bot to the new position
         bots_tmp[bindex].x = bot_to.x;
         bots_tmp[bindex].y = bot_to.y;
         bots_tmp[bindex].z = bot_to.z;
@@ -3968,10 +4174,33 @@ for (let i=0; i<size; i++)
         if (locallog) console.log(JSON.stringify( result.lastneighbour , null, 2));
         
         
-        retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, {x:this.mb.x, y:this.mb.y, z:this.mb.z }, bots_tmp, blockedBots );
-        
+        let blockedStr = blockedBots.slice(0, 5).map(b => "(" + b.x + "," + b.y + "," + b.z + ")").join(",");
+        Logger.log("[MORPH] retaddr bot=" + thebotid + " from=(" + bot_to.x + "," + bot_to.y + "," + bot_to.z + ") to=(" + this.mb.x + "," + this.mb.y + "," + this.mb.z + ") blocked[" + blockedBots.length + "]=" + blockedStr + (blockedBots.length > 5 ? "..." : "") + " bots_tmp=" + bots_tmp.length);
 
-        if (locallog) console.log("new retaddr: [" + retaddr + "]");
+        // OLD: retaddr always to legacy MasterBot @ this.mb
+        // retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, {x:this.mb.x, y:this.mb.y, z:this.mb.z }, bots_tmp, blockedBots, { exclude_masterbots: true } );
+
+        // ADC: retaddr always goes to the primary MB (0,0,1), not to the individually assigned hMB.
+        // The primary MB is central and always reachable – ADC will route from there.
+        let mb_target_x = this.mb.x;
+        let mb_target_y = this.mb.y;
+        let mb_target_z = this.mb.z;
+        let prime_idx = this.get_bot_by_id("MB", this.bots);
+        if (prime_idx != null && prime_idx !== undefined) {
+            mb_target_x = Number(this.bots[prime_idx].x);
+            mb_target_y = Number(this.bots[prime_idx].y);
+            mb_target_z = Number(this.bots[prime_idx].z);
+        }
+        retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, {x:mb_target_x, y:mb_target_y, z:mb_target_z }, bots_tmp, blockedBots, { exclude_masterbots: false } );
+
+        // Fallback: if BFS finds no path, use "S" (self/same slot) as return address
+        if (retaddr == "")
+           {
+           retaddr = "S";
+           Logger.log("[MORPH] retaddr fallback to 'S' for bot=" + thebotid);
+           }
+
+        Logger.log("[MORPH] -> retaddr=[" + retaddr + "]");
         
        
         
@@ -4037,12 +4266,18 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
     let queue = [{pos: normalized_from, path: ""}];
     let visited = new Set();
     let routing_mode = String(options?.routing_mode ?? "standard").trim().toLowerCase();
+    let exclude_masterbots = (options?.exclude_masterbots === true);
+
+    Logger.log("[BFS] get_mb_returnaddr from=(" + normalized_from.x + "," + normalized_from.y + "," + normalized_from.z + ") to=(" + normalized_to.x + "," + normalized_to.y + "," + normalized_to.z + ") blocked=" + blockedBots.length + " exclude_masterbots=" + exclude_masterbots + " bots_tmp=" + bots_tmp.length);
 
      
     // Set for quick block check
     const blockedSet = new Set(
       blockedBots.map(b => `${b.x},${b.y},${b.z}`)
     );
+
+    // Note: hMBs remain in bots_tmp when exclude_masterbots=false (default).
+    // When exclude_masterbots=true, bots with masterbot != 0 are skipped in routing.
 
     let steps = 0;
 
@@ -4059,6 +4294,7 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
             Number(current.pos.y) === Number(normalized_to.y) &&
             Number(current.pos.z) === Number(normalized_to.z)
         ) {
+            Logger.log("[BFS] FOUND path=[" + current.path + "] from=(" + normalized_from.x + "," + normalized_from.y + "," + normalized_from.z + ") to=(" + normalized_to.x + "," + normalized_to.y + "," + normalized_to.z + ") steps=" + steps);
             return current.path;
         }
 
@@ -4071,10 +4307,22 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
 
         let candidate_neighbours = [];
 
-        // iterarte all neighbours
+        // iterate all neighbours (skip hMBs/immobile bots for routing)
         for (let bot of bots_tmp) {
             // -----> New: skip blocked-bots!
             if (blockedSet.has(`${bot.x},${bot.y},${bot.z}`)) continue;
+
+            // Skip masterbots (primary MB / helper hMB) when exclude_masterbots is active.
+            // Masterbots are endpoints, not routing nodes – they do not forward mesh traffic.
+            // EXCEPTION: the target position itself may be a masterbot – it must still be reachable.
+            if (exclude_masterbots && Number(bot.masterbot ?? 0) !== 0) {
+                // Skip only if this masterbot is NOT the BFS target
+                if (!(Number(bot.x) === Number(normalized_to.x) &&
+                      Number(bot.y) === Number(normalized_to.y) &&
+                      Number(bot.z) === Number(normalized_to.z))) {
+                    continue;
+                }
+            }
 
             // skip self coordinate
             if (
@@ -4157,6 +4405,7 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
             } // for
         } // while
     // not path found
+    Logger.log("[BFS] NOT_FOUND from=(" + normalized_from.x + "," + normalized_from.y + "," + normalized_from.z + ") to=(" + normalized_to.x + "," + normalized_to.y + "," + normalized_to.z + ") steps=" + steps);
     return ""; //  
 } // get_mb_returnaddr()
 
@@ -4179,9 +4428,9 @@ for (let b of bots_tmp) {
     }
 }
 
-console.log("=== get_mb_returnaddr_detour ===");
-console.log("Target bot:", target_bot?.id, "at", pos_to?.x, pos_to?.y, pos_to?.z);
-console.log("Current adress:", target_bot?.adress ?? "");
+// console.log("=== get_mb_returnaddr_detour ===");
+// console.log("Target bot:", target_bot?.id, "at", pos_to?.x, pos_to?.y, pos_to?.z);
+// console.log("Current adress:", target_bot?.adress ?? "");
 
 // Step 2: find a neighbor of target that is NOT on its current adress path
 // Use the last slot of the adress to determine the second-to-last bot
@@ -4214,7 +4463,7 @@ if (adr.length >= 2) {
         forbidden_key = `${sx},${sy},${sz}`;
         let second_last = bots_tmp.find(b =>
             Number(b.x) === sx && Number(b.y) === sy && Number(b.z) === sz);
-        console.log("Second-to-last bot:", second_last?.id ?? "unknown", "at", sx, sy, sz);
+        // console.log("Second-to-last bot:", second_last?.id ?? "unknown", "at", sx, sy, sz);
     }
 }
 
@@ -4232,9 +4481,9 @@ for (let b of bots_tmp) {
 let picked_intermediate = null;
 if (candidates.length > 0) {
     picked_intermediate = candidates[Math.floor(Math.random() * candidates.length)];
-    console.log("Intermediate bot:", picked_intermediate.id, "at", picked_intermediate.x, picked_intermediate.y, picked_intermediate.z);
+    // console.log("Intermediate bot:", picked_intermediate.id, "at", picked_intermediate.x, picked_intermediate.y, picked_intermediate.z);
 } else {
-    console.log("No intermediate candidate within ±2 (excluding second-to-last)");
+    // console.log("No intermediate candidate within ±2 (excluding second-to-last)");
 }
 
 // Helper: walk an adress string from start_pos and return all bot coords as blockedBots array
@@ -4268,10 +4517,10 @@ if (picked_intermediate) {
     let path2 = this.get_mb_returnaddr(mid_pos, pos_to, bots_tmp, combined_blocked, options);
     if (path1 && path2) {
         let detour = path1 + path2;
-        console.log("Detour path (" + picked_intermediate.id + "):", detour);
+        // console.log("Detour path (" + picked_intermediate.id + "):", detour);
         return detour;
     }
-    console.log("Detour path construction failed, falling back to standard BFS");
+    // console.log("Detour path construction failed, falling back to standard BFS");
 }
 return(this.get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots, options));
 } // get_mb_returnaddr_detour()
@@ -4486,7 +4735,7 @@ for (let i=0; i<size; i++)
        i++;
        MoveSubCmd += rawMoves[i];
     
-       // check ist last valid connection slot          
+       // check if last valid connection slot          
        teststruct   = this.test_virtual_botmove( {x:bot_x, y:bot_y, z:bot_z } , MoveSubCmd ,  bots);
        check        = teststruct.check;
        lastanchor   = teststruct.lastanchor;
@@ -4563,12 +4812,18 @@ let ret = {
            final_lastanchorneighbour: final_lastanchorneighbour
            };
 
-let calc_move_cmds_return_path = path.join(__dirname, "logs", "calc_move_cmds_return.json");
-if (this.debug_vk_exports === true)
+let calc_move_cmds_return_name = "calc_move_cmds_return";
+if (this.debug_fe_exports === true)
+   {
+   this.debug_fe_counter = (this.debug_fe_counter || 0) + 1;
+   calc_move_cmds_return_name = "calc_move_cmds_" + this.debug_fe_counter;
+   } // if
+let calc_move_cmds_return_path = path.join(__dirname, "logs", calc_move_cmds_return_name + ".json");
+if (this.debug_vk_exports === true || this.debug_fe_exports === true)
    {
    fs.writeFileSync(calc_move_cmds_return_path, JSON.stringify(ret, null, 2), "utf8");
    Logger.log("calc_move_cmds return dumped: " + calc_move_cmds_return_path);
-   } // if (this.debug_vk_exports === true)
+   } // if (this.debug_vk_exports === true || this.debug_fe_exports === true)
 
 // console.log("ret: calc_move_cmds");
 // console.log( ret );
@@ -5459,21 +5714,21 @@ if (Array.isArray(hybrid_actions) && hybrid_actions.length > 0)
      }
 
 // =====================================================================
-// NEUE OPCODE-TABELLE (09.05.2026)
-// Übersetzt Path-Planner Actions direkt in Opcodes, ohne Merge-Logik.
-// Status: EXPERIMENTELL - alte Merge-Logik bleibt erhalten.
+// NEW OPCODE TABLE (09.05.2026)
+// Translates Path Planner Actions directly into opcodes, without merge logic.
+// Status: EXPERIMENTAL - old merge logic remains intact.
 // =====================================================================
-// Jedes Primitiv aus api_hybrid_kinematics_path_runtime.js bekommt
-// einen festen oder dynamischen Opcode.
-// Für FWD/BWD: Anker werden via resolve_hybrid_anchor_safe() bestimmt.
+// Each primitive from api_hybrid_kinematics_path_runtime.js gets
+// a fixed or dynamic opcode.
+// For FWD/BWD: Anchors are determined via resolve_hybrid_anchor_safe().
 // =====================================================================
 
-// Opcode-Tabelle: Primitive-Name -> { opcode: String/Funktion, type: String }
-// type: "fixed" = immer gleicher Opcode
-//       "dynamic_fwd" = FWD mit dynamischen Ankern
-//       "dynamic_bwd" = BWD mit dynamischen Ankern
+// Opcode table: primitive name -> { opcode: String/Function, type: String }
+// type: "fixed" = always the same opcode
+//       "dynamic_fwd" = FWD with dynamic anchors
+//       "dynamic_bwd" = BWD with dynamic anchors
 const HYBRID_OPCODE_TABLE = {
-  // --- MOVE (horizontale Translation) - hartverdratet für Test (kein Kopfüber) ---
+  // --- MOVE (horizontal translation) - hardcoded for test (no upside-down) ---
   "MOVE_XP_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in XP direction" },
   "MOVE_XP_BWD": { opcode: "D_B_D", type: "fixed", desc: "backward in XP direction" },
   "MOVE_XN_FWD": { opcode: "D_F_D", type: "fixed", desc: "forward in XN direction" },
@@ -5493,13 +5748,13 @@ const HYBRID_OPCODE_TABLE = {
   "ROT_LEFT_ZN_TO_XN":  { opcode: "D_SR_D", type: "fixed", desc: "spin left" },
   "ROT_RIGHT_ZN_TO_XP": { opcode: "D_SL_D", type: "fixed", desc: "spin right" },
 
-  // --- WALL_UP (vertikale Aufwärtsbewegung an der Wand) ---
+  // --- WALL_UP (vertical upward movement on wall) ---
   "WALL_UP_XP": { opcode: "F_T_F", type: "fixed", desc: "wall up XP" },
   "WALL_UP_XN": { opcode: "F_T_F", type: "fixed", desc: "wall up XN" },
   "WALL_UP_ZP": { opcode: "F_T_F", type: "fixed", desc: "wall up ZP" },
   "WALL_UP_ZN": { opcode: "F_T_F", type: "fixed", desc: "wall up ZN" },
 
-  // --- WALL_DOWN (vertikale Abwärtsbewegung an der Wand) ---
+  // --- WALL_DOWN (vertical downward movement on wall) ---
   "WALL_DOWN_XP": { opcode: "F_D_F", type: "fixed", desc: "wall down XP" },
   "WALL_DOWN_XN": { opcode: "F_D_F", type: "fixed", desc: "wall down XN" },
   "WALL_DOWN_ZP": { opcode: "F_D_F", type: "fixed", desc: "wall down ZP" },
@@ -5529,7 +5784,7 @@ const HYBRID_OPCODE_TABLE = {
   "CLIMB_DOWN_ZP": { opcode: "F_DF_T", type: "fixed", desc: "climb down ZP" },
   "CLIMB_DOWN_ZN": { opcode: "F_DF_T", type: "fixed", desc: "climb down ZN" },
 
-  // --- CEILING (horizontale Fahrt an der Decke, Kopf über) ---
+  // --- CEILING (horizontal driving on ceiling, upside-down) ---
   "MOVE_XP_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward XP" },
   "MOVE_XP_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward XP" },
   "MOVE_XN_FWD_CEILING": { opcode: "T_F_T", type: "fixed", desc: "ceiling forward XN" },
@@ -5540,10 +5795,10 @@ const HYBRID_OPCODE_TABLE = {
   "MOVE_ZN_BWD_CEILING": { opcode: "T_B_T", type: "fixed", desc: "ceiling backward ZN" },
 };
 
-// Neue Opcode-Liste für das Logging
+// New opcode list for logging
 let hybrid_actions_opcodes = [];
 
-// Nur ausführen wenn hybrid_actions vorhanden sind
+// Only execute if hybrid_actions exist
 if (Array.isArray(hybrid_actions) && hybrid_actions.length > 0)
    {
    console.log("=== HYBRID ACTIONS -> OPCODES (NEU) ===");
@@ -5572,7 +5827,7 @@ if (Array.isArray(hybrid_actions) && hybrid_actions.length > 0)
    console.log("=== ENDE HYBRID ACTIONS -> OPCODES ===");
    }
 
-// Logge hybrid_actions + neue Opcodes in Log-Datei (wenn debug aktiv)
+// Log hybrid_actions + new opcodes to log file (if debug enabled)
 if (self.debug_hybrid_exports === true && Array.isArray(hybrid_actions))
    {
    let hybrid_actions_log_path = path.join(__dirname, "logs", "calc_move_hybrid_actions_log.json");
@@ -5589,8 +5844,8 @@ if (self.debug_hybrid_exports === true && Array.isArray(hybrid_actions))
 // ENDE NEUE OPCODE-TABELLE
 // =====================================================================
 
-// Wenn hybrid_actions vorhanden sind, die neuen Opcodes in movecmds setzen
-// und per early return zurückgeben (alte VK-Merge-Logik überspringen).
+// If hybrid_actions exist, set the new opcodes in movecmds
+// and return early (skip the old VK merge logic).
 if (Array.isArray(hybrid_actions_opcodes) && hybrid_actions_opcodes.length > 0)
    {
    let new_movecmds = hybrid_actions_opcodes
@@ -5603,7 +5858,7 @@ if (Array.isArray(hybrid_actions_opcodes) && hybrid_actions_opcodes.length > 0)
       console.log("=== VERWENDE NEUE OPCODES (statt Merge-Logik) ===");
       console.log("  movecmds: " + new_movecmds);
 
-      // Der letzte Opcode enthält den End-Anker (alles nach dem letzten '_').
+      // The last opcode contains the final anchor (everything after the last '_').
       // Z.B. "D_F_D" -> End-Anker "D", "F_TF_D" -> End-Anker "D".
       let last_opcode = hybrid_actions_opcodes[hybrid_actions_opcodes.length - 1]?.opcode || "";
       let last_parts = last_opcode.split("_");
@@ -5612,20 +5867,20 @@ if (Array.isArray(hybrid_actions_opcodes) && hybrid_actions_opcodes.length > 0)
       // Zielkoordinate aus fullPath (letztes Element)
       let last_path = fullPath[fullPath.length - 1];
 
-      // Anker-Position via get_next_target_coor() berechnen
+      // Anchor position via get_next_target_coor()
       let anchor_pos = self.get_next_target_coor(
           last_path.x, last_path.y, last_path.z,
           vx, vy, vz, final_lastanchor
       );
 
-      // lastneighbour = erster gültiger Nachbar am Ziel (für ACK-Route)
+      // lastneighbour = first valid neighbor at target (for ACK route)
       let neighbours = self.get_valid_neighbours(
           {x: last_path.x, y: last_path.y, z: last_path.z},
           null, bots
       );
       let lastneighbour = neighbours.length > 0 ? neighbours[0] : anchor_pos;
 
-      // Early return - alte VK-Merge-Logik komplett überspringen
+      // Early return - skip old VK merge logic entirely
       return({
              movecmds: new_movecmds,
              lastneighbour: lastneighbour,
@@ -5663,13 +5918,13 @@ let lastneighbour= null;
 let final_lastanchor= null;
 let final_lastanchorneighbour = null;
 
-// Alte Merge-Logik entfernt (09.05.2026) - ersetzt durch HYBRID_OPCODE_TABLE
-// Die Funktionen get_hybrid_anchor_policy, get_hybrid_step_primitive,
+// Old merge logic removed (09.05.2026) - replaced by HYBRID_OPCODE_TABLE
+// The functions get_hybrid_anchor_policy, get_hybrid_step_primitive,
 // get_hybrid_step_merge_info, get_hybrid_merged_movesubcmd, build_hybrid_macro_steps
-// und der gesamte hybrid_macro_build-Block wurden entfernt.
-// Die Opcode-Übersetzung erfolgt jetzt direkt über hybrid_actions -> HYBRID_OPCODE_TABLE.
-// Auch die zugehörigen Debug-Logging-Blöcke (hybrid_movesubcmds, hybrid_merge_trace)
-// wurden entfernt, da diese Arrays von der alten Merge-Logik befüllt wurden.
+// and the entire hybrid_macro_build block have been removed.
+// Opcode translation now happens directly via hybrid_actions -> HYBRID_OPCODE_TABLE.
+// The associated debug logging blocks (hybrid_movesubcmds, hybrid_merge_trace)
+// have also been removed since these arrays were populated by the old merge logic.
 
 let ret = {
            movecmds: movecmds,
@@ -5892,7 +6147,8 @@ jsondata += "   \"z\": "+this.mb['z']+",  ";
 
 jsondata += "   \"vx\": "+this.mb['vx']+",  ";
 jsondata += "   \"vy\": "+this.mb['vy']+",  ";
-jsondata += "   \"vz\": "+this.mb['vz']+"  ";
+jsondata += "   \"vz\": "+this.mb['vz']+",  ";
+jsondata += "   \"col\": \"\"  ";
 
 jsondata += "   }    ";
 
@@ -5909,9 +6165,10 @@ let l = this.bots.length;
 
 
 
-// Bot '0' is masterbot
-for (let i=1; i < l; i++)
+// Send all bots except the internal "masterbot"
+for (let i=0; i < l; i++)
     {
+    if (String(this.bots[i].id ?? "").trim() === "masterbot") continue;
 
  
     jsondata += "   { ";
@@ -5920,18 +6177,56 @@ for (let i=1; i < l; i++)
     jsondata += "   \"y\": "+ this.bots[i].y +",  ";
     jsondata += "   \"z\": "+ this.bots[i].z +",  ";
 
-    jsondata += "   \"vx\": "+ this.bots[i].vector_x +",  ";
-    jsondata += "   \"vy\": "+ this.bots[i].vector_y +",  ";
-    jsondata += "   \"vz\": "+ this.bots[i].vector_z +",  ";
+    jsondata += "   \"vx\": "+ (Number(this.bots[i].vector_x) || 0) +",  ";
+    jsondata += "   \"vy\": "+ (Number(this.bots[i].vector_y) || 0) +",  ";
+    jsondata += "   \"vz\": "+ (Number(this.bots[i].vector_z) || 0) +",  ";
 
-    jsondata += "   \"col\": \""+ this.bots[i].color +"\"  ";
+    jsondata += "   \"col\": \""+ (this.bots[i].color || "eeeeee") +"\",  ";
+
+    let mb_role = this.bots[i].masterbot ?? 0;
+    jsondata += "   \"masterbot\": "+ mb_role +",  ";
+
+    // ADC-Connector (which MB/hMB is this bot assigned to?)
+    let connector_id = "";
+    let hmb_id = "";
+    if (this.accessDomainController) {
+        let connInfo = this.accessDomainController.adc_getConnectorForBot(this.bots[i].id);
+        if (connInfo) {
+            connector_id = connInfo.connector_id;
+            hmb_id = connInfo.hmb_id;
+        } else if ((this.bots[i].masterbot ?? 0) > 0) {
+            // MB/hMB: get connector from config (not in botMap)
+            for (let mid in this.accessDomainController.helper_masterbots) {
+                let mb = this.accessDomainController.helper_masterbots[mid];
+                if (mb.id === this.bots[i].id && mb.connector_id) {
+                    connector_id = mb.connector_id;
+                    hmb_id = mid;
+                    break;
+                }
+            }
+        }
+        jsondata += "   \"connector\": \""+ connector_id +"\",  ";
+        jsondata += "   \"hmb_id\": \""+ hmb_id +"\"  ";
+    } else {
+        jsondata += "   \"connector\": \"\",  ";
+        jsondata += "   \"hmb_id\": \"\"  ";
+    }
     
     jsondata += "   }    ";
     
-    if (i < ( l-1) )
-       {
-       jsondata += "   ,    ";
-       }
+    // Comma only if next bot exists and is not "masterbot"
+    let next_i = i + 1;
+    let has_next = false;
+    while (next_i < l) {
+        if (String(this.bots[next_i].id ?? "").trim() !== "masterbot") {
+            has_next = true;
+            break;
+        }
+        next_i++;
+    }
+    if (has_next) {
+        jsondata += "   ,    ";
+    }
        
     } // for i...
      
@@ -6002,6 +6297,11 @@ for (let i=0; i<size; i++)
     let slot = addr[i];
     
     let keyindex = this.botindex[ pathindexarray[i] ];
+    
+    if (keyindex === undefined || keyindex === null || !this.bots[ keyindex ])
+       {
+       return("");
+       } // if
    
     // Get orientation vector
     let vx = this.bots[ keyindex ].vector_x;     
@@ -6346,22 +6646,22 @@ this.set_3d(bot_class_mini_obj.x, bot_class_mini_obj.y, bot_class_mini_obj.z,  s
 
 // ---> key handling
 
-// Funktion, um einen Schlüssel aus x, y, z zu erstellen
+// Function to create a key from x, y, z
 getKey_3d(x, y, z) {
-    return `${x},${y},${z}`; // Kombiniere die Koordinaten als String
+    return `${x},${y},${z}`; // Combine coordinates as string
 }  
 
 
-// Wert setzen
+// Set value
 set_3d(x, y, z, value) {
     const key = this.getKey_3d(x, y, z);
     this.botindex[key] = value;
 }
 
-// Wert abrufen
+// Get value
 get_3d(x, y, z) {
     const key = this.getKey_3d(x, y, z);
-    return this.botindex[key] ?? null; // Gib den Wert zurück oder null, falls nicht vorhanden
+    return this.botindex[key] ?? null; // Return the value or null if not present
 }
 
 // <--- key handling
@@ -6549,6 +6849,15 @@ apicall_switch_bot_address( bot_id, target = "first" )
 {
 return(runtime_switch_bot_address(this, bot_id, target));
 } // apicall_switch_bot_address()
+
+
+//
+// apicall_set_bot_address()
+//
+apicall_set_bot_address( bot_id, adress )
+{
+return(runtime_set_bot_address(this, bot_id, adress));
+} // apicall_set_bot_address()
 
 
 //
@@ -6768,11 +7077,48 @@ return(runtime_ping_status(this, tmpid));
 
 
 //
+// apicall_get_bot_origin(bot_id)
+// Returns the address origin for a bot:
+// - If the bot is assigned to an hMB via ADC → returns the hMB's position
+// - Otherwise → returns the legacy masterbot position (this.mb)
+// Used by handle_answer() to calculate stable MB-relative addresses.
+//
+apicall_get_bot_origin(bot_id)
+{
+// Check if bot is assigned to an hMB
+if (this.accessDomainController && this.accessDomainController.botMap) {
+    let assignment = this.accessDomainController.botMap[String(bot_id).trim()];
+    if (assignment && assignment.hmb_id) {
+        let hmbIndex = this.get_bot_by_id(assignment.hmb_id, this.bots);
+        if (hmbIndex !== null && hmbIndex !== undefined) {
+            return {
+                x: Number(this.bots[hmbIndex].x),
+                y: Number(this.bots[hmbIndex].y),
+                z: Number(this.bots[hmbIndex].z)
+            };
+        }
+    }
+}
+// Fallback: legacy masterbot
+return { x: Number(this.mb.x), y: Number(this.mb.y), z: Number(this.mb.z) };
+} // apicall_get_bot_origin()
+
+
+//
+// apicall_build_address()
+//
+apicall_build_address( x1, y1, z1, x2, y2, z2 )
+{
+return(runtime_build_address(this, x1, y1, z1, x2, y2, z2));
+} // apicall_build_address()
+
+
+//
 // apicall_raw_cmd()
 //
-apicall_raw_cmd( raw_value )
+apicall_raw_cmd( raw_value, connector = "" )
 {
-return(runtime_raw_cmd(this, raw_value));
+return(runtime_raw_cmd(this, raw_value, connector));
 } // apicall_raw_cmd()
 
 
@@ -7337,6 +7683,7 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
          let ovx = 0, ovy = 0, ovz = 0;
          // Orientation: use STL info like scan does (calc_target_orientation_vector)
          let src_slot = String(msgarray.sourceslot ?? "").toUpperCase();
+         Logger.log("[PING_RINFO] botid=" + msgarray.botid + " tmpid=" + bottmpid + " src_slot=" + src_slot + " msg_v=(" + msgarray.vx + "," + msgarray.vy + "," + msgarray.vz + ") p_stl_id=" + p_info.stl_id);
          if (src_slot !== "T" && src_slot !== "D")
             {
             // Horizontal slot – derive orientation from STL bot
@@ -7365,7 +7712,11 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
                {
                let vec = this.calc_target_orientation_vector(stl_x, stl_y, stl_z, p_x, p_y, p_z, src_slot);
                if (vec) { ovx = Number(vec.vx); ovy = Number(vec.vy); ovz = Number(vec.vz); }
-               }
+               Logger.log("[PING_RINFO_H] stl_idx=" + stl_idx + " p_stl_id=" + p_stl_id + " stl_pos=(" + stl_x + "," + stl_y + "," + stl_z + ") stl_v=(" + stl_vx + "," + stl_vy + "," + stl_vz + ") target=(" + p_x + "," + p_y + "," + p_z + ") src_slot=" + src_slot + " vec.vx=" + (vec?.vx) + " -> ov=(" + ovx + "," + ovy + "," + ovz + ")");
+               } else
+                 {
+                 Logger.log("[PING_RINFO_H] STL_NOT_FOUND p_stl_id=" + p_stl_id + " stl_idx=" + stl_idx);
+                 }
             } else
               {
               // T/D slot – same as scan: calc_target_orientation_vector_relative(stl_vx/y/z, msgarray.vx/y/z)
@@ -7387,6 +7738,12 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
                       }
                    }
               if (rvec) { ovx = Number(rvec.vx); ovy = Number(rvec.vy); ovz = Number(rvec.vz); }
+              // Log T/D branch result
+              let _stl_idx_v = this.botindex[p_stl_id2];
+              let stl_vx_v = (_stl_idx_v !== undefined) ? Number(this.bots[_stl_idx_v].vector_x) : Number(this.mb.vx);
+              let stl_vy_v = (_stl_idx_v !== undefined) ? Number(this.bots[_stl_idx_v].vector_y) : Number(this.mb.vy);
+              let stl_vz_v = (_stl_idx_v !== undefined) ? Number(this.bots[_stl_idx_v].vector_z) : Number(this.mb.vz);
+              Logger.log("[PING_RINFO_V] p_stl_id2=" + p_stl_id2 + " stl_v=(" + stl_vx_v + "," + stl_vy_v + "," + stl_vz_v + ") msg_v=(" + msgarray.vx + "," + msgarray.vy + "," + msgarray.vz + ") rvec=(" + (rvec?.vx ?? "undef") + "," + (rvec?.vy ?? "undef") + "," + (rvec?.vz ?? "undef") + ") -> ov=(" + ovx + "," + ovy + "," + ovz + ")");
               }
 
          if (existing_by_id !== null && existing_by_id !== undefined)
@@ -7535,15 +7892,33 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
     
  
 
-   // Register new detected cellbot   
+   // Register new detected cellbot
+   // Check if bot is already registered by ID (protection against duplicates from ADC multi-scans)
+   let already_registered_by_id = this.get_bot_by_id(msgarray.botid, this.bots);
    
-   if (target_bot_index != null)
+   if (target_bot_index != null || already_registered_by_id != null)
       {
-      // console.log("ALREADY REGISTERED!!!");
+      if (already_registered_by_id != null)
+         {
+         // Bot existiert bereits – Position ggf. aktualisieren
+         let existing = this.bots[already_registered_by_id];
+         existing.x = target_x; existing.y = target_y; existing.z = target_z;
+         existing.vector_x = target_vectorx; existing.vector_y = target_vectory; existing.vector_z = target_vectorz;
+         existing.adress = target_addr;
+         if (existing.color === undefined || existing.color === null || existing.color === "") existing.color = target_color;
+         }
+      // Reset scan watchdog even for duplicates, so the scan does not time out prematurely
+      this.scanwaitingcounter = 0;
       } else
         {
         // will register
         bot_class_mini_obj.setvalues( msgarray.botid, (msgarray.rid ?? ""), target_x,target_y,target_z,  target_vectorx,target_vectory,target_vectorz,  target_color, target_addr); 
+
+        // ADC-Scan: store origin MB for auto-assign in adc_scan_step()
+        if (this.scan_waiting_info[bottmpid]?.scan_origin_mb) {
+            bot_class_mini_obj.scan_origin_mb = this.scan_waiting_info[bottmpid].scan_origin_mb;
+        }
+
         this.register_bot( bot_class_mini_obj );
    
         this.scanwaitingcounter = 0;
@@ -7552,6 +7927,20 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
         // notify new bot to fronend / webgui
         const events = [];
       
+        // Determine ADC-connector for the notify (from scan_origin_mb)
+        let notify_connector = "";
+        let notify_hmb = "";
+        let origin_mb = String(bot_class_mini_obj.scan_origin_mb ?? "").trim();
+        if (origin_mb != "" && this.accessDomainController && this.accessDomainController.helper_masterbots)
+           {
+           let mb = this.accessDomainController.helper_masterbots[origin_mb];
+           if (mb && mb.connector_id)
+              {
+              notify_connector = mb.connector_id;
+              notify_hmb = origin_mb;
+              }
+           }
+
         let notify_msg =
             {
             event: "addbot",
@@ -7559,7 +7948,9 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
             position: { x: Number(target_x), y: Number(target_y), z: Number(target_z) },
             orientation: { x: Number(target_vectorx), y: Number(target_vectory), z: Number(target_vectorz) },
             color: undefined,
-            adress: undefined
+            adress: undefined,
+            connector: notify_connector,
+            hmb_id: notify_hmb
           };
 
         events.push( notify_msg );
@@ -7633,7 +8024,12 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
          this.bots[tmpbotid].vector_z = Number(signal_to.vz);
          }
 
-      this.bots[tmpbotid].adress = this.get_mb_returnaddr( {x:this.mb.x, y:this.mb.y, z:this.mb.z }, {x:new_x, y:new_y, z:new_z }, this.bots );
+      let origin1 = this.apicall_get_bot_origin(this.signal_botids[ msgarray.bottmpid ]?.thebotid ?? "");
+      this.bots[tmpbotid].adress = this.get_mb_returnaddr(
+          {x: Number(origin1.x), y: Number(origin1.y), z: Number(origin1.z)},
+          {x: new_x, y: new_y, z: new_z},
+          this.bots, [], { exclude_masterbots: true }
+      );
 
       let recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
                                                                    this.signal_botids[ msgarray.bottmpid ].thebotid,
@@ -7846,10 +8242,11 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                      }
                   }
 
+               let origin2 = this.apicall_get_bot_origin(String(api_ack_entry.bot_id ?? "").trim());
                this.bots[tmpbotid].adress = this.get_mb_returnaddr(
-                                                                  {x:this.mb.x, y:this.mb.y, z:this.mb.z },
+                                                                  {x: Number(origin2.x), y: Number(origin2.y), z: Number(origin2.z)},
                                                                   {x:new_x, y:new_y, z:new_z },
-                                                                  this.bots
+                                                                  this.bots, [], { exclude_masterbots: true }
                                                                   );
 
                let recycle_ret = this.apicall_recycle_bot_if_in_servicebay(
@@ -8068,6 +8465,12 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
    
    // submit signal
    this.self_assembly_obj.addsignal ( this, msgarray.bottmpid );
+   
+   // Auto-Assign: assign bot to nearest MB after movement
+   if (this.adc_auto_assign_proximity === true && this.accessDomainController)
+      {
+      this.accessDomainController.assign_nearest_mb_to_bot(msgarray.botid);
+      }
    
    } // CMD_RALIFE  
 
@@ -8373,6 +8776,139 @@ if (this.masterbot_first_scan == 1)
 } // function scan_step()
 
 
+//
+// adc_scan_step() – ADC scan step with recursion and multi-MB support
+// Sends INFO to all unchecked slots of newly discovered bots via the connector
+// of the respective MB (scan_origin_mb).
+//
+adc_scan_step()
+{
+const slotnames = ['f','r','b','l','t','d'];
+
+if (!this.accessDomainController)
+   {
+   console.log("[ADC-SCAN] ERROR: accessDomainController not available – aborting.");
+   this.adc_scan_status = 0;
+   return;
+   }
+
+// Alle Bots mit checked == 0 durchgehen
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i] === undefined || this.bots[i] == null) continue;
+    // Skip hMBs/MBs (immobile)
+    if (this.bots[i].mobility === false) continue;
+    if (this.bots[i].checked == 0)
+       {
+       // Determine origin MB (set by RINFO handler via scan_waiting_info)
+       let origin_mb_id = String(this.bots[i].scan_origin_mb ?? "").trim();
+       if (origin_mb_id == "")
+          {
+          origin_mb_id = "MB"; // Fallback
+          }
+
+       let botId = String(this.bots[i].id ?? "").trim();
+
+       // Automatisch an den Ursprungs-MB binden
+       if (botId != "")
+          {
+          this.accessDomainController.adc_assignBot(origin_mb_id, botId);
+          }
+
+       // Determine connector for this bot (available after assign)
+       let connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
+       let connector_id = connInfo ? connInfo.connector_id : "C0";
+
+       // Determine MB position for return address calculation
+       let mb_idx = this.get_bot_by_id(origin_mb_id, this.bots);
+       let firstindex = "";
+       if (mb_idx != null && mb_idx !== undefined)
+          {
+          firstindex = this.getKey_3d(
+             this.bots[mb_idx].x,
+             this.bots[mb_idx].y,
+             this.bots[mb_idx].z
+             );
+          }
+       if (firstindex == "")
+          {
+          console.log("[ADC-SCAN] Cannot find MB '" + origin_mb_id + "' for bot " + botId + " – skipping.");
+          this.bots[i].checked = 1;
+          continue;
+          }
+
+       for (let i2 = 0; i2 < slotnames.length; i2++)
+           {
+           let sl = slotnames[i2];
+
+           if (this.bots[i].checked_neighbors[sl] != 1)
+              {
+              let target_xyz = this.get_neighbor_by_slot(i, sl);
+              let target_bot_index = this.get_3d(target_xyz.x, target_xyz.y, target_xyz.z);
+
+              // Check if target is already known or legacy MasterBot
+              let found_mb = 0;
+              if (
+                 target_xyz.x == this.mb['x'] &&
+                 target_xyz.y == this.mb['y'] &&
+                 target_xyz.z == this.mb['z']
+                 ) found_mb = 1;
+
+              if (target_bot_index == null && found_mb == 0)
+                 {
+                 let cmd_slot = sl.toUpperCase();
+                 let new_addr = this.bots[i].adress + cmd_slot;
+
+                 // Calculate return address from origin MB to target
+                 let retaddr = this.get_inverse_address(firstindex, new_addr);
+
+                 let cmd = new_addr + "#INFO#" + this.tmpid_cnt + "#" + retaddr;
+                 let targetcoor = this.get_next_target_coor(
+                    this.bots[i].x, this.bots[i].y, this.bots[i].z,
+                    this.bots[i].vector_x, this.bots[i].vector_y, this.bots[i].vector_z,
+                    cmd_slot
+                    );
+
+                 let stl_id = this.getKey_3d(this.bots[i].x, this.bots[i].y, this.bots[i].z);
+
+                 this.scan_waiting_info[this.tmpid_cnt] = {
+                    tmpid: this.tmpid_cnt,
+                    addr: new_addr,
+                    status: 0,
+                    x: targetcoor.x,
+                    y: targetcoor.y,
+                    z: targetcoor.z,
+                    stl_id: stl_id,
+                    scan_origin_mb: origin_mb_id // for next recursion level
+                    };
+
+                 cmd = this.sign(cmd);
+                 this.accessDomainController.adc_sendPush(connector_id, cmd);
+                 // console.log("[ADC-SCAN] Sent INFO via " + connector_id + " (" + origin_mb_id + "): "
+                 //    + cmd_slot + " → " + targetcoor.x + "," + targetcoor.y + "," + targetcoor.z
+                 //    + " tmpid=" + this.tmpid_cnt);
+
+                 this.bots[i].checked_neighbors[sl] = 1;
+                 this.tmpid_cnt++;
+                 } // if target not known
+              } // if unchecked slot
+           } // for slots
+
+       this.bots[i].checked = 1;
+       } // if checked == 0
+    } // for bots
+
+this.scanwaitingcounter++;
+
+if (this.scanwaitingcounter > this.max_scanwaitingcounter)
+   {
+   // console.log("[ADC-SCAN] Scan timeout – finishing.");
+   this.adc_scan_status = 0;
+   this.scanwaitingcounter = 0;
+   this.bots_jsonexport("logs/botexport.json");
+   }
+} // adc_scan_step()
+
 
 //
 // scan_step_lvl2()
@@ -8667,20 +9203,27 @@ const slotnames = ['f','r','b','l','t','d'];
 
      if (this.scan_status == 1)
         {
-        this.scan_step();
+        // TEMP: disabled for ADC scan test (Phase 1)
+        // this.scan_step();
         } /// if (scan_status == 1)
 
      if (this.scan_status_lvl2 == 1)
         {
-        this.scan_step_lvl2();
+        // TEMP: deaktiviert f�r ADC-Scan-Test (Phase 1)
+        // this.scan_step_lvl2();
         } /// if (scan_status_lvl2 == 1)
 
      if (this.scan_status_radio == 1)
         {
-        this.scan_step_radio();
+        // TEMP: deaktiviert f�r ADC-Scan-Test (Phase 1)
+        // this.scan_step_radio();
         } /// if (scan_status_radio == 1)
 
-     
+     if (this.adc_scan_status == 1)
+        {
+        this.adc_scan_step();
+        } /// if (adc_scan_status == 1)
+
      
      if ( this.self_assembly_obj.assembly_status == 1 )
         {        
@@ -8696,7 +9239,7 @@ const slotnames = ['f','r','b','l','t','d'];
               
            cmd = "{ \"cmd\":\"push\", \"param\":\""+nextcmd+"\" }\n";
               
-           console.log("thread_botcontroller cmd: " + cmd);
+           // console.log("thread_botcontroller cmd: " + cmd);
        
            this.client.write(cmd);
            
@@ -8712,9 +9255,21 @@ const slotnames = ['f','r','b','l','t','d'];
         
      this.threadcounter++;
 
-     // Immer Pop, damit Nachrichten (RINFO, RALIFE, etc.) aus ClusterSim-Queue geholt werden
-     let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\"\" }\n";
-     this.client.write(cmd_pop);
+     // Pop on legacy connection (port 3001), if not disabled
+     if (this.disableLegacy !== true)
+        {
+        let cmd_pop = "{ \"cmd\":\"pop\", \"param\":\"\" }\n";
+        this.client.write(cmd_pop);
+        } else
+          {
+          // No legacy pop during operation – ADC connector pops continue below
+          }
+
+     // Auch auf allen ADC-Connector-Sockets (Port 3002, 3003) poppen, damit Antworten
+     // fetched from hMBs/MBs and processed via handle_answer()
+     if (this.accessDomainController && this.accessDomainController.active) {
+         this.accessDomainController.adc_popAll();
+     }
          
      } // if (0)    
          
@@ -8835,7 +9390,7 @@ handleGUIMessage(message) {
 
 
         //
-        // GUI COMMAND (PUSH zum Masterbot)
+        // GUI COMMAND (PUSH to Masterbot)
         //
         if (decodedobject.cmd === 'gui_command') {
 
@@ -8869,7 +9424,9 @@ handleGUIMessage(message) {
         // STRUCTURESCAN
         //
         if (decodedobject.cmd === 'structurescan') {
-            this.start_scan(1);
+            // TEMP: disabled for ADC scan test (Phase 1)
+            // this.adc_start_scan(1);
+            this.adc_start_scan(1);
             return;
         }
         
@@ -9081,16 +9638,10 @@ handleGUIMessage(message) {
 
 
         //
-        // QUIT (Weiterleitung zum Masterbot)
+        // QUIT (forward to Masterbot)
         //
         if (decodedobject.cmd === 'quit') {
-/*
-            const cmd = "{ \"cmd\":\"quit\" }\n";
-            this.client.write(cmd);
-
-            this.rl.close();
-            this.client.end();
-            */
+ 
             
             this.shutdown();
             return;
@@ -9185,6 +9736,12 @@ async handleAPIMessage_internal(message, socket) {
 
         let query_handled = await handle_readonly_api_command(this, decodedobject, socket);
         if (query_handled === true)
+           {
+           return;
+           } // if
+
+        let gui_handled = await handle_gui_roles_api_command(this, decodedobject, socket);
+        if (gui_handled === true)
            {
            return;
            } // if

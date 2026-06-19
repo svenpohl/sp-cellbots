@@ -3,7 +3,7 @@ const path = require('path');
 
 class Logger {
   static logFile = path.join(__dirname, 'log.txt');
-  static timezone = "Europe/Berlin"; // Default, kann via setTimezone() geändert werden
+  static timezone = "Europe/Berlin"; // Default, can be changed via setTimezone()
 
   static setTimezone(tz) {
     if (tz && typeof tz === "string" && tz.trim() !== "") {
@@ -34,7 +34,7 @@ class Logger {
         else if (p.type === 'minute') mi = p.value;
         else if (p.type === 'second') s = p.value;
       }
-      // Offset in Stunden ermitteln
+      // Determine offset in hours
       const utcDate = new Date(date.toISOString().slice(0, 19));
       const localDate = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}`);
       const offsetMs = localDate.getTime() - utcDate.getTime();
@@ -43,7 +43,7 @@ class Logger {
       const offsetStr = `${offsetSign}${String(offsetHours).padStart(2, '0')}:00`;
       return `${y}-${mo}-${d}T${h}:${mi}:${s}${offsetStr}`;
     } catch (e) {
-      return date.toISOString(); // Fallback auf UTC
+      return date.toISOString(); // Fallback to UTC
     }
   }
 
@@ -60,7 +60,7 @@ class Logger {
   }
   
   static reset() {
-    fs.writeFileSync(Logger.logFile, ''); // leert die Datei
+    fs.writeFileSync(Logger.logFile, ''); // clears the file
   }
 }
 

@@ -136,6 +136,14 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "set_bot_address") {
+    return {
+      cmd: "set_bot_address",
+      bot_id: process.argv[3] ?? "",
+      adress: process.argv[4] ?? ""
+    };
+  } // if
+
   if (cmd == "diagnose_ack_route") {
     return {
       cmd: "diagnose_ack_route",
@@ -327,14 +335,16 @@ function buildRequestFromCli() {
     let obj = { cmd: "watch_region", action: action };
     if (action === "set" || action === "get" || action === "addbot" || action === "removebot") obj.id = process.argv[4] ?? "";
     if (action === "set") {
-      // Prüfe ob Parameter als Key=Value übergeben wurden
+      // Check if parameters were passed as Key=Value
       let arg5 = process.argv[5] ?? "";
-      if (arg5 === "action" || arg5 === "interval_ms" || arg5 === "mode" || arg5 === "wakeup" || arg5 === "interval") {
+      if (arg5.includes("=") || arg5 === "action" || arg5 === "watch_action" || arg5 === "interval_ms" || arg5 === "mode" || arg5 === "wakeup" || arg5 === "interval") {
         // Key=Value Modus
-        for (let i = 5; i < process.argv.length; i += 2) {
-          let key = process.argv[i];
-          let val = process.argv[i + 1];
-          if (key === "action") obj.watch_action = val;
+        for (let i = 5; i < process.argv.length; i++) {
+          let pair = process.argv[i].split("=");
+          let key = pair[0].trim();
+          let val = pair.length > 1 ? pair[1].trim() : (process.argv[i + 1] ?? "");
+          if (!pair[0].includes("=")) i++; // only increment if not key=val format
+          if (key === "action" || key === "watch_action") obj.watch_action = val;
           else if (key === "mode") obj.mode = val;
           else if (key === "wakeup") obj.wakeup = val;
           if (key === "interval_ms" || key === "interval") obj.interval_ms = Number(val ?? 0);
@@ -409,6 +419,18 @@ function buildRequestFromCli() {
       cmd: "probe_move_bot",
       bot_id: process.argv[3] ?? "",
       move: process.argv[4] ?? ""
+    };
+  } // if
+
+  if (cmd == "build_address") {
+    return {
+      cmd: "build_address",
+      x1: Number(process.argv[3] ?? 0),
+      y1: Number(process.argv[4] ?? 0),
+      z1: Number(process.argv[5] ?? 0),
+      x2: Number(process.argv[6] ?? 0),
+      y2: Number(process.argv[7] ?? 0),
+      z2: Number(process.argv[8] ?? 0)
     };
   } // if
 
@@ -660,10 +682,53 @@ function buildRequestFromCli() {
   } // if
 
   if (cmd == "raw_cmd") {
+    let args = process.argv.slice(3);
     return {
       cmd: "raw_cmd",
-      value: process.argv.slice(3).join(" ")
+      value: args[0] || "",
+      connector: args[1] || ""
     };
+  } // if
+
+  if (cmd == "assign_bot_to_mb") {
+    return {
+      cmd: "assign_bot_to_mb",
+      bot_id: process.argv[3] || "",
+      hmb_id: process.argv[4] || ""
+    };
+  } // if
+
+  if (cmd == "get_assigned_bots") {
+    return { cmd: "get_assigned_bots" };
+  } // if
+
+  if (cmd == "get_status_adc") {
+    return { cmd: "get_status_adc" };
+  } // if
+
+  if (cmd == "generate_detour_address") {
+    return {
+      cmd: "generate_detour_address",
+      bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "disable_mb") {
+    return {
+      cmd: "disable_mb",
+      mb_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "enable_mb") {
+    return {
+      cmd: "enable_mb",
+      mb_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "adc_assign_proximity") {
+    return { cmd: "adc_assign_proximity" };
   } // if
 
   if (cmd == "poll_masterbot_queue") {
@@ -759,7 +824,7 @@ function executeBatch(moves) {
 
   function sendNext() {
     if (index >= moves.length) {
-      // Alle Moves verarbeitet – Ergebnis ausgeben
+      // All moves processed – output result
       process.stdout.write(JSON.stringify({
         ok: true,
         answer: "api_batch_complete",
@@ -787,24 +852,24 @@ function executeBatch(moves) {
       client.write(JSON.stringify(request) + "\n");
     });
 
-    // Buffer für TCP-Chunking: Große Responses können in mehreren
-    // data-Events ankommen → erst sammeln, dann parsen.
+    // Buffer for TCP chunking: Large responses may arrive in multiple
+    // data events → collect first, then parse.
     let responseBuffer = "";
 
     client.on("data", (data) => {
       responseBuffer += data.toString();
 
-      // Versuche zu parsen – wenn vollständig, klappt's; wenn nicht,
-      // warten wir auf den nächsten Chunk.
+      // Try to parse – if complete, it works; if not,
+      // we wait for the next chunk.
       let responseObject;
       try {
         responseObject = JSON.parse(responseBuffer);
       } catch (err) {
-        // Noch nicht vollständig – auf nächsten Chunk warten
+        // Not yet complete – wait for next chunk
         return;
       } // try
 
-      // Vollständiges JSON erhalten
+      // Complete JSON received
       const summary = {
         ok: responseObject.ok,
         executed: responseObject.executed,
@@ -856,8 +921,8 @@ function main() {
   } // if
 
   if (requestObject.cmd === "batch") {
-    // Batch-Modus: Datei einlesen und sequentiell ausführen
-    // (eigene Verbindungen pro Move in executeBatch())
+    // Batch mode: read file and execute sequentially
+    // (separate connections per move in executeBatch())
     const batchFilePath = path.resolve(__dirname, requestObject.file);
 
     let batchData;
@@ -874,14 +939,14 @@ function main() {
       process.exit(1);
     } // if
 
-    // Keine Verbindung nötig – executeBatch() macht eigene Verbindungen
+    // No connection needed – executeBatch() creates its own connections
     client.destroy();
     executeBatch(batchData);
     return;
   } // if
 
   client.connect(apiPort, "127.0.0.1", () => {
-    // Normaler Single-Request (wie bisher)
+    // Normal single request (as before)
     client.write(JSON.stringify(requestObject) + "\n");
   });
 
@@ -972,6 +1037,72 @@ function main() {
           if (responseObject.orientation) {
             result.orientation = { x: responseObject.orientation.x, y: responseObject.orientation.y, z: responseObject.orientation.z };
           }
+        } else if (answer === "api_get_bots_by_prefix") {
+          result = {
+            ok: true,
+            result: "api_get_bots_by_prefix",
+            prefix: responseObject.prefix ?? "",
+            count: responseObject.count ?? 0,
+            bots: responseObject.bots ?? []
+          };
+        } else if (answer === "api_get_bots") {
+          result = {
+            ok: true,
+            result: "api_get_bots",
+            mode: responseObject.mode ?? "",
+            center: responseObject.center ?? null,
+            radius: responseObject.radius ?? 0,
+            count: responseObject.count ?? 0,
+            bots: responseObject.bots ?? []
+          };
+        } else if (answer === "api_get_grab_positions") {
+          result = {
+            ok: true,
+            result: "api_get_grab_positions",
+            bot_id: responseObject.bot_id ?? "",
+            slot: responseObject.slot ?? "",
+            positions: responseObject.positions ?? [],
+            payload_bot_id: responseObject.payload_bot_id ?? null
+          };
+        } else if (answer === "api_safe_mode") {
+          result = {
+            ok: true,
+            result: "api_safe_mode",
+            safe_mode: responseObject.safe_mode ?? null
+          };
+        } else if (answer === "api_get_last_moves" || answer === "api_get_last_raw_cmds") {
+          result = {
+            ok: true,
+            result: answer,
+            moves: responseObject.moves ?? responseObject.raw_cmds ?? []
+          };
+        } else if (answer === "api_get_bot_history") {
+          result = {
+            ok: true,
+            result: "api_get_bot_history",
+            bot_id: responseObject.bot_id ?? "",
+            history: responseObject.history ?? []
+          };
+        } else if (answer === "api_probe_move_bot") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_probe_move_bot",
+            possible: responseObject.possible ?? false,
+            predicted_target: responseObject.predicted_target ?? null
+          };
+        } else if (answer === "api_debug_move") {
+          result = {
+            ok: true,
+            result: "api_debug_move",
+            debug_move_enabled: responseObject.debug_move_enabled ?? null
+          };
+        } else if (answer === "api_suggest_simple_move") {
+          result = {
+            ok: true,
+            result: "api_suggest_simple_move",
+            suggested: responseObject.suggested ?? false,
+            move_candidate: responseObject.move_candidate ?? ""
+          };
         } else if (answer === "api_morph_start_headless") {
           result = {
             ok: responseObject.success === true,
@@ -1021,10 +1152,10 @@ function main() {
             message: responseObject.message ?? ""
           };
         } else if (answer === "api_find_path_for_bot") {
-          // Bewegungsprimitiven (actions) + Zwischenkoordinaten (steps) zurückgeben
+          // Return movement primitives (actions) + intermediate coordinates (steps)
           const actions = responseObject.vehicle_path_dry_run?.actions ?? [];
           const rawStates = responseObject.vehicle_path_dry_run?.states ?? responseObject.path ?? [];
-          // steps: Koordinaten + Orientierung für jeden Schritt (Start + nach jeder Aktion)
+          // steps: coordinates + orientation for each step (start + after each action)
           const steps = rawStates.map(s => ({
             x: s.x, y: s.y, z: s.z,
             vx: s.vx, vy: s.vy, vz: s.vz
@@ -1099,7 +1230,9 @@ function main() {
             adress_short: responseObject.adress_short ?? "",
             adress_detour: responseObject.adress_detour ?? "",
             carried_payload_bot_id: responseObject.carried_payload_bot_id,
-            neighbors: responseObject.neighbors
+            neighbors: responseObject.neighbors,
+            masterbot: responseObject.masterbot,
+            connector: responseObject.connector
           };
         } else if (answer === "api_morph_get_algos") {
           result = {
@@ -1149,6 +1282,15 @@ function main() {
             new_adress: responseObject.new_adress ?? "",
             changed: responseObject.changed === true
           };
+        } else if (answer === "api_set_bot_address") {
+          result = {
+            ok: true,
+            result: "api_set_bot_address",
+            bot_id: responseObject.bot_id ?? "",
+            adress: responseObject.adress ?? "",
+            old_adress: responseObject.old_adress ?? "",
+            changed: responseObject.changed === true
+          };
         } else if (answer === "api_switch_bot_address") {
           result = {
             ok: true,
@@ -1177,6 +1319,16 @@ function main() {
             timed_out: responseObject.timed_out === true,
             response: responseObject.response ?? null
           };
+        } else if (answer === "api_build_address") {
+          result = {
+            ok: true,
+            result: "api_build_address",
+            from: responseObject.from ?? null,
+            to: responseObject.to ?? null,
+            found: responseObject.found === true,
+            adress: responseObject.adress ?? "",
+            hops: responseObject.hops ?? 0
+          };
         } else if (answer === "api_watch_region") {
           result = {
             ok: true,
@@ -1199,6 +1351,48 @@ function main() {
             region_id: responseObject.region_id ?? null,
             bot_count: responseObject.bot_count ?? null,
             type: responseObject.type ?? null
+          };
+        } else if (answer === "api_assign_bot_to_mb") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_assign_bot_to_mb",
+            hmb_id: responseObject.hmb_id ?? "",
+            connector_id: responseObject.connector_id ?? "",
+            bot_id: responseObject.bot_id ?? "",
+            old_adress: responseObject.old_adress ?? "",
+            adress_mb: responseObject.adress_mb ?? "",
+            warning: responseObject.warning ?? null,
+            error: responseObject.error ?? null
+          };
+        } else if (answer === "api_get_assigned_bots") {
+          result = {
+            ok: true,
+            result: "api_get_assigned_bots",
+            count: responseObject.count ?? 0,
+            assignments: responseObject.assignments ?? {}
+          };
+        } else if (answer === "api_get_status_adc") {
+          result = {
+            ok: true,
+            result: "api_get_status_adc",
+            total_assigned: responseObject.total_assigned ?? 0,
+            domains: responseObject.domains ?? {}
+          };
+        } else if (answer === "api_adc_assign_proximity") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_adc_assign_proximity",
+            total_assigned: responseObject.total_assigned ?? 0,
+            changed: responseObject.changed ?? 0,
+            assignments: responseObject.assignments ?? {}
+          };
+        } else if (answer === "api_disable_mb" || answer === "api_enable_mb") {
+          result = {
+            ok: responseObject.ok === true,
+            result: answer,
+            mb_id: responseObject.mb_id ?? "",
+            active: responseObject.active ?? null,
+            reassigned: responseObject.reassigned ?? null
           };
         } else {
           result = { ok: true, result: answer };
