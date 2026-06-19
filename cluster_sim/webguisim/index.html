@@ -232,24 +232,24 @@
             removeAllCubes();  
             
           
-            let size = decodedobject.jsondata.masterbot.length;
-           
-            for (let i=0; i<size; i++)
-                {
-                theid = decodedobject.jsondata.masterbot[i].id;
-                thex  = decodedobject.jsondata.masterbot[i].x;
-                they  = decodedobject.jsondata.masterbot[i].y;
-                thez  = decodedobject.jsondata.masterbot[i].z;
-
-                thevx = decodedobject.jsondata.masterbot[i].vx;
-                thevy = decodedobject.jsondata.masterbot[i].vy;
-                thevz = decodedobject.jsondata.masterbot[i].vz;
-        
-                col = "";
-       
-                addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 1, col  );       
-                   
-                } // let i...size
+            // Legacy MasterBot ausgeblendet – wird im bots[]-Loop gerendert.
+            let size = 0;
+            // for (let i=0; i<size; i++)
+            //     {
+            //     theid = decodedobject.jsondata.masterbot[i].id;
+//                 thex  = decodedobject.jsondata.masterbot[i].x;
+//                 they  = decodedobject.jsondata.masterbot[i].y;
+//                 thez  = decodedobject.jsondata.masterbot[i].z;
+// 
+//                 thevx = decodedobject.jsondata.masterbot[i].vx;
+//                 thevy = decodedobject.jsondata.masterbot[i].vy;
+//                 thevz = decodedobject.jsondata.masterbot[i].vz;
+//         
+//                 col = "";
+//        
+//                 addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 1, col  );       
+//                    
+//                 } // let i...size
 
  
 
@@ -266,8 +266,9 @@
         thevx = decodedobject.jsondata.bots[i].vx;
         thevy = decodedobject.jsondata.bots[i].vy;
         thevz = decodedobject.jsondata.bots[i].vz;
+        let themb = decodedobject.jsondata.bots[i].masterbot ?? 0;
                         
-        addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), 0, col  );                     
+        addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), themb, col  );                     
  
         } // let i...size
 
@@ -397,6 +398,36 @@ position.z = -position.z;
 let group_tmp = new THREE.Group(); 
  
  
+if (masterbot == 2)
+{ 
+let cube_tmp = new THREE.Mesh(geometry, materials_chess2);
+        group_tmp.position.x = position.x;
+        group_tmp.position.y = position.y;
+        group_tmp.position.z = position.z;
+        let vx2 = vector.x;
+        let vy2 = vector.y;
+        let vz2 = vector.z;
+        let rot2 = 0;
+        if (vx2 == 1  && vy2 == 0 && vz2 == 0) rot2 = 0; 
+        if (vx2 == 0  && vy2 == 0 && vz2 == 1) rot2 = 90; 
+        if (vx2 == -1 && vy2 == 0 && vz2 == 0) rot2 = 180; 
+        if (vx2 == 0 && vy2 == 0 && vz2 == -1) rot2 = 270; 
+        group_tmp.rotation.y = degreesToRadians(rot2);
+        group_tmp.add(cube_tmp);
+        let size2 = 1;
+        const rectGeometry2 = new THREE.PlaneGeometry(size2, size2); 
+        let rectangle2 = new THREE.Mesh(rectGeometry2, rectMaterial_arrow);
+        rectangle2.rotation.x = -Math.PI / 2; 
+        rectangle2.position.y = size2 / 2 + 0.01; 
+        group_tmp.add(rectangle2); 
+        rotateGroup.add(group_tmp);
+        botid = "hMB_" + botid;
+        botGroupMap[botid] = group_tmp;
+        groups.push(group_tmp);
+        cubes.push(cube_tmp);
+        return;
+} // if (masterbot == 2)
+
 if (masterbot == 1)
 { 
 let cube_tmp = new THREE.Mesh(geometry, materials_chess);
@@ -439,7 +470,9 @@ let cube_tmp = new THREE.Mesh(geometry, materials_chess);
         groups.push(group_tmp);
         cubes.push(cube_tmp);
 
-        botid = "masterbot";
+        // Legacy-Normalisierung entfernt (18.06.): primary MB (id="MB", masterbot==1)
+        // behält jetzt seine originale ID im botGroupMap-Eintrag.
+        // botid = "masterbot";
         botGroupMap[botid] = group_tmp;
 
 } // if (masterbot == 1)
@@ -899,6 +932,18 @@ const texture_chess = new THREE.TextureLoader().load(
     }
 );
 
+
+const texture_chess2 = new THREE.TextureLoader().load(
+    'data:image/png;base64,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AQBIEcAAAKQIYAAAUgQwAAApAhgAgBQBDABAigAGACBFAAMAkCKAAQBIEcAAAKQIYAAAUgQwAAApAhgAgBQBDABAigAGACBFAAMAkCKAAQBI+f489/QG2Hde0wtgn/vLm7m/vJgPMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkHGutNT0Ctj339ALYd17TC2Cf+8uL+QADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQIoABgAgRQADAJAigAEASBHAAACkCGAAAFIEMAAAKQIYAIAUAQwAQMofWjod3hTo0fMAAAAASUVORK5CYII=',
+    function () {
+         console.log('helper-texture loaded');
+    },
+    undefined,
+    function (err) {
+        console.error('Error helper-texture:', err);
+    }
+);
+
  
 const texture = new THREE.TextureLoader().load(
 
@@ -940,6 +985,15 @@ const materials_chess = [
     new THREE.MeshPhongMaterial({ map: texture_chess, transparent:true })  
 ];
 
+
+const materials_chess2 = [
+    new THREE.MeshPhongMaterial({  map: texture_chess2, transparent:true  }),  
+    new THREE.MeshPhongMaterial({ map: texture_chess2, transparent:true }), 
+    new THREE.MeshPhongMaterial({ map: texture_chess2, transparent:true }), 
+    new THREE.MeshPhongMaterial({ map: texture_chess2, transparent:true }), 
+    new THREE.MeshPhongMaterial({ map: texture_chess2, transparent:true }),
+    new THREE.MeshPhongMaterial({ map: texture_chess2, transparent:true })  
+];
 
 const materials = [
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 15 }), 
