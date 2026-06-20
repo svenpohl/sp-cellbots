@@ -96,6 +96,48 @@ This already shows the basic shape of the interface:
 
 ---
 
+## 🧪 Move Example
+
+A simple `move_bot_to` call moves a bot to a target position with optional goal orientation:
+
+```bash
+node api.js move_bot_to SB2 5 1 0 1 0 0
+```
+
+Typical response:
+
+```json
+{
+  "ok": true,
+  "result": "succeeded",
+  "position": { "x": 5, "y": 1, "z": 0 }
+}
+```
+
+The four parameters after the bot ID are:
+
+- `x`, `y`, `z` – target position
+- `vx`, `vy`, `vz` – optional goal orientation (default: keep current)
+
+If the target is unreachable, the call still returns `ok: true`, but `result` changes to `"diagnosis"` with diagnostic fields (`path_found`, `would_split_cluster`, etc.) — the move is never executed unsafely.
+
+For carrier payload transport, use `move_carrier_to` instead:
+
+```bash
+node api.js move_carrier_to SB1 3 1 4
+```
+
+```json
+{
+  "ok": true,
+  "result": "api_move_carrier_to"
+}
+```
+
+This automatically keeps the payload bot attached during movement.
+
+---
+
 ## 📦 Command Families (Current `describe` Snapshot)
 
 For full parameter/return details use:
@@ -104,6 +146,11 @@ For full parameter/return details use:
 node api.js describe
 ```
 
+### CLI Help
+
+- `describe`
+- `describe all`
+
 ### World and Scan
 
 - `version`
@@ -111,8 +158,14 @@ node api.js describe
 - `get_status_extended`
 - `get_masterbot`
 - `get_scan_state`
+- `get_bot_info`
+- `get_bot_position`
+- `get_bot_by_id`
+- `get_bots_in_region`
 - `structurescan`
 - `structurescan_lvl2`
+- `structurescan_radio`
+- `search_bot`
 
 ### GUI and Diagnostics
 
@@ -127,11 +180,31 @@ node api.js describe
 - `reset_api_message_log`
 - `poll_masterbot_queue`
 
+### Ping and NightWatch
+
+- `ping_position`
+- `ping_status`
+- `watch_region`
+- `create_watch_region`
+
+### ADC and Domain Management
+
+- `get_status_adc`
+- `get_assigned_bots`
+- `assign_bot_to_mb`
+- `adc_assign_proximity`
+- `disable_mb`
+- `enable_mb`
+
 ### Safety and Addressing
 
 - `safe_mode`
 - `recalibrate_bot_address`
 - `recalibrate_bot_addresses`
+- `build_address`
+- `set_bot_address`
+- `switch_bot_address`
+- `generate_detour_address`
 - `diagnose_ack_route`
 
 ### Runtime Roles (Forbidden / ServiceBay)
@@ -147,15 +220,14 @@ node api.js describe
 
 ### Bot Queries and Path Planning
 
-- `get_bot_by_id`
 - `get_bots`
 - `get_bots_by_prefix`
 - `get_inactive_bots`
 - `get_neighbors`
 - `get_grab_positions`
 - `get_turn_positions`
-- `is_occupied`
 - `get_slot_status`
+- `is_occupied`
 - `probe_move_bot`
 - `can_reach_position`
 - `find_path_for_bot`
