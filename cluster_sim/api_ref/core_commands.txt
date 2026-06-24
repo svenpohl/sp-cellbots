@@ -1,0 +1,30 @@
+ClusterSim Failure-Injection API
+==================================
+Injects simulated faults into the cluster simulation at runtime.
+Useful for testing the BotController's resilience and recovery logic.
+
+1. Bot Status
+
+node api.js describe
+-> Show this core commands overview (default).
+
+node api.js get_bot_info <bot_id>
+-> Show position, orientation and active/inactive status of a bot.
+   Returns inactive=1 if the bot is disabled (offline, failure-injected).
+
+node api.js disable_bot <bot_id>
+-> Deactivate a bot. The bot stops responding to any messages
+   (INFO, MOVE, RCHECK, etc.) and becomes unresponsive.
+   In the ClusterSim WebGUI the bot is displayed in light red (ffaaaa).
+   The BotController will detect the bot as missing on the next scan.
+
+node api.js enable_bot <bot_id>
+-> Reactivate a previously disabled bot.
+
+node api.js set_mobility <bot_id> <true|false>
+-> Set a bot's mobility. false = bot becomes immobile (grey in WebGUI).
+   The bot can still communicate, but MOVE commands are rejected.
+   The bot resumes normal operation and responds to messages again.
+   The WebGUI restores the bot's original colour.
+
+--- EOF /cluster_sim/api_ref/core_commands.txt ---
