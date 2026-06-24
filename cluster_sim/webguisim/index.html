@@ -184,7 +184,6 @@
 
     <div id='debug'>...</div>
     
-    
     <script>
     
     const cubes   = []; 
@@ -357,11 +356,22 @@
            
    
         } // update
-           
-           
-            
-        }; //  socket.onmessage = function(event)
 
+        // API CLI response
+        if (decodedobject.answer == "answer_api_cli") {
+            const outputDiv = document.getElementById('api_cli_output');
+            const r = decodedobject.result || {};
+            if (r.answer === "api_description") {
+                outputDiv.textContent = r.text || "";
+            } else {
+                outputDiv.textContent = JSON.stringify(r, null, 2);
+            }
+            outputDiv.style.color = r.ok ? '#aefbaf' : '#fba8a8';
+            outputDiv.style.display = 'block';
+        }
+
+
+        }; //  socket.onmessage = function(event)
 
 
         
@@ -383,9 +393,10 @@
         socket.send(cmd);
         document.getElementById('debug').innerHTML = "System dump requested...";
         });
-        
-        
-        
+
+
+
+
         
 //
 //
@@ -1208,9 +1219,53 @@ window.addEventListener('resize', () => {
       camera.updateProjectionMatrix();
       });
 </script>
+
+<!-- API CLI Panel -->
+<div id="api_controller" style="width:90%; margin:12px auto; text-align:left;">
+  <div style="color:#aaa; font-size:12px; margin-bottom:4px; letter-spacing:0.5px;">API CLI (Failure-Injector)</div>
+  <div style="display:flex; align-items:center; gap:6px; background:#1a1c23; border:1px solid #444; border-radius:6px; padding:4px 8px;">
+    <span style="color:#888; font-family:monospace; font-size:13px; white-space:nowrap;">node api.js</span>
+    <input type="text" id="api_cli_input" value="describe" style="flex:1; background:transparent; border:none; color:#d4d4d4; font-family:monospace; font-size:13px; outline:none; padding:4px 0;" />
+    <button id="api_cli_send" style="background:#6a2a2a; border:1px solid #8a3a3a; color:#fff; border-radius:4px; padding:4px 12px; cursor:pointer; font-size:12px;">Send</button>
+  </div>
+  <select id="api_cli_examples" style="margin-top:6px; width:100%; background:#1a1c23; color:#d4d4d4; border:1px solid #444; border-radius:4px; padding:4px 6px; font-family:monospace; font-size:12px; outline:none;">
+    <option value="">— Select example —</option>
+    <option value="describe">describe</option>
+    <option value="get_bot_info SB1">get_bot_info SB1</option>
+    <option value="disable_bot SB1">disable_bot SB1</option>
+    <option value="enable_bot SB1">enable_bot SB1</option>
+    <option value="set_mobility SB1 false">set_mobility SB1 false (immobile)</option>
+    <option value="set_mobility SB1 true">set_mobility SB1 true (mobile)</option>
+  </select>
+  <div id="api_cli_output" style="display:none; margin-top:4px; background:#111; border:1px solid #333; border-radius:4px; padding:6px 10px; font-family:monospace; font-size:12px; color:#fba8a8; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
+</div>
+
+<script>
+// API CLI – initialisiert nachdem das Panel geladen ist
+document.getElementById('api_cli_send').addEventListener('click', sendApiCli);
+document.getElementById('api_cli_input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendApiCli();
+});
+document.getElementById('api_cli_examples').addEventListener('change', function() {
+    const cmd = this.value;
+    if (cmd) {
+        document.getElementById('api_cli_input').value = cmd;
+        this.value = '';
+        document.getElementById('api_cli_input').focus();
+    }
+});
+function sendApiCli() {
+    const input = document.getElementById('api_cli_input');
+    const args = input.value.trim();
+    if (!args) return;
+    if (connected == 0) { alert('No Connection'); return; }
+    const outputDiv = document.getElementById('api_cli_output');
+    outputDiv.textContent = 'Running: node api.js ' + args + ' …';
+    outputDiv.style.color = '#888';
+    outputDiv.style.display = 'block';
+    socket.send(JSON.stringify({ cmd: 'api_cli', args: args }));
+}
+</script>
   
-  
-  
-    
 </body>
 </html>
