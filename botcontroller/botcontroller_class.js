@@ -35,6 +35,7 @@ const http      = require('http');
 const self_assembly   = require('./self_assembly'); 
 const NightWatch      = require('./libs/nightwatch');
 const AccessDomainController = require('./libs/accessdomaincontroller');
+const ResilienceController = require('./libs/resilience_controller');
 const signature_class = require('../common/signature/signature_class'); 
 const { console_format_log } = require('../common/system_utils');
 const { parse_config_file } = require('../common/config_parser');
@@ -257,6 +258,7 @@ constructor()
    let configPath = path.join(__dirname, 'config.cfg');
    this.config = this.loadconfig(configPath);
    Logger.setTimezone(this.config.timezone);
+   this.resilienceController = new ResilienceController(this);
    
    this.bots           = [];
    this.botindex       = [];
@@ -3037,6 +3039,11 @@ for (let m = 0; m < scan_mbs.length; m++)
 
 if (scan_mbs.length > 0)
    {
+   // Resilience: Duplicate-ID-Tracking zurücksetzen
+   if (this.resilienceController && typeof this.resilienceController.reset_duplicate_ids === "function")
+      {
+      this.resilienceController.reset_duplicate_ids();
+      }
    this.adc_scan_status = 1;
    // console.log("[ADC-SCAN] Status=1 – waiting for RINFO...");
    }
@@ -3366,6 +3373,23 @@ for (let i=0; i<size; i++)
     // Exclude hMBs (masterbot == 2) and legacy masterbot (id == "masterbot").
     if ((bot.masterbot ?? 0) == 2 || bot.id == "masterbot") continue;
 
+    // Mark inactive bots (detected via check_if_inactive or ClusterSim mobility=false).
+    // They stay in startBots so their position remains occupied in the world grid,
+    // but they are flagged inactive so choosePair can skip them as donors.
+    // Check both the bot-level inactive flag and the controller's detected_inactive_bots list.
+    let isInactive = (bot.inactive === true || bot.inactive === 'true' || bot.inactive == 1);
+    if (!isInactive && Array.isArray(this.detected_inactive_bots)) {
+        let botKey = this.getKey_3d(Number(bot.x), Number(bot.y), Number(bot.z));
+        for (let di = 0; di < this.detected_inactive_bots.length; di++) {
+            let d = this.detected_inactive_bots[di];
+            let dKey = this.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+            if (dKey === botKey) { isInactive = true; break; }
+        }
+    }
+    if (isInactive) {
+        console.log(`prepare_morph: marking inactive bot ${bot.id} @ (${bot.x},${bot.y},${bot.z}) — stays in grid, skipped as donor`);
+    }
+
     // The bot object uses vector_x/vector_y/vector_z for orientation (from botexport.json).
     // Map them to vx/vy/vz for the morph planner.
     let { id, x, y, z, vector_x, vector_y, vector_z } = bot;
@@ -3374,10 +3398,13 @@ for (let i=0; i<size; i++)
     let vz = vector_z;
     
        {
+       let botMobility = (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true;
        startBots.push( { 
            id: id, 
            x: Number(x), y: Number(y), z: Number(z),
-           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0)
+           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0),
+           inactive: isInactive ? true : undefined,
+           mobility: botMobility
        } ) ;
        }
     }
@@ -3429,6 +3456,18 @@ for (let i = 0; i < this.bots.length; i++) {
     }
 }
 
+// Add inactive bot positions to forbiddenCells (immobile obstacles)
+if (Array.isArray(this.detected_inactive_bots)) {
+    for (let di = 0; di < this.detected_inactive_bots.length; di++) {
+        let d = this.detected_inactive_bots[di];
+        forbiddenCells.push({
+            x: Number(d.x),
+            y: Number(d.y),
+            z: Number(d.z)
+        });
+    }
+}
+
 let params = {};
 let algo = null;
 
@@ -3437,6 +3476,7 @@ if ( this.morphAlgorithmSelected == "bfs_wavefront" )
    console.log("Prepare bfs_wavefront...");
    params = {
             masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
             forbiddenCells: forbiddenCells,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
@@ -3472,6 +3512,7 @@ if ( this.morphAlgorithmSelected == "vehicle_kinematics" )
    params = {
             masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
             anchors: morph_anchors,
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3487,6 +3528,7 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
    params = {
             masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
             anchors: morph_anchors,
+            forbiddenCells: forbiddenCells,
             max_paths_in_wave: 14,
             max_attempts_to_find_pair: 50
             };
@@ -3592,11 +3634,24 @@ for (let i=0; i<size; i++)
     let vy = vector_y;
     let vz = vector_z;
 
+       let isInactive = (bot.inactive === true || bot.inactive === 'true' || bot.inactive == 1);
+    if (!isInactive && Array.isArray(this.detected_inactive_bots)) {
+        let botKey = this.getKey_3d(Number(bot.x), Number(bot.y), Number(bot.z));
+        for (let di = 0; di < this.detected_inactive_bots.length; di++) {
+            let d = this.detected_inactive_bots[di];
+            let dKey = this.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+            if (dKey === botKey) { isInactive = true; break; }
+        }
+    }
+    let botMobility = (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true;
+
        {
        startBots.push( {
            id: id,
            x: Number(x), y: Number(y), z: Number(z),
-           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0)
+           vx: Number(vx ?? 0), vy: Number(vy ?? 0), vz: Number(vz ?? 0),
+           inactive: isInactive ? true : undefined,
+           mobility: botMobility
        } ) ;
        }
     }
@@ -3966,6 +4021,15 @@ for (let i=0; i<size; i++)
     for (const b of bots_tmp) {
         if (waveBotIdsAddr.has(String(b.id ?? ""))) {
             blockedBots.push({ x: b.x, y: b.y, z: b.z });
+        }
+    }
+
+    // Add detected inactive bot positions to blockedBots so BFS avoids routing
+    // MOVE opcodes through inactive bots (offline/immobile).
+    if (Array.isArray(this.detected_inactive_bots)) {
+        for (let di = 0; di < this.detected_inactive_bots.length; di++) {
+            let d = this.detected_inactive_bots[di];
+            blockedBots.push({ x: Number(d.x), y: Number(d.y), z: Number(d.z) });
         }
     }
 
@@ -6181,7 +6245,21 @@ for (let i=0; i < l; i++)
     jsondata += "   \"vy\": "+ (Number(this.bots[i].vector_y) || 0) +",  ";
     jsondata += "   \"vz\": "+ (Number(this.bots[i].vector_z) || 0) +",  ";
 
-    jsondata += "   \"col\": \""+ (this.bots[i].color || "eeeeee") +"\",  ";
+    // Bot color: inactive (detected_inactive_bots) → ff6666, immobile → aaaaaa, default → eeeee
+    let botColor = this.bots[i].color || "eeeeee";
+    if (this.bots[i].mobility === false || this.bots[i].mobility === 'false' || this.bots[i].mobility == 0) {
+        botColor = "aaaaaa";
+    }
+    // detected_inactive_bots override (higher priority than mobility)
+    if (botColor === "eeeeee" && Array.isArray(this.detected_inactive_bots)) {
+        let bcKey = this.getKey_3d(Number(this.bots[i].x), Number(this.bots[i].y), Number(this.bots[i].z));
+        for (let di = 0; di < this.detected_inactive_bots.length; di++) {
+            let d = this.detected_inactive_bots[di];
+            let dKey = this.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+            if (dKey === bcKey) { botColor = "ff6666"; break; }
+        }
+    }
+    jsondata += "   \"col\": \""+ botColor +"\",  ";
 
     let mb_role = this.bots[i].masterbot ?? 0;
     jsondata += "   \"masterbot\": "+ mb_role +",  ";
@@ -7900,6 +7978,15 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
       {
       if (already_registered_by_id != null)
          {
+         // Resilience: Doppelte ID während Scan registrieren (nur bei unterschiedlicher Position)
+         if (this.adc_scan_status == 1 && this.resilienceController && typeof this.resilienceController.check_duplicate_ids === "function")
+            {
+            let existing = this.bots[already_registered_by_id];
+            if (existing && (Number(existing.x) !== Number(target_x) || Number(existing.y) !== Number(target_y) || Number(existing.z) !== Number(target_z)))
+               {
+               this.resilienceController.check_duplicate_ids(msgarray.botid);
+               }
+            }
          // Bot existiert bereits – Position ggf. aktualisieren
          let existing = this.bots[already_registered_by_id];
          existing.x = target_x; existing.y = target_y; existing.z = target_z;
@@ -8482,6 +8569,32 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RCHECK )
       this.scan_waiting_check[msgarray.botid].status = 1;
       } // if
 
+   // Hook für resilience_controller check_if_inactive
+   if (this._check_waiting && (msgarray.status_mode == "compact" || msgarray.status) && msgarray.status)
+      {
+      let slotOrder = ['F','R','B','L','T','D'];
+      for (let cid in this._check_waiting)
+          {
+          let entry = this._check_waiting[cid];
+          if (entry && entry.status === null && entry.slot)
+             {
+             if (msgarray.status_mode == "compact") {
+                 let idx = slotOrder.indexOf(entry.slot);
+                 if (idx >= 0 && idx < msgarray.status.length) {
+                     let c = msgarray.status[idx];
+                     if (c === 'a') entry.status = "OK";
+                     else if (c === 'b') entry.status = "OFFL";
+                     else if (c === 'c') entry.status = "EMPT";
+                     else entry.status = c;
+                 }
+             } else {
+                 // Targeted CHECK: status ist direkt OK / OFFL / EMPT
+                 entry.status = msgarray.status;
+             }
+             }
+          }
+      }
+
    if (msgarray.status_mode == "compact")
       {
       let scanbot_index = this.get_bot_by_id( msgarray.botid, this.bots );
@@ -8924,7 +9037,21 @@ if (this.scan_targets_lvl2_index < this.scan_targets_lvl2.length)
 
    if (target_bot_index != null)
       {
-      let firstindex = this.getKey_3d(this.mb['x'], this.mb['y'], this.mb['z']);
+      // MB-Position des ZIEL-Bots ermitteln (zugewiesener hMB, nicht immer primary)
+      let mb_pos = { x: 0, y: 0, z: 0 };
+      if (this.accessDomainController && this.accessDomainController.helper_masterbots) {
+          let assigned_mb_id = "MB";
+          let connInfo = this.accessDomainController.adc_getConnectorForBot(target_bot_id);
+          if (connInfo) assigned_mb_id = connInfo.hmb_id;
+          for (let mid in this.accessDomainController.helper_masterbots) {
+              let mb = this.accessDomainController.helper_masterbots[mid];
+              if (mb.type === "masterbot" && mb.id === assigned_mb_id) {
+                  mb_pos = { x: Number(mb.pos.x), y: Number(mb.pos.y), z: Number(mb.pos.z) };
+                  break;
+              }
+          }
+      }
+      let firstindex = this.getKey_3d(mb_pos.x, mb_pos.y, mb_pos.z);
       let target_addr = String(this.bots[target_bot_index].adress ?? "").trim();
       let retaddr = this.get_inverse_address(firstindex, target_addr);
 
@@ -8957,8 +9084,15 @@ if (this.scan_targets_lvl2_index < this.scan_targets_lvl2.length)
 
       cmd = this.sign( cmd );
 
-      let cellbot_cmd = "{ \"cmd\":\"push\", \"param\":\""+cmd+"\" }\n";
-      this.client.write(cellbot_cmd);
+      // ADC-Routing: Connector für Ziel-Bot ermitteln
+      let connector_id = "C0";
+      if (this.accessDomainController) {
+          let connInfo = this.accessDomainController.adc_getConnectorForBot(target_bot_id);
+          if (connInfo) connector_id = connInfo.connector_id;
+      }
+      if (this.accessDomainController) {
+          this.accessDomainController.adc_sendPush(connector_id, cmd);
+      }
       } // if
 
    this.scan_targets_lvl2_index++;
@@ -9209,8 +9343,7 @@ const slotnames = ['f','r','b','l','t','d'];
 
      if (this.scan_status_lvl2 == 1)
         {
-        // TEMP: deaktiviert f�r ADC-Scan-Test (Phase 1)
-        // this.scan_step_lvl2();
+        this.scan_step_lvl2();
         } /// if (scan_status_lvl2 == 1)
 
      if (this.scan_status_radio == 1)
@@ -9237,11 +9370,21 @@ const slotnames = ['f','r','b','l','t','d'];
             
            nextcmd = this.sign( nextcmd );            
               
-           cmd = "{ \"cmd\":\"push\", \"param\":\""+nextcmd+"\" }\n";
-              
-           // console.log("thread_botcontroller cmd: " + cmd);
-       
-           this.client.write(cmd);
+           // Send via ADC primary MB connector instead of legacy client
+           if (this.accessDomainController && typeof this.accessDomainController.adc_getPrimaryConnectorId === "function") {
+               let primConnId = this.accessDomainController.adc_getPrimaryConnectorId();
+               if (primConnId) {
+                   this.accessDomainController.adc_sendPush(primConnId, nextcmd);
+               } else {
+                   console.warn("thread_botcontroller: No primary connector found, falling back to legacy client");
+                   cmd = "{ \"cmd\":\"push\", \"param\":\""+nextcmd+"\" }\n";
+                   this.client.write(cmd);
+               }
+           } else {
+               // Fallback: legacy client (pre-ADC or transition)
+               cmd = "{ \"cmd\":\"push\", \"param\":\""+nextcmd+"\" }\n";
+               this.client.write(cmd);
+           }
            
            
            } // if nextcmd != undefined...

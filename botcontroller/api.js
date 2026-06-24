@@ -702,6 +702,46 @@ function buildRequestFromCli() {
     return { cmd: "get_assigned_bots" };
   } // if
 
+  if (cmd == "check_if_inactive") {
+    return {
+      cmd: "check_if_inactive",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0)
+    };
+  } // if
+
+  if (cmd == "check_mbs") {
+    return { cmd: "check_mbs" };
+  } // if
+
+  if (cmd == "diagnose_bot_address") {
+    return {
+      cmd: "diagnose_bot_address",
+      bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "set_active") {
+    return {
+      cmd: "set_active",
+      bot_id: process.argv[3] ?? "",
+      active: process.argv[4] ?? "true"
+    };
+  } // if
+
+  if (cmd == "set_mobility") {
+    return {
+      cmd: "set_mobility",
+      bot_id: process.argv[3] ?? "",
+      mobility: process.argv[4] ?? "true"
+    };
+  } // if
+
+  if (cmd == "get_resilience_status") {
+    return { cmd: "get_resilience_status" };
+  } // if
+
   if (cmd == "get_status_adc") {
     return { cmd: "get_status_adc" };
   } // if
@@ -1121,7 +1161,8 @@ function main() {
             result: "api_status",
             loaded_bots: responseObject.loaded_bots,
             mobility_mode: responseObject.mobility_mode,
-            communication_mode: responseObject.communication_mode
+            communication_mode: responseObject.communication_mode,
+            resilience: responseObject.resilience ?? null
           };
         } else if (answer === "api_is_occupied") {
           result = {
@@ -1232,7 +1273,9 @@ function main() {
             carried_payload_bot_id: responseObject.carried_payload_bot_id,
             neighbors: responseObject.neighbors,
             masterbot: responseObject.masterbot,
-            connector: responseObject.connector
+            connector: responseObject.connector,
+            inactive: responseObject.inactive ?? false,
+            mobility: responseObject.mobility ?? true
           };
         } else if (answer === "api_morph_get_algos") {
           result = {
@@ -1370,6 +1413,66 @@ function main() {
             result: "api_get_assigned_bots",
             count: responseObject.count ?? 0,
             assignments: responseObject.assignments ?? {}
+          };
+        } else if (answer === "api_check_if_inactive") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_check_if_inactive",
+            position: responseObject.position ?? {},
+            bot_found: responseObject.bot_found ?? false,
+            inactive: responseObject.inactive ?? false,
+            neighbor_used: responseObject.neighbor_used ?? "",
+            slot: responseObject.slot ?? "",
+            status: responseObject.status ?? ""
+          };
+        } else if (answer === "api_check_mbs") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_check_mbs",
+            mbs: responseObject.mbs ?? {}
+          };
+        } else if (answer === "api_diagnose_bot_address") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_diagnose_bot_address",
+            bot_id: responseObject.bot_id ?? "",
+            start_pos: responseObject.start_pos ?? null,
+            hops: responseObject.hops ?? [],
+            inactive_found: responseObject.inactive_found ?? [],
+            recalibrate_triggered: responseObject.recalibrate_triggered ?? false,
+            message: responseObject.message ?? ""
+          };
+        } else if (answer === "api_set_active") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_set_active",
+            bot_id: responseObject.bot_id ?? "",
+            active: responseObject.active ?? true,
+            recalibrate_triggered: responseObject.recalibrate_triggered ?? false
+          };
+        } else if (answer === "api_set_mobility") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_set_mobility",
+            bot_id: responseObject.bot_id ?? "",
+            mobility: responseObject.mobility ?? true,
+            recalibrate_triggered: responseObject.recalibrate_triggered ?? false
+          };
+        } else if (answer === "api_get_resilience_status") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_get_resilience_status",
+            status: responseObject.status ?? "",
+            message: responseObject.message ?? "",
+            config_loaded: responseObject.config_loaded ?? false,
+            register_duplicate_ids: responseObject.register_duplicate_ids ?? false,
+            duplicate_ids_detected: responseObject.duplicate_ids_detected ?? false,
+            duplicate_ids_list: responseObject.duplicate_ids_list ?? [],
+            mb_auto_check: responseObject.mb_auto_check ?? false,
+            mb_auto_check_interval_sec: responseObject.mb_auto_check_interval_sec ?? null,
+            mb_auto_check_action: responseObject.mb_auto_check_action ?? "",
+            last_action: responseObject.last_action ?? "",
+            last_action_ts: responseObject.last_action_ts ?? ""
           };
         } else if (answer === "api_get_status_adc") {
           result = {
