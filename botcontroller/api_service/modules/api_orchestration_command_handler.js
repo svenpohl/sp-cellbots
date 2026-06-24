@@ -28,12 +28,18 @@ if (cmd === "version")
 
 if (cmd === "get_status")
    {
+   let resilience_summary = "";
+   if (controller.resilienceController && typeof controller.resilienceController.report_summary === "function")
+      {
+      resilience_summary = controller.resilienceController.report_summary();
+      }
    let ret = {
              ok: true,
              answer: "api_status",
              loaded_bots: controller.bots.length,
              mobility_mode: String(controller?.config?.mobility_mode ?? "full_edge").trim(),
-             communication_mode: String(controller?.config?.communication_mode ?? "mesh_opcode").trim()
+             communication_mode: String(controller?.config?.communication_mode ?? "mesh_opcode").trim(),
+             resilience: resilience_summary
              };
    controller.append_api_action_log(
                                     "get_status",
@@ -397,6 +403,129 @@ if (cmd === "get_status_adc")
           }
       }
 
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "check_if_inactive")
+   {
+   let x = Number(decodedobject.x), y = Number(decodedobject.y), z = Number(decodedobject.z);
+   let ret = { ok: false, answer: "api_check_if_inactive", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.check_if_inactive === "function")
+      {
+      ret = await controller.resilienceController.check_if_inactive(x, y, z);
+      ret.answer = "api_check_if_inactive";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "diagnose_bot_address")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let ret = { ok: false, answer: "api_diagnose_bot_address", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.diagnose_bot_address === "function")
+      {
+      ret = await controller.resilienceController.diagnose_bot_address(botId);
+      ret.answer = "api_diagnose_bot_address";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "check_mbs")
+   {
+   let ret = { ok: false, answer: "api_check_mbs", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.check_mbs === "function")
+      {
+      ret = await controller.resilienceController.check_mbs();
+      ret.answer = "api_check_mbs";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "set_active")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let active = String(decodedobject.active ?? "true").trim().toLowerCase();
+   let ret = { ok: false, answer: "api_set_active", error: "BOT_NOT_FOUND" };
+   let botIdx = controller.get_bot_by_id(botId, controller.bots);
+   if (botIdx !== null && botIdx !== undefined) {
+       let bot = controller.bots[botIdx];
+       if (active === "false" || active === "0") {
+           // Add to detected_inactive_bots
+           if (typeof controller.register_inactive_detected === "function") {
+               controller.register_inactive_detected(
+                   Number(bot.x), Number(bot.y), Number(bot.z),
+                   Number(bot.vector_x), Number(bot.vector_y), Number(bot.vector_z),
+                   "api", "set_active"
+               );
+           }
+           bot.inactive = true;
+           ret = { ok: true, answer: "api_set_active", bot_id: botId, active: false };
+           // Trigger recalibrate after state change
+           if (typeof controller.apicall_recalibrate_bot_addresses === "function") {
+               controller.apicall_recalibrate_bot_addresses("standard");
+               ret.recalibrate_triggered = true;
+           }
+       } else {
+           // Remove from detected_inactive_bots
+           if (Array.isArray(controller.detected_inactive_bots)) {
+               let botKey = controller.getKey_3d(Number(bot.x), Number(bot.y), Number(bot.z));
+               controller.detected_inactive_bots = controller.detected_inactive_bots.filter(d => {
+                   let dKey = controller.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+                   return dKey !== botKey;
+               });
+           }
+           bot.inactive = false;
+           ret = { ok: true, answer: "api_set_active", bot_id: botId, active: true };
+           // Trigger recalibrate after state change
+           if (typeof controller.apicall_recalibrate_bot_addresses === "function") {
+               controller.apicall_recalibrate_bot_addresses("standard");
+               ret.recalibrate_triggered = true;
+           }
+           // Trigger GUI refresh to update bot color
+           if (typeof controller.apicall_gui_refresh === "function") {
+               controller.apicall_gui_refresh();
+           }
+       }
+   }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "set_mobility")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let mobility = String(decodedobject.mobility ?? "true").trim().toLowerCase();
+   let ret = { ok: false, answer: "api_set_mobility", error: "BOT_NOT_FOUND" };
+   let botIdx = controller.get_bot_by_id(botId, controller.bots);
+   if (botIdx !== null && botIdx !== undefined) {
+       let bot = controller.bots[botIdx];
+       bot.mobility = (mobility !== "false" && mobility !== "0");
+       ret = { ok: true, answer: "api_set_mobility", bot_id: botId, mobility: bot.mobility };
+       // Trigger recalibrate after mobility change (affects morph donor selection)
+       if (typeof controller.apicall_recalibrate_bot_addresses === "function") {
+           controller.apicall_recalibrate_bot_addresses("standard");
+           ret.recalibrate_triggered = true;
+       }
+       // Trigger GUI refresh to update bot color
+       if (typeof controller.apicall_gui_refresh === "function") {
+           controller.apicall_gui_refresh();
+       }
+   }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "get_resilience_status")
+   {
+   let ret = { ok: false, answer: "api_get_resilience_status", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.report_detailed === "function")
+      {
+      ret = controller.resilienceController.report_detailed();
+      }
    await write_and_close(socket, ret);
    return(true);
    } // if

@@ -400,7 +400,12 @@ return({
        carried_payload_bot_id: carried_payload,
        neighbors: neighbors,
        masterbot: masterbotStr,
-       connector: connectorId
+       connector: connectorId,
+       inactive: (bot.inactive === true || bot.inactive === 'true' || bot.inactive == 1) ? true :
+                 (Array.isArray(controller.detected_inactive_bots) ? controller.detected_inactive_bots.some(d =>
+                     Number(d.x) === Number(bot.x) && Number(d.y) === Number(bot.y) && Number(d.z) === Number(bot.z)
+                 ) : false),
+       mobility: (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true
        });
 } // apicall_get_bot_info()
 

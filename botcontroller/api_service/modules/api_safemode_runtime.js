@@ -144,23 +144,51 @@ if (communication_mode == "direct_radio")
    } // if
 
 old_adress = apicall_get_safe_adress(controller, controller.bots[botindex]);
+
+// ADC: Startposition vom zugewiesenen MB ermitteln (statt legacy controller.mb)
+let mbPos = { x: 0, y: 0, z: 0 };
+if (controller.accessDomainController) {
+    let connInfo = controller.accessDomainController.adc_getConnectorForBot(normalized_bot_id);
+    if (connInfo && controller.accessDomainController.helper_masterbots[connInfo.hmb_id]) {
+        let mb = controller.accessDomainController.helper_masterbots[connInfo.hmb_id];
+        mbPos = { x: Number(mb.pos.x), y: Number(mb.pos.y), z: Number(mb.pos.z) };
+    }
+}
+// Inaktive Bots als blockierte Positionen für die Routenberechnung sammeln
+let blockedBots = [];
+if (Array.isArray(controller.detected_inactive_bots)) {
+    for (let d of controller.detected_inactive_bots) {
+        for (let bi = 0; bi < controller.bots.length; bi++) {
+            if (controller.bots[bi] &&
+                Number(controller.bots[bi].x) === Number(d.x) &&
+                Number(controller.bots[bi].y) === Number(d.y) &&
+                Number(controller.bots[bi].z) === Number(d.z)) {
+                blockedBots.push(controller.bots[bi]); break;
+            }
+        }
+    }
+}
 new_adress = controller.get_mb_returnaddr(
-                                          {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+                                          mbPos,
                                           {
                                           x: Number(controller.bots[botindex].x),
                                           y: Number(controller.bots[botindex].y),
                                           z: Number(controller.bots[botindex].z)
                                           },
                                           controller.bots,
-                                          [],
+                                          blockedBots,
                                           { routing_mode: normalized_mode, exclude_masterbots: true }
                                           );
 
 controller.bots[botindex].adress_short = new_adress;
+// Primäre Adresse aktiv setzen (damit Änderung sofort wirkt)
+if (String(new_adress) !== String(old_adress)) {
+    controller.bots[botindex].adress = new_adress;
+}
 
 // Also generate detour address (alternative route)
 let detour_adress = controller.get_mb_returnaddr_detour(
-                                          {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+                                          mbPos,
                                           {
                                           x: Number(controller.bots[botindex].x),
                                           y: Number(controller.bots[botindex].y),
@@ -202,6 +230,18 @@ for (let i = 0; i < controller.bots.length; i++)
        {
        continue;
        } // if
+
+    // Inaktive Bots überspringen (via detected_inactive_bots oder Bot-Flag)
+    let isInactive = false;
+    let bot = controller.bots[i];
+    if (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) isInactive = true;
+    if (Array.isArray(controller.detected_inactive_bots) && !isInactive) {
+        isInactive = controller.detected_inactive_bots.some(d =>
+            Number(d.x) === Number(bot.x) &&
+            Number(d.y) === Number(bot.y) &&
+            Number(d.z) === Number(bot.z));
+    }
+    if (isInactive) continue;
 
     let ret = apicall_recalibrate_bot_address(controller, controller.bots[i].id, normalized_mode);
     recalibrated.push(ret);
