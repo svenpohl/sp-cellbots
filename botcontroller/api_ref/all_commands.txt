@@ -734,6 +734,99 @@ Available commands:
     - reassigned: object
   examples:
     - node api.js enable_mb hMB2
+- check_mbs
+  Pings the first configured slot of every MB/hMB via ADC to verify reachability.
+  Each MB receives an INFO opcode on its connector; the response is awaited
+  with a timeout (~3s). Returns online/offline and ping status per MB.
+  returns:
+    - answer: api_check_mbs
+    - mbs: object (mb_id → { role, connector, active, online, ping_ok })
+  examples:
+    - node api.js check_mbs
+- check_if_inactive
+  Checks whether a specific coordinate hosts an inactive (OFFL) bot.
+  Finds a known neighbor bot from the world model and sends a targeted
+  CHECK to it. If the neighbor reports the slot as OFFL, the position
+  is registered as inactive in the world model and a GUI refresh is triggered.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_check_if_inactive
+    - position: {x,y,z}
+    - bot_found: boolean
+    - inactive: boolean
+    - neighbor_used: string (bot ID)
+    - slot: string
+    - status: string (OFFL/OK/EMPT/timeout)
+  examples:
+    - node api.js check_if_inactive 2 0 2
+- diagnose_bot_address
+  Walks the address path of a bot hop by hop, checks each intermediate position
+  for inactive bots via CHECK#&#x3c;slot&#x3e;, registers any found as inactive in the
+  world model, and triggers recalibrate_bot_addresses to reroute around them.
+  Can find multiple inactive bots on the same path.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_diagnose_bot_address
+    - bot_id: string
+    - start_pos: {x,y,z} (position of the assigned MB/hMB)
+    - hops: array of {index, slot, from, to, status}
+    - inactive_found: array of {x,y,z, neighbor_used, slot}
+    - recalibrate_triggered: boolean
+    - message: string
+  examples:
+    - node api.js diagnose_bot_address SB1
+- set_active
+  Sets a bot's active state in the BotController world model.
+  When set to false, the bot is added to detected_inactive_bots and
+  marked as inactive – it will be excluded from morph donor selection
+  and its position will be treated as forbidden by the path planner.
+  When set to true, the bot is removed from detected_inactive_bots.
+  Automatically triggers recalibrate_bot_addresses + GUI refresh.
+  params:
+    - bot_id: string
+    - active: true|false
+  returns:
+    - answer: api_set_active
+    - bot_id: string
+    - active: boolean
+    - recalibrate_triggered: boolean
+  examples:
+    - node api.js set_active B49 false
+    - node api.js set_active B49 true
+- set_mobility
+  Sets a bot's mobility flag in the BotController world model.
+  When mobility is false, the bot will not be moved by morph operations.
+  This is useful to simulate immobile obstacles or disabled bots.
+  Automatically triggers recalibrate_bot_addresses + GUI refresh.
+  Immobile bots are displayed in grey (aaaaaa) in the WebGUI.
+  params:
+    - bot_id: string
+    - mobility: true|false
+  returns:
+    - answer: api_set_mobility
+    - bot_id: string
+    - mobility: boolean
+    - recalibrate_triggered: boolean
+  examples:
+    - node api.js set_mobility B49 false
+    - node api.js set_mobility B49 true
+- get_resilience_status
+  Returns the full resilience status report, including duplicate ID alerts
+  and MB availability.
+  returns:
+    - answer: api_get_resilience_status
+    - status: string (active / alerts / NOT_IMPLEMENTED_YET)
+    - message: string
+    - config_loaded: boolean
+    - register_duplicate_ids: boolean
+    - duplicate_ids_detected: boolean
+    - duplicate_ids_list: list
+  examples:
+    - node api.js get_resilience_status
 - generate_detour_address
   Calculates an alternative (detour) return address for a bot via an intermediate bot.
   Useful when the primary mesh route is blocked and a redundant path is needed.
