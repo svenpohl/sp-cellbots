@@ -35,7 +35,8 @@ if (!QUIET)
 
 const net  = require('net');
 const path = require('path');
-const fs   = require('fs').promises;
+const fsPromises = require('fs').promises;
+const fs         = require('fs');
 
 const Logger = require('./logger');
 
@@ -244,7 +245,7 @@ const httpserver = http.createServer(async (req, res) => {
   const absPath = path.join(__dirname, "webguisim", filePath);
 
   try {
-      const data = await fs.readFile(absPath);
+      const data = await fsPromises.readFile(absPath);
 
       // MIME-Typ bestimmen
       const ext = path.extname(absPath).toLowerCase();
