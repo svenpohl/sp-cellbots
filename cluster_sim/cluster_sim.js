@@ -345,12 +345,57 @@ wss.on('connection', (ws) => {
            
                
            } else
+        if (decodedobject.cmd === 'api_cli')
+           {
+           let args = String(decodedobject.args ?? "").trim();
+           let result = { ok: false, error: "EMPTY_COMMAND" };
+           if (args.startsWith("disable_bot ") || args === "disable_bot") {
+               let botId = args.split(" ")[1] || "";
+               if (botId) result = masterbot_class_obj.failureInjector.setBotActive(botId, false);
+               else result = { ok: false, error: "MISSING_BOT_ID" };
+           } else if (args.startsWith("enable_bot ") || args === "enable_bot") {
+               let botId = args.split(" ")[1] || "";
+               if (botId) result = masterbot_class_obj.failureInjector.setBotActive(botId, true);
+               else result = { ok: false, error: "MISSING_BOT_ID" };
+           } else if (args.startsWith("set_mobility ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let mobile = parts[2] || "";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else if (mobile === "") { result = { ok: false, error: "MISSING_MOBILE_FLAG" }; }
+               else { result = masterbot_class_obj.failureInjector.setBotMobility(botId, mobile); }
+           } else if (args.startsWith("get_bot_info ")) {
+               let botId = args.split(" ")[1] || "";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else {
+                   let bot = null;
+                   for (let i = 0; i < masterbot_class_obj.bots.length; i++) {
+                       if (masterbot_class_obj.bots[i] && String(masterbot_class_obj.bots[i].id).trim() === botId) { bot = masterbot_class_obj.bots[i]; break; }
+                   }
+                   if (!bot) { result = { ok: false, error: "BOT_NOT_FOUND", bot_id: botId }; }
+                   else {
+                       result = {
+                           ok: true,
+                           bot_id: bot.id,
+                           position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
+                           orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
+                           inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0
+                       };
+                   }
+               }
+           } else if (args === "describe") {
+               let filePath = path.join(__dirname, "api_ref", "core_commands.txt");
+               let text = "";
+               try { text = fs.readFileSync(filePath, "utf8"); } catch(e) { text = "Error loading commands: " + e.message; }
+               result = { ok: true, answer: "api_description", text: text };
+           } else {
+               result = { ok: false, error: "UNKNOWN_COMMAND", args: args };
+           }
+           ws.send(JSON.stringify({ answer: "answer_api_cli", result: result }));
+           } else
              {
-             if (!QUIET) console.log("Unknown command");
+             if (!QUIET) console.log("Unknown command: " + decodedobject.cmd);
              }
-    
-    
-        counter++;  
         } catch (error) {
                         console.error("Error parsing JSON:", error);
                         }

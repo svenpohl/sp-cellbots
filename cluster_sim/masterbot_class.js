@@ -24,6 +24,7 @@
  */
  
 const fs = require('fs');
+const net = require('net');
 const WebSocket = require('ws');
 
 const path = require('path');
@@ -40,6 +41,7 @@ Logger.log("Start cluster_sim");
 
 const LoggerBlender = require('./logger_blender');
 const AccessDomainSimulator = require('./libs/accessdomainsimulator');
+const FailureInjector = require('./libs/failure_injector');
 
 
 
@@ -111,6 +113,9 @@ class masterbot_class
 
   // AccessDomainSimulator (parallel zum bestehenden Code, nur lesend)
   this.ads = new AccessDomainSimulator(this);
+
+  // FailureInjector (Simulated-Fault-API auf Port 3101)
+  this.failureInjector = new FailureInjector(this);
       
   } // constructor
 
@@ -249,6 +254,9 @@ return(this.is_payload_bot_int_id(botindex));
  
 
   // <-- Blender-Logging
+
+  // FailureInjector API starten (Port 3101)
+  this.start_failure_api();
   
   } // init..
   
@@ -1055,6 +1063,79 @@ loadconfig(filePath) {
 } // loadconfig()
 
 
+//
+// start_failure_api() – TCP-JSON-API für Failure-Injection (Port 3101)
+//
+start_failure_api() {
+    if (this.config.enable_api != "true") {
+        console.log("[FailureAPI] API disabled by config.");
+        return;
+    }
+    let api_port = parseInt(this.config.api_port, 10);
+    if (!api_port || Number.isNaN(api_port)) {
+        console.log("[FailureAPI] No valid api_port configured.");
+        return;
+    }
+    this.fapi_server = net.createServer((socket) => {
+        let buffer = "";
+        socket.on('data', async (data) => {
+            buffer += data.toString();
+            const messages = buffer.split("\n");
+            buffer = messages.pop();
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i].trim();
+                if (!msg) continue;
+                let decoded = null;
+                try { decoded = JSON.parse(msg); } catch(e) {
+                    socket.write(JSON.stringify({ ok: false, error: "INVALID_JSON" }) + "\n");
+                    continue;
+                }
+                let answer = { ok: false, error: "UNKNOWN_COMMAND" };
+                if (decoded.cmd === "disable_bot" || decoded.cmd === "enable_bot") {
+                    answer = this.failureInjector.setBotActive(decoded.bot_id, decoded.cmd === "enable_bot");
+                } else if (decoded.cmd === "describe") {
+                    let filePath = path.join(__dirname, "api_ref", "core_commands.txt");
+                    let text = "";
+                    try { text = fs.readFileSync(filePath, "utf8"); } catch(e) { text = "Error loading commands: " + e.message; }
+                    answer = { ok: true, answer: "api_description", text: text };
+                } else if (decoded.cmd === "set_mobility") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let mobile = decoded.mobile;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else if (mobile === undefined || mobile === null) { answer = { ok: false, error: "MISSING_MOBILE_FLAG" }; }
+                    else { answer = this.failureInjector.setBotMobility(botId, mobile); }
+                } else if (decoded.cmd === "get_bot_info") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else {
+                        let bot = null;
+                        for (let i = 0; i < this.bots.length; i++) {
+                            if (this.bots[i] && String(this.bots[i].id).trim() === botId) { bot = this.bots[i]; break; }
+                        }
+                        if (!bot) { answer = { ok: false, error: "BOT_NOT_FOUND", bot_id: botId }; }
+                        else {
+                            answer = {
+                                ok: true,
+                                bot_id: bot.id,
+                                position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
+                                orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
+                                inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0
+                            };
+                        }
+                    }
+                }
+                socket.write(JSON.stringify(answer) + "\n");
+            }
+        });
+        socket.on('error', (err) => { console.error("[FailureAPI] Socket error:", err.message); });
+    });
+    this.fapi_server.listen(api_port, () => {
+        console.log("[FailureAPI] listening on port " + api_port);
+    });
+    this.fapi_server.on('error', (err) => {
+        console.error("[FailureAPI] Server error:", err.message);
+    });
+}
 
 
 //
@@ -1304,7 +1385,18 @@ for (let i=0; i < this.bots.length; i++)
     jsondata += "   \"vy\": "+this.bots[i].vector_y +",  ";
     jsondata += "   \"vz\": "+this.bots[i].vector_z +",  ";
 
-    jsondata += "   \"col\": \""+this.bots[i].color +"\",  ";
+    // Inaktive Bots (Failure-Injector / config) mit hellrot anzeigen
+    // Immobile Bots (hMBs, mobility=false) mit grau anzeigen
+    let bot_color = this.bots[i].color;
+    if (this.bots[i].inactive == 'true' || this.bots[i].inactive === true || this.bots[i].inactive == 1)
+       {
+       bot_color = "ffaaaa";
+       }
+    else if (this.bots[i].mobility === false)
+       {
+       bot_color = "aaaaaa";
+       }
+    jsondata += "   \"col\": \""+bot_color+"\",  ";
     jsondata += "   \"masterbot\": "+this.bots[i].masterbot +"  ";
     
     jsondata += "   }    ";
