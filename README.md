@@ -66,11 +66,21 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9**  
+Current version: **1.9.1**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.1** (24.06.2026)  
+**Resilience Controller & World Model Consistency Tools**  
+  - `resilience_controller.js`: Central event collector framework for unusual bot behaviour – designed for future error-handling extensions (timeout detection, ping verification, automatic recovery)  
+  - `diagnose_bot_address <bot_id>`: Walks the mesh address path of any bot hop by hop and checks each intermediate position for inactive bots via targeted CHECK commands. Detected inactive bots are automatically registered and addresses are recalibrated – no full Level 2 scan required  
+  - `set_active <bot_id> <true|false>`: Activate or deactivate a bot in the world model. Deactivated bots are excluded from morph donor selection and their positions are treated as forbidden by the path planner  
+  - `set_mobility <bot_id> <true|false>`: Set a bot's mobility flag. Immobile bots remain in the mesh for signal forwarding but are excluded from morph operations  
+  - `check_if_inactive <x> <y> <z>`: Surgical offline-check – finds a neighbor bot, sends a targeted CHECK command, and registers the position as inactive if an OFFL status is detected  
+  - ClusterSim failure-injection API (port 3101): `disable_bot`, `enable_bot`, `set_mobility`, `get_bot_info`, `describe`  
+  - First automatic self-repair: Resilience Controller detected hMB2 (or another helper-MasterBot) contact loss, disabled the MB and redistributed bots via `adc_assign_proximity`
 
 - **1.9** (19.06.2026)  
 **AccessDomainController (ADC) – Multi-MB infrastructure**  
@@ -106,13 +116,7 @@ Latest changes:
   - New: test structures (target1–4, pins.json)  
   - `grab_bot` uses B-slot (back) in VK mode
 
-- **1.7.7** (23.05.2026)  
-**get_bots_in_region API, would_split_cluster in diagnose, CLI fixes**  
-  - `get_bots_in_region x1 y1 z1 x2 y2 z2`: 3D bounding-box scan  
-  - `diagnose_move_bot_to`: would_split_cluster + disconnected_bots  
-  - CLI: fixed get_bots, get_neighbors, morph_get_* output  
-  - JSON offline error (instead of console.error)  
- 
+- **1.7.7** (23.05.2026) — **get_bots_in_region API, would_split_cluster in diagnose, CLI fixes**
 
 - **1.7.6** (23.05.2026)  
 **Parallel Vehicle-Kinematics Morph & Auto Structurescan**
@@ -120,11 +124,7 @@ Latest changes:
 - **1.7.5** (18.05.2026)  
 **3D Cursor for rapid Vehicle-Kinematics Moves & LLM Collaboration Guide**
 
-- **1.7.4** (17.05.2026)  
-**Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
-  - **World model sync:** BotController and ClusterSim correctly update the payload's **position and orientation** after carrier moves and rotations (90° and 180°), even when the payload started with a different facing direction  
-  - **API CLI in BotController WebGUI:** The BotController WebGUI (`http://localhost:3010`) now has a built-in **API CLI panel** — type `node api.js` commands directly into the browser, see JSON responses live. Click any bot in the 3D view to auto-fill its ID into the command. Includes a dropdown of example commands for quick experimentation  
-  - **Primary demo:** `node api.js structurescan` then switch to BotController WebGUI and try the API CLI examples
+- **1.7.4** (17.05.2026) — **Vehicle Kinematics Payload — B-Slot Transport & WebGUI API CLI**
 
 - **1.7.3** (12.05.2026) — **Hybrid Kinematics mobility mode (API preview)**
 - **1.7.2** (03.05.2026) — **Sequential Vehicle Kinematics Morph**
