@@ -140,6 +140,10 @@ class MorphVehicleKinematics extends MorphBase
            this.VK_MAX_SEARCH_STEPS = params.vk_max_search_steps;
            }
 
+        // Initial forbidden cells (hMB positions + inactive bot positions)
+        // Used to prevent path planning through immobile or inactive bots.
+        this.initialForbiddenCells = Array.isArray(params.forbiddenCells) ? params.forbiddenCells : [];
+
         this.wavecnt = 0;
 
         this.debugLog("Construct MorphVehicleKinematics Parallel");
@@ -525,12 +529,15 @@ class MorphVehicleKinematics extends MorphBase
     {
         // 1. Find all unhappy bots (not at master position and not already at their target)
         //    Exclude bots that have already been moved in the current wave
+        //    Exclude inactive bots (they stay in the grid but cannot be donors)
         const unhappyBots = this.getAllBots(collection).filter(bot =>
             !(bot.x === this.MASTER_BOT_POSITION.x &&
               bot.y === this.MASTER_BOT_POSITION.y &&
               bot.z === this.MASTER_BOT_POSITION.z) &&
             !this.isHappy(bot.x, bot.y, bot.z) &&
-            !movedBotsInWave.has(bot.id)
+            !movedBotsInWave.has(bot.id) &&
+            bot.inactive !== true &&
+            bot.mobility !== false
         );
 
         // 2. Find all free targets (positions in cluster_target not already occupied, with cluster contact)
@@ -2369,7 +2376,9 @@ class MorphVehicleKinematics extends MorphBase
         const reservedTargets = new Set();
         const movedBotsInWave = new Set();
         const wavePairs = [];
-        const waveForbiddenCells = [];
+        // Start with initial forbidden cells (hMB positions + inactive bot positions)
+        // and add wave-specific forbidden cells during collection
+        const waveForbiddenCells = [...this.initialForbiddenCells];
         let waveHasValidPair = false;
 
         // --- COLLECT PHASE: find up to maxBotsPerWave pairs ---

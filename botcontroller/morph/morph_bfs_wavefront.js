@@ -599,8 +599,16 @@ constructor(startBots, targetBots, params)
 
     // Immobile obstacles (e.g. hMBs) that must be avoided by the path planner
     this.forbiddenCells = Array.isArray(params.forbiddenCells) ? params.forbiddenCells : [];
-   
-    
+
+    // Anchors: hMBs/MBs as static connection nodes for wouldSplitCluster.
+    // These bots are not in this.cells (they are not moved), but they
+    // are considered essential nodes in BFS so that the morph does not
+    // disconnect them from the cluster.
+    this.anchors = [];
+    if (params.anchors !== undefined && Array.isArray(params.anchors))
+       {
+       this.anchors = params.anchors;
+       }
     
     // Log object for morphing process: stores initial bot setup (optional) and all morphing waves
     this.morphLog =  
@@ -865,6 +873,21 @@ wouldSplitCluster(bot, collection = this.cells) {
 
     // Get all bots except the one to be (temporarily) removed
     const bots = this.getAllBots(collection).filter(b => b.id !== bot.id);
+
+    // Add anchors (hMBs) as static nodes for BFS check.
+    // Anchors are immobile but essential for cluster connectivity.
+    const anchors = this.anchors || [];
+    for (const a of anchors) {
+        // Only add if not already present (by position)
+        const exists = bots.some(b => Number(b.x) === Number(a.x) && Number(b.y) === Number(a.y) && Number(b.z) === Number(a.z));
+        if (!exists) {
+            bots.push({
+                id: `anchor_${a.x}_${a.y}_${a.z}`,
+                x: Number(a.x), y: Number(a.y), z: Number(a.z)
+            });
+        }
+    }
+
     if (bots.length === 0) {
         // Only the master bot left, cannot split
         return false;
@@ -881,23 +904,54 @@ wouldSplitCluster(bot, collection = this.cells) {
     );
 
     if (!master) {
-        console.warn("❗ No master bot present in the cluster!");
-        
-        console.log( "this.getAllBots(collection)"  );
-        console.log( this.getAllBots(collection)  );
-        // Without master bot, consider the cluster split
-        return true;
-    } else {
-        // Optional: Debug info for master bot's neighbors
-        const directNeighbors = this.getAllBots(collection).filter(b => {
-            const dx = Math.abs(b.x - master.x);
-            const dy = Math.abs(b.y - master.y);
-            const dz = Math.abs(b.z - master.z);
-            return dx + dy + dz === 1;
-        });
-        if (directNeighbors.length === 0) {
-            console.warn("❌ Master bot has NO orthogonal neighbors!");
+        // If no master bot in collection, try to use the first anchor at MASTER_BOT_POSITION
+        const anchorMaster = anchors.find(a =>
+            Number(a.x) === this.MASTER_BOT_POSITION.x &&
+            Number(a.y) === this.MASTER_BOT_POSITION.y &&
+            Number(a.z) === this.MASTER_BOT_POSITION.z
+        );
+        if (anchorMaster) {
+            bots.push({
+                id: `anchor_master`,
+                x: Number(anchorMaster.x),
+                y: Number(anchorMaster.y),
+                z: Number(anchorMaster.z)
+            });
+        } else {
+            console.warn("wouldSplitCluster: No master bot or anchor at MASTER_BOT_POSITION!");
+            return true;
         }
+        // Re-find master now that we added it
+        const master2 = bots.find(b =>
+            b.x === this.MASTER_BOT_POSITION.x &&
+            b.y === this.MASTER_BOT_POSITION.y &&
+            b.z === this.MASTER_BOT_POSITION.z
+        );
+        if (!master2) return true;
+        
+        // BFS from the (re-found) master bot
+        const visited2 = new Set();
+        const queue2 = [];
+        visited2.add(key(master2));
+        queue2.push(master2);
+
+        while (queue2.length > 0) {
+            const current = queue2.shift();
+            for (const nb of bots) {
+                if (visited2.has(key(nb))) continue;
+                const dx = Math.abs(current.x - nb.x);
+                const dy = Math.abs(current.y - nb.y);
+                const dz = Math.abs(current.z - nb.z);
+                const dist = dx + dy + dz;
+                if (dist === 1) {
+                    visited2.add(key(nb));
+                    queue2.push(nb);
+                }
+            }
+        }
+
+        const allKeys2 = new Set(bots.map(b => key(b)));
+        return [...allKeys2].some(k => !visited2.has(k));
     }
 
     // BFS from the master bot to see which bots are still connected
@@ -924,14 +978,6 @@ wouldSplitCluster(bot, collection = this.cells) {
     // After BFS: check if all remaining bots were visited (= connected)
     const allKeys = new Set(bots.map(b => key(b)));
     const isSplit = [...allKeys].some(k => !visited.has(k));
-
-    if (isSplit) {
-        // console.warn("⚠️ Cluster would be split by removing bot:", bot);
-    }
-
-
- 
-
 
     return isSplit;
 } // wouldSplitCluster
@@ -994,11 +1040,14 @@ countOrthogonalNeighbors(x, y, z, collection = this.cells)
 //
 choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets = new Set()) {
   // 1. Find all unhappy bots (not at master position and not already at their target)
+  //    Exclude inactive and immobile bots (they stay in the grid but cannot be donors)
   const unhappyBots = this.getAllBots(collection).filter(bot =>
     !(bot.x === this.MASTER_BOT_POSITION.x &&
       bot.y === this.MASTER_BOT_POSITION.y &&
       bot.z === this.MASTER_BOT_POSITION.z) &&
-    !this.isHappy(bot.x, bot.y, bot.z)
+    !this.isHappy(bot.x, bot.y, bot.z) &&
+    bot.inactive !== true &&
+    bot.mobility !== false
   );
 
   // 2. Find all free targets (positions in cluster_target not already occupied, with cluster contact)

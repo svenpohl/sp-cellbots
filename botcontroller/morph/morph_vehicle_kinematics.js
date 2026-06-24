@@ -128,6 +128,9 @@ class MorphVehicleKinematics extends MorphBase
            this.VK_MAX_SEARCH_STEPS = params.vk_max_search_steps;
            }
 
+        // Initial forbidden cells (hMB positions + inactive bot positions)
+        this.initialForbiddenCells = Array.isArray(params.forbiddenCells) ? params.forbiddenCells : [];
+
         this.wavecnt = 0;
 
         this.log("Construct MorphVehicleKinematics");
@@ -478,7 +481,9 @@ class MorphVehicleKinematics extends MorphBase
               bot.y === this.MASTER_BOT_POSITION.y &&
               bot.z === this.MASTER_BOT_POSITION.z) &&
             !this.isHappy(bot.x, bot.y, bot.z) &&
-            !movedBotsInWave.has(bot.id)
+            !movedBotsInWave.has(bot.id) &&
+            bot.inactive !== true &&
+            bot.mobility !== false
         );
 
         // 2. Find all free targets (positions in cluster_target not already occupied, with cluster contact)
