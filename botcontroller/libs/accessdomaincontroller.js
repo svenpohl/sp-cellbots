@@ -329,6 +329,29 @@ class AccessDomainController {
     }
 
     //
+    // adc_getPrimaryConnectorId()
+    // Returns the connector ID of the primary MB (role == "primary").
+    // Used for morph sequence push and other operations that need to send
+    // via the primary masterbot.
+    //
+    adc_getPrimaryConnectorId() {
+        for (let mid in this.helper_masterbots) {
+            let mb = this.helper_masterbots[mid];
+            if (mb.type === "masterbot" && mb.role === "primary" && mb.connector_id) {
+                return mb.connector_id;
+            }
+        }
+        // Fallback: first masterbot with a connector_id
+        for (let mid in this.helper_masterbots) {
+            let mb = this.helper_masterbots[mid];
+            if (mb.type === "masterbot" && mb.connector_id) {
+                return mb.connector_id;
+            }
+        }
+        return null;
+    }
+
+    //
     // adc_assign_proximity()
     // Reassigns all non-MB bots to the nearest MB/hMB based on Manhattan distance.
     // Bots with masterbot != 0 (MBs/hMBs themselves) are skipped.
