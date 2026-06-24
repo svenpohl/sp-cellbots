@@ -6,6 +6,16 @@
 
 ---
 
+- **1.9.1** (24.06.2026)  
+**Resilience Controller & World Model Consistency Tools**  
+  - `resilience_controller.js`: Central event collector framework for unusual bot behaviour – designed for future error-handling extensions (timeout detection, ping verification, automatic recovery)  
+  - `diagnose_bot_address <bot_id>`: Walks the mesh address path of any bot hop by hop and checks each intermediate position for inactive bots via targeted CHECK commands. Detected inactive bots are automatically registered and addresses are recalibrated – no full Level 2 scan required  
+  - `set_active <bot_id> <true|false>`: Activate or deactivate a bot in the world model. Deactivated bots are excluded from morph donor selection and their positions are treated as forbidden by the path planner  
+  - `set_mobility <bot_id> <true|false>`: Set a bot's mobility flag. Immobile bots remain in the mesh for signal forwarding but are excluded from morph operations  
+  - `check_if_inactive <x> <y> <z>`: Surgical offline-check – finds a neighbor bot, sends a targeted CHECK command, and registers the position as inactive if an OFFL status is detected  
+  - ClusterSim failure-injection API (port 3101): `disable_bot`, `enable_bot`, `set_mobility`, `get_bot_info`, `describe`  
+  - First automatic self-repair: Resilience Controller detected hMB2 (or another helper-MasterBot) contact loss, disabled the MB and redistributed bots via `adc_assign_proximity`
+
 - **1.9** (19.06.2026)  
 **AccessDomainController (ADC) – Multi-MB infrastructure**  
   - Legacy single-MasterBot replaced by primary MB + helper MBs (hMB1, hMB2)  
