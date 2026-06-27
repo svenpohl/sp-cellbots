@@ -269,16 +269,37 @@ class ResilienceController {
             let entry = this.controller._check_waiting[checkId];
             if (entry && entry.status !== null) {
                 let isBlocked = (entry.status === 'OFFL' || entry.status === 'b');
+                let isActive = (entry.status === 'OK' || entry.status === 'active');
                 if (isBlocked && typeof this.controller.register_inactive_detected === "function") {
                     this.controller.register_inactive_detected(tx, ty, tz,
                         nb.vector_x, nb.vector_y, nb.vector_z, nb.id, nslot);
                     if (typeof this.controller.notify_frontend === "function") {
                         this.controller.notify_frontend([{ event: "addbot", botid: "INACTIVE_" + tx + "_" + ty + "_" + tz }]);
                     }
+                } else if (isActive) {
+                    // Bot gefunden (aktiv) – Position im Weltmodell aktualisieren
+                    for (let bi = 0; bi < this.controller.bots.length; bi++) {
+                        let b = this.controller.bots[bi];
+                        if (b && Number(b.x) === tx && Number(b.y) === ty && Number(b.z) === tz) {
+                            // Bot already at this position – no update needed
+                        } else {
+                            // Check if this bot is in detected_inactive_bots → remove
+                            if (Array.isArray(this.controller.detected_inactive_bots)) {
+                                let cKey = this.controller.getKey_3d(tx, ty, tz);
+                                this.controller.detected_inactive_bots = this.controller.detected_inactive_bots.filter(d => {
+                                    let dKey = this.controller.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+                                    return dKey !== cKey;
+                                });
+                            }
+                        }
+                    }
+                    if (typeof this.controller.apicall_gui_refresh === "function") {
+                        this.controller.apicall_gui_refresh();
+                    }
                 }
                 delete this.controller._check_waiting[checkId];
                 return {
-                    ok: true, bot_found: isBlocked, inactive: isBlocked,
+                    ok: true, bot_found: isBlocked || isActive, inactive: isBlocked,
                     neighbor_used: nb.id, slot: nslot, status: entry.status,
                     position: { x: tx, y: ty, z: tz }
                 };
@@ -511,6 +532,291 @@ class ResilienceController {
         }
 
         return report;
+    }
+
+    //
+    // trace_move_path(botId, targetX, targetY, targetZ)
+    // Traces the planned movement path of a bot step by step.
+    // For each coordinate on the path, calls verify_bot_position to check
+    // if the bot is there. Continues through all coordinates – does not stop
+    // at the first find.
+    // At the end: recalibrate + gui refresh.
+    //
+    async trace_move_path(botId, targetX, targetY, targetZ) {
+        let report = {
+            ok: true,
+            bot_id: botId,
+            target: { x: Number(targetX), y: Number(targetY), z: Number(targetZ) },
+            steps: [],
+            found_at: null,
+            found: false,
+            message: ""
+        };
+
+        let botIdx = this.controller.get_bot_by_id(botId, this.controller.bots);
+        if (botIdx === null || botIdx === undefined) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        // Pfad per find_path_for_bot berechnen
+        let pathRet = null;
+        try {
+            pathRet = this.controller.apicall_find_path_for_bot(botId, targetX, targetY, targetZ);
+        } catch(e) {
+            return { ok: false, error: "FIND_PATH_FAILED", details: e.message, bot_id: botId };
+        }
+        if (!pathRet || !pathRet.path_found || !Array.isArray(pathRet.path)) {
+            return { ok: false, error: "PATH_NOT_FOUND", bot_id: botId, target: { x: Number(targetX), y: Number(targetY), z: Number(targetZ) } };
+        }
+
+        // Eindeutige Koordinaten aus dem Pfad extrahieren
+        let uniqueCoords = [];
+        let seen = new Set();
+        for (let s of pathRet.path) {
+            let key = Number(s.x) + "," + Number(s.y) + "," + Number(s.z);
+            if (!seen.has(key)) { seen.add(key); uniqueCoords.push({ x: Number(s.x), y: Number(s.y), z: Number(s.z) }); }
+        }
+
+        // Alle Koordinaten durchgehen (inklusive Start – verify_bot_position
+        // prüft Position UND Orientation und ist harmlos bei Leerstand)
+        for (let ci = 0; ci < uniqueCoords.length; ci++) {
+            let coord = uniqueCoords[ci];
+            let stepInfo = { index: ci, x: coord.x, y: coord.y, z: coord.z, status: "pending" };
+
+            // verify_bot_position für jede Koordinate
+            try {
+                let vRet = await this.verify_bot_position(botId, coord.x, coord.y, coord.z);
+                if (vRet && vRet.bot_found === true) {
+                    stepInfo.status = "FOUND";
+                    stepInfo.action = vRet.action;
+                    report.found_at = { x: coord.x, y: coord.y, z: coord.z };
+                    report.found = true;
+                } else if (vRet && (vRet.action === "empty" || vRet.action === "marked_inactive")) {
+                    stepInfo.status = "EMPTY";
+                } else {
+                    stepInfo.status = vRet?.action || "unknown";
+                }
+            } catch(e) {
+                stepInfo.status = "verify_failed";
+            }
+
+            report.steps.push(stepInfo);
+        }
+
+        // Abschliessendes recalibrate + gui refresh
+        if (typeof this.controller.apicall_recalibrate_bot_addresses === "function") {
+            this.controller.apicall_recalibrate_bot_addresses("standard");
+        }
+        if (typeof this.controller.apicall_gui_refresh === "function") {
+            this.controller.apicall_gui_refresh();
+        }
+
+        if (report.found) {
+            report.message = "Bot " + botId + " found at (" + report.found_at.x + "," + report.found_at.y + "," + report.found_at.z + ")";
+        } else {
+            report.message = "Bot " + botId + " not found on any of " + uniqueCoords.length + " path steps";
+        }
+        return report;
+    }
+
+    //
+    // verify_bot_position(botId, x, y, z)
+    // Checks if a bot is at a specific coordinate.
+    // If found: updates bot position in world model + recalibrate.
+    // If not found: removes bot from old position, marks as inactive + recalibrate.
+    // Explicit, deliberate – no automatic side effects.
+    //
+    async verify_bot_position(botId, x, y, z) {
+        let result = {
+            ok: true,
+            bot_id: botId,
+            check_position: { x: Number(x), y: Number(y), z: Number(z) },
+            bot_found: false,
+            action: "none",
+            message: ""
+        };
+
+        // Bot im Weltmodell finden
+        let botIdx = this.controller.get_bot_by_id(botId, this.controller.bots);
+        if (botIdx === null || botIdx === undefined) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+        let bot = this.controller.bots[botIdx];
+        let oldPos = { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) };
+        result.old_position = oldPos;
+
+        // 1. Check_if_inactive auf die Zielkoordinate
+        let checkRet = await this.check_if_inactive(x, y, z);
+
+        if (checkRet && checkRet.bot_found === true && checkRet.status === "OK") {
+            // Bot gefunden an der neuen Position
+            result.bot_found = true;
+            result.action = "position_updated";
+            
+            // Bot-Position aktualisieren
+            bot.x = Number(x);
+            bot.y = Number(y);
+            bot.z = Number(z);
+            
+            // Ping auf die neue Position für Orientierung (INFO→RINFO)
+            try {
+                if (typeof this.controller.apicall_ping_position === "function") {
+                    let pingRet = this.controller.apicall_ping_position(x, y, z);
+                    if (pingRet && pingRet.accepted === true) {
+                        let pingTmpId = String(pingRet.tmpid ?? "");
+                        if (pingTmpId) {
+                            let pingWaited = 0;
+                            while (pingWaited < 1500) {
+                                if (this.controller.accessDomainController &&
+                                    typeof this.controller.accessDomainController.adc_popAll === "function") {
+                                    this.controller.accessDomainController.adc_popAll();
+                                }
+                                let pEntry = this.controller.ping_waiting_info ? this.controller.ping_waiting_info[pingTmpId] : null;
+                                if (pEntry && pEntry.status === 1) {
+                                    // Orientierung wurde von handle_answer aktualisiert
+                                    if (pEntry.vector_x !== undefined) {
+                                        bot.vector_x = Number(pEntry.vector_x);
+                                        bot.vector_y = Number(pEntry.vector_y);
+                                        bot.vector_z = Number(pEntry.vector_z);
+                                    }
+                                    if (this.controller.ping_waiting_info) delete this.controller.ping_waiting_info[pingTmpId];
+                                    break;
+                                }
+                                await this._sleep(100);
+                                pingWaited += 100;
+                            }
+                            if (this.controller.ping_waiting_info && this.controller.ping_waiting_info[pingTmpId]) {
+                                delete this.controller.ping_waiting_info[pingTmpId];
+                            }
+                        }
+                    }
+                }
+            } catch(e) { /* orientation ping optional */ }
+            
+            // Alte Position aus detected_inactive_bots entfernen (falls vorhanden)
+            if (Array.isArray(this.controller.detected_inactive_bots)) {
+                let oldKey = this.controller.getKey_3d(oldPos.x, oldPos.y, oldPos.z);
+                this.controller.detected_inactive_bots = this.controller.detected_inactive_bots.filter(d => {
+                    let dKey = this.controller.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+                    return dKey !== oldKey;
+                });
+            }
+            
+            // Log BOT_RELOCATED if position actually changed
+            if (oldPos.x !== Number(x) || oldPos.y !== Number(y) || oldPos.z !== Number(z)) {
+                this.log_bot_event("BOT_RELOCATED", botId, { old_pos: oldPos, new_pos: { x: Number(x), y: Number(y), z: Number(z) } });
+            } else {
+                // Same position, orientation corrected via ping
+                this.log_bot_event("BOT_ORIENTATION_CHANGED", botId, { pos: { x: Number(x), y: Number(y), z: Number(z) } });
+            }
+            
+            if (typeof this.controller.apicall_recalibrate_bot_addresses === "function") {
+                this.controller.apicall_recalibrate_bot_addresses("standard");
+            }
+            if (typeof this.controller.apicall_gui_refresh === "function") {
+                this.controller.apicall_gui_refresh();
+            }
+            
+            result.message = "Bot " + botId + " found at (" + x + "," + y + "," + z + ") – position updated";
+            return result;
+            
+        } else if (checkRet && checkRet.status === "EMPT") {
+            // Koordinate ist leer
+            // Nur als inaktiv markieren, wenn der Bot HIER erwartet wurde
+            if (oldPos.x === Number(x) && oldPos.y === Number(y) && oldPos.z === Number(z)) {
+                result.action = "marked_inactive";
+                this.log_bot_event("BOT_MISSING", botId, { expected_pos: { x: Number(x), y: Number(y), z: Number(z) } });
+                if (typeof this.controller.register_inactive_detected === "function") {
+                    this.controller.register_inactive_detected(
+                        Number(x), Number(y), Number(z),
+                        Number(bot.vector_x), Number(bot.vector_y), Number(bot.vector_z),
+                        "api", "verify_bot_position"
+                    );
+                }
+                if (typeof this.controller.apicall_gui_refresh === "function") {
+                    this.controller.apicall_gui_refresh();
+                }
+                result.message = "Bot " + botId + " expected at (" + x + "," + y + "," + z + ") but not found – marked as inactive";
+            } else {
+                result.action = "empty";
+                result.message = "Bot " + botId + " not at (" + x + "," + y + "," + z + ") – position empty";
+            }
+            return result;
+        } else {
+            // Unbekannter Status
+            result.action = "unknown";
+            result.check_result = checkRet;
+            result.message = "Bot " + botId + " – check returned status: " + (checkRet?.status ?? "unknown");
+            return result;
+        }
+    }
+
+    //
+    // integrate_bot(botId)
+    // Fully integrates a partially known bot into the world model:
+    // assigns nearest MB, recalibrates address, GUI refresh.
+    // Logs BOT_INTEGRATED in resilience.log.
+    //
+    async integrate_bot(botId) {
+        let result = { ok: true, bot_id: botId, actions: [], message: "" };
+
+        let botIdx = this.controller.get_bot_by_id(botId, this.controller.bots);
+        if (botIdx === null || botIdx === undefined) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        // Bot-Objekt VOR adc_assign_proximity sichern (Index könnte sich ändern)
+        let bot = this.controller.bots[botIdx];
+
+        // 1. ADC proximity assignment
+        let adc = this.controller.accessDomainController;
+        if (adc && typeof adc.adc_assign_proximity === "function") {
+            let assignRet = adc.adc_assign_proximity();
+            if (assignRet && assignRet.ok) {
+                result.actions.push("adc_assigned");
+            }
+        }
+
+        // 2. Recalibrate address
+        if (typeof this.controller.apicall_recalibrate_bot_addresses === "function") {
+            this.controller.apicall_recalibrate_bot_addresses("standard");
+            result.actions.push("address_recalibrated");
+        }
+
+        // 3. GUI refresh
+        if (typeof this.controller.apicall_gui_refresh === "function") {
+            this.controller.apicall_gui_refresh();
+        }
+
+        // 4. Set standard color (eeeeee) to match regular cluster bots
+        if (bot) bot.color = "eeeeee";
+
+        // 5. Log event
+        this.log_bot_event("BOT_INTEGRATED", botId, {
+            pos: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
+            connector: bot.connector || "assigned"
+        });
+
+        result.message = "Bot " + botId + " fully integrated (" + result.actions.join(", ") + ")";
+        return result;
+    }
+
+    //
+    // log_bot_event(eventType, botId, details)
+    // Logs a bot-related resilience event to resilience.log.
+    // eventType: "BOT_RELOCATED" | "BOT_MISSING" | "BOT_UNKNOWN" | "BOT_INTEGRATED"
+    // details: object with position info
+    //
+    log_bot_event(eventType, botId, details) {
+        let msg = "[" + eventType + "] " + botId;
+        if (details) {
+            if (details.old_pos) msg += " from (" + details.old_pos.x + "," + details.old_pos.y + "," + details.old_pos.z + ")";
+            if (details.new_pos) msg += " to (" + details.new_pos.x + "," + details.new_pos.y + "," + details.new_pos.z + ")";
+            if (details.pos) msg += " at (" + details.pos.x + "," + details.pos.y + "," + details.pos.z + ")";
+            if (details.expected_pos) msg += " expected at (" + details.expected_pos.x + "," + details.expected_pos.y + "," + details.expected_pos.z + ")";
+        }
+        console.log("[RESILIENCE] " + msg);
+        this._log(msg);
     }
 
     //
