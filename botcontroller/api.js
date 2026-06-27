@@ -117,7 +117,8 @@ function buildRequestFromCli() {
     return {
       cmd: "recalibrate_bot_address",
       bot_id: process.argv[3] ?? "",
-      mode: process.argv[4] ?? "standard"
+      mode: process.argv[4] ?? "standard",
+      blocked: process.argv[5] ?? ""
     };
   } // if
 
@@ -718,6 +719,33 @@ function buildRequestFromCli() {
   if (cmd == "diagnose_bot_address") {
     return {
       cmd: "diagnose_bot_address",
+      bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
+  if (cmd == "trace_move_path") {
+    return {
+      cmd: "trace_move_path",
+      bot_id: process.argv[3] ?? "",
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0)
+    };
+  } // if
+
+  if (cmd == "verify_bot_position") {
+    return {
+      cmd: "verify_bot_position",
+      bot_id: process.argv[3] ?? "",
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0)
+    };
+  } // if
+
+  if (cmd == "integrate_bot") {
+    return {
+      cmd: "integrate_bot",
       bot_id: process.argv[3] ?? ""
     };
   } // if
@@ -1440,6 +1468,36 @@ function main() {
             hops: responseObject.hops ?? [],
             inactive_found: responseObject.inactive_found ?? [],
             recalibrate_triggered: responseObject.recalibrate_triggered ?? false,
+            message: responseObject.message ?? ""
+          };
+        } else if (answer === "api_trace_move_path") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_trace_move_path",
+            bot_id: responseObject.bot_id ?? "",
+            target: responseObject.target ?? null,
+            steps: responseObject.steps ?? [],
+            found_at: responseObject.found_at ?? null,
+            found: responseObject.found ?? false,
+            message: responseObject.message ?? ""
+          };
+        } else if (answer === "api_verify_bot_position") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_verify_bot_position",
+            bot_id: responseObject.bot_id ?? "",
+            check_position: responseObject.check_position ?? null,
+            old_position: responseObject.old_position ?? null,
+            bot_found: responseObject.bot_found ?? false,
+            action: responseObject.action ?? "none",
+            message: responseObject.message ?? ""
+          };
+        } else if (answer === "api_integrate_bot") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_integrate_bot",
+            bot_id: responseObject.bot_id ?? "",
+            actions: responseObject.actions ?? [],
             message: responseObject.message ?? ""
           };
         } else if (answer === "api_set_active") {

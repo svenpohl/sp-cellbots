@@ -6905,9 +6905,9 @@ return(runtime_get_safe_adress(this, bot));
 //
 // apicall_recalibrate_bot_address()
 //
-apicall_recalibrate_bot_address(bot_id, mode = "standard")
+apicall_recalibrate_bot_address(bot_id, mode = "standard", blocked = "")
 {
-return(runtime_recalibrate_bot_address(this, bot_id, mode));
+return(runtime_recalibrate_bot_address(this, bot_id, mode, blocked));
 } // apicall_recalibrate_bot_address()
 
 
@@ -7848,6 +7848,9 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
               bot_obj.adress = p_addr;
               this.register_bot(bot_obj);
               Logger.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
+              if (this.resilienceController && typeof this.resilienceController.log_bot_event === "function") {
+                  this.resilienceController.log_bot_event("BOT_UNKNOWN", msgarray.botid, { pos: { x: p_x, y: p_y, z: p_z } });
+              }
               }
             // Refresh frontend after bot update/registration
             this.apicall_gui_refresh();
