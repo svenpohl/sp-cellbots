@@ -94,9 +94,13 @@ Available commands:
     - safe_mode: number
 - recalibrate_bot_address
   Recalculates the current local address of one known bot from the existing BotController world model without performing a full scan. Optional mode=minimal prefers shorter and simpler routes.
+  The optional blocked parameter accepts a semicolon-separated list of
+  coordinates (e.g. "4,1,1;3,1,1") that will be excluded from the route
+  computation. Useful to force alternative routes around blocked positions.
   params:
     - bot_id: string
     - mode: standard|minimal (optional)
+    - blocked: string (optional, format "x,y,z;x,y,z")
   returns:
     - answer: api_recalibrate_bot_address
     - old_adress: string
@@ -779,6 +783,65 @@ Available commands:
     - message: string
   examples:
     - node api.js diagnose_bot_address SB1
+- trace_move_path
+  Traces the planned movement path of a bot and checks each coordinate
+  for the bot's actual position. Useful after a move interruption
+  (Fehlertyp 02) where ack="pending" and the bot stopped mid-move.
+  Uses find_path_for_bot to get the path, then pings each coordinate
+  via CHECK#slot# over a neighbor bot.
+  If found: updates bot position + orientation + recalibrate.
+  params:
+    - bot_id: string
+    - x: number (target x)
+    - y: number (target y)
+    - z: number (target z)
+  returns:
+    - answer: api_trace_move_path
+    - bot_id: string
+    - target: {x,y,z}
+    - steps: array of {index, x, y, z, status}
+    - found_at: {x,y,z} | null
+    - found: boolean
+    - message: string
+  examples:
+    - node api.js trace_move_path SB1 6 2 1
+- verify_bot_position
+  Explicitly checks if a bot is at a specific coordinate.
+  Uses check_if_inactive internally. If the coordinate is occupied
+  (status=OK): updates bot position + orientation (via ping) + recalibrate.
+  If the coordinate is empty (status=EMPT): marks bot as inactive + recalibrate.
+  No automatic side effects – always deliberate.
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_verify_bot_position
+    - bot_id: string
+    - check_position: {x,y,z}
+    - old_position: {x,y,z}
+    - bot_found: boolean
+    - action: "position_updated" | "marked_inactive" | "unknown"
+    - message: string
+  examples:
+    - node api.js verify_bot_position SB1 4 1 1
+- integrate_bot
+  Fully integrates a partially known bot into the BotController world model.
+  Useful after ping_position discovered a new bot (e.g. via add_bot_to in
+  ClusterSim). Runs adc_assign_proximity + recalibrate_bot_addresses +
+  GUI refresh. Logs BOT_INTEGRATED in resilience.log.
+  After this command, the bot is indistinguishable from regular cluster bots
+  (connector assigned, address calculated, standard colour set).
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_integrate_bot
+    - bot_id: string
+    - actions: array of strings (e.g. ["adc_assigned", "address_recalibrated"])
+    - message: string
+  examples:
+    - node api.js integrate_bot SB3
 - set_active
   Sets a bot's active state in the BotController world model.
   When set to false, the bot is added to detected_inactive_bots and
@@ -874,6 +937,137 @@ Available commands:
     - status: number
     - bot_found: boolean
     - response: object|null
+- verify_bot_position
+  Checks if a known bot is at the expected coordinate via CHECK opcode.
+  If found, updates position, orientation and clears inactive marker.
+  If not found, marks the bot as inactive (BOT_MISSING event).
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_verify_bot_position
+    - bot_found: boolean
+    - action: position_updated|marked_inactive|orientation_changed|empty
+    - orientation: object (if updated)
+  examples:
+    - node api.js verify_bot_position SB1 5 1 2
+- check_if_inactive
+  Checks a coordinate via CHECK#slot# through a neighbor bot.
+  If the target bot responds, it is removed from detected_inactive_bots.
+  params:
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_check_if_inactive
+    - bot_found: boolean
+    - bot_id: string|null
+    - orientation: object|null
+  examples:
+    - node api.js check_if_inactive 5 1 2
+- diagnose_bot_address
+  Walks a bot's address path hop by hop, checking each intermediate bot
+  via CHECK. Detects inactive bots along the route.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_diagnose_bot_address
+    - bot_id: string
+    - hops: list of {hop, id, status, position}
+    - inactive_detected: list
+  examples:
+    - node api.js diagnose_bot_address SB1
+- trace_move_path
+  Finds a lost bot during move execution by verifying each step of its
+  planned path. Runs through all path steps until the bot is found or
+  the path is exhausted (unlike earlier versions that stopped at first match).
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  returns:
+    - answer: api_trace_move_path
+    - bot_id: string
+    - target: object
+    - found: boolean
+    - found_at: object|null
+    - steps_checked: number
+  examples:
+    - node api.js trace_move_path SB1 3 1 5
+- integrate_bot
+  Full integration of a newly discovered bot into the BotController world:
+  ADC proximity assignment + address recalibration + color assignment + BOT_INTEGRATED log.
+  params:
+    - bot_id: string
+  returns:
+    - answer: api_integrate_bot
+    - bot_id: string
+    - connector: string
+    - adress: string
+    - color: string
+  examples:
+    - node api.js integrate_bot SB3
+- set_active
+  Activates or deactivates a bot in the world model.
+  Deactivated bots are excluded from BFS routing (blockedBots) and
+  from choosePair (cannot be selected as donors in morphing).
+  Triggers address recalibration and GUI refresh.
+  params:
+    - bot_id: string
+    - active: true|false
+  returns:
+    - answer: api_set_active
+    - bot_id: string
+    - active: boolean
+  examples:
+    - node api.js set_active B73 false
+- set_mobility
+  Sets a bot's mobility flag. Immobile bots (false) are excluded from
+  choosePair and cannot serve as morph donors, but remain in the grid.
+  Triggers address recalibration and GUI refresh.
+  params:
+    - bot_id: string
+    - mobility: true|false
+  returns:
+    - answer: api_set_mobility
+    - bot_id: string
+    - mobility: boolean
+  examples:
+    - node api.js set_mobility B73 false
+- check_mbs
+  Checks all configured MBs/hMBs for reachability. Auto-disables
+  unreachable MBs and reassigns their bots to other MBs.
+  Can also re-enable previously disabled MBs.
+  returns:
+    - answer: api_check_mbs
+    - mb_status: object
+    - disabled: list
+    - enabled: list
+  examples:
+    - node api.js check_mbs
+- get_resilience_status
+  Returns the current resilience controller configuration and state.
+  returns:
+    - answer: api_get_resilience_status
+    - status: string
+    - config_loaded: boolean
+    - register_duplicate_ids: boolean
+    - duplicate_ids_detected: boolean
+    - duplicate_ids_list: list
+  examples:
+    - node api.js get_resilience_status
+- register_duplicate_ids
+  Checks all known bots for duplicate bot IDs (same ID at different positions).
+  Logs a WARNING via resilienceController for each duplicate found.
+  returns:
+    - answer: api_register_duplicate_ids
+    - duplicates_found: number
+    - duplicates: list
+  examples:
+    - node api.js register_duplicate_ids
 - watch_region
   Manages observed 3D regions for the NightWatch auto-ping system.
     watch_region set [id] [x1] [y1] [z1] [x2] [y2] [z2] [interval_ms] [mode] [action]
