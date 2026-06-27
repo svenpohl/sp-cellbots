@@ -866,117 +866,122 @@ isFree(x, y, z, collection = this.cells) {
 // @param {Object} collection - Bot collection (default: global 'cells')
 // @returns {boolean} - True if removal would split the cluster, false otherwise
 //
-wouldSplitCluster(bot, collection = this.cells) {
+wouldSplitCluster(bot, collection = this.cells, excludedBotIds = new Set()) {
     if (!bot.id) {
         console.warn("❗ Bot without ID:", bot);
     }
 
-    // Get all bots except the one to be (temporarily) removed
-    const bots = this.getAllBots(collection).filter(b => b.id !== bot.id);
+    // Build a deduplicated position map from the collection.
+    // Using a Map avoids duplicates (start+target positions for moved bots).
+    const key = (b) => `${Number(b.x)},${Number(b.y)},${Number(b.z)}`;
+    const posMap = new Map();
 
-    // Add anchors (hMBs) as static nodes for BFS check.
-    // Anchors are immobile but essential for cluster connectivity.
-    const anchors = this.anchors || [];
-    for (const a of anchors) {
-        // Only add if not already present (by position)
-        const exists = bots.some(b => Number(b.x) === Number(a.x) && Number(b.y) === Number(a.y) && Number(b.z) === Number(a.z));
-        if (!exists) {
-            bots.push({
-                id: `anchor_${a.x}_${a.y}_${a.z}`,
-                x: Number(a.x), y: Number(a.y), z: Number(a.z)
+    for (const b of this.getAllBots(collection)) {
+        const k = key(b);
+        if (!posMap.has(k)) {
+            posMap.set(k, {
+                id: b.id,
+                x: Number(b.x), y: Number(b.y), z: Number(b.z)
             });
         }
     }
 
-    if (bots.length === 0) {
-        // Only the master bot left, cannot split
+    // Remove the bot that is being (temporarily) removed
+    posMap.delete(key(bot));
+
+    // Remove all bots that have already been selected for the current wave
+    for (const [k, b] of posMap) {
+        if (excludedBotIds.has(b.id)) {
+            posMap.delete(k);
+        }
+    }
+
+    // Force-add ALL anchors (hMBs) – überschreibt ggf. existierende Positionen,
+    // damit hMBs als statische Knoten in der BFS garantiert enthalten sind.
+    const anchors = this.anchors || [];
+    for (const a of anchors) {
+        const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+        posMap.set(ak, {
+            id: `anchor_${a.x}_${a.y}_${a.z}`,
+            x: Number(a.x), y: Number(a.y), z: Number(a.z)
+        });
+    }
+
+    if (posMap.size === 0) {
         return false;
     }
 
-    // Function to generate unique coordinate key
-    const key = (b) => `${b.x},${b.y},${b.z}`;
-
-    // Find the master bot (the cluster's anchor, usually at a fixed position)
-    const master = this.getAllBots(collection).find(b =>
-        b.x === this.MASTER_BOT_POSITION.x &&
-        b.y === this.MASTER_BOT_POSITION.y &&
-        b.z === this.MASTER_BOT_POSITION.z
+    // Find the master bot (primary MB) in the position map
+    const botsArray = Array.from(posMap.values());
+    let master = botsArray.find(b =>
+        Number(b.x) === Number(this.MASTER_BOT_POSITION.x) &&
+        Number(b.y) === Number(this.MASTER_BOT_POSITION.y) &&
+        Number(b.z) === Number(this.MASTER_BOT_POSITION.z)
     );
 
-    if (!master) {
-        // If no master bot in collection, try to use the first anchor at MASTER_BOT_POSITION
+    // Fallback: Master in Ankern suchen
+    if (!master && anchors.length > 0) {
         const anchorMaster = anchors.find(a =>
-            Number(a.x) === this.MASTER_BOT_POSITION.x &&
-            Number(a.y) === this.MASTER_BOT_POSITION.y &&
-            Number(a.z) === this.MASTER_BOT_POSITION.z
+            Number(a.x) === Number(this.MASTER_BOT_POSITION.x) &&
+            Number(a.y) === Number(this.MASTER_BOT_POSITION.y) &&
+            Number(a.z) === Number(this.MASTER_BOT_POSITION.z)
         );
         if (anchorMaster) {
-            bots.push({
+            const mk = `${Number(anchorMaster.x)},${Number(anchorMaster.y)},${Number(anchorMaster.z)}`;
+            posMap.set(mk, {
                 id: `anchor_master`,
                 x: Number(anchorMaster.x),
                 y: Number(anchorMaster.y),
                 z: Number(anchorMaster.z)
             });
-        } else {
-            console.warn("wouldSplitCluster: No master bot or anchor at MASTER_BOT_POSITION!");
-            return true;
+            master = posMap.get(mk);
         }
-        // Re-find master now that we added it
-        const master2 = bots.find(b =>
-            b.x === this.MASTER_BOT_POSITION.x &&
-            b.y === this.MASTER_BOT_POSITION.y &&
-            b.z === this.MASTER_BOT_POSITION.z
-        );
-        if (!master2) return true;
-        
-        // BFS from the (re-found) master bot
-        const visited2 = new Set();
-        const queue2 = [];
-        visited2.add(key(master2));
-        queue2.push(master2);
-
-        while (queue2.length > 0) {
-            const current = queue2.shift();
-            for (const nb of bots) {
-                if (visited2.has(key(nb))) continue;
-                const dx = Math.abs(current.x - nb.x);
-                const dy = Math.abs(current.y - nb.y);
-                const dz = Math.abs(current.z - nb.z);
-                const dist = dx + dy + dz;
-                if (dist === 1) {
-                    visited2.add(key(nb));
-                    queue2.push(nb);
-                }
-            }
-        }
-
-        const allKeys2 = new Set(bots.map(b => key(b)));
-        return [...allKeys2].some(k => !visited2.has(k));
     }
 
-    // BFS from the master bot to see which bots are still connected
+    if (!master) {
+        console.warn("wouldSplitCluster: No master bot or anchor at MASTER_BOT_POSITION!");
+        return true;
+    }
+
+    // BFS from master to check connectivity
     const visited = new Set();
-    const queue = [];
+    const queue = [key(master)];
     visited.add(key(master));
-    queue.push(master);
 
     while (queue.length > 0) {
-        const current = queue.shift();
-        for (const nb of bots) {
-            if (visited.has(key(nb))) continue;
-            const dx = Math.abs(current.x - nb.x);
-            const dy = Math.abs(current.y - nb.y);
-            const dz = Math.abs(current.z - nb.z);
-            const dist = dx + dy + dz;
-            if (dist === 1) { // Only orthogonal neighbors
-                visited.add(key(nb));
-                queue.push(nb);
+        const currentKey = queue.shift();
+        const current = posMap.get(currentKey);
+        if (!current) continue;
+        for (const [nbKey, nb] of posMap) {
+            if (visited.has(nbKey)) continue;
+            const dist = Math.abs(current.x - nb.x) + Math.abs(current.y - nb.y) + Math.abs(current.z - nb.z);
+            if (dist === 1) {
+                visited.add(nbKey);
+                queue.push(nbKey);
             }
         }
     }
 
-    // After BFS: check if all remaining bots were visited (= connected)
-    const allKeys = new Set(bots.map(b => key(b)));
+    // Check 1: Jeder Anker muss erreichbar sein UND mindestens einen Nachbarn haben
+    for (const a of anchors) {
+        const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+        if (!visited.has(ak)) {
+            return true; // Anker nicht erreichbar → split
+        }
+        // Prüfe ob Anker mindestens einen orthogonalen Nachbarn im Set hat
+        let hasNeighbor = false;
+        for (const [vk, vb] of posMap) {
+            if (vk === ak) continue;
+            const dist = Math.abs(Number(a.x) - Number(vb.x)) + Math.abs(Number(a.y) - Number(vb.y)) + Math.abs(Number(a.z) - Number(vb.z));
+            if (dist === 1) { hasNeighbor = true; break; }
+        }
+        if (!hasNeighbor) {
+            return true; // Anker hat keine Nachbarn → würde isoliert dastehen
+        }
+    }
+
+    // Check 2: Alle Positionen erreicht?
+    const allKeys = new Set(posMap.keys());
     const isSplit = [...allKeys].some(k => !visited.has(k));
 
     return isSplit;

@@ -63,6 +63,13 @@ class MorphVehicleKinematics extends MorphBase
         this.cells          = startBots;
         this.cluster_target = targetBots;
 
+        // Anchors: hMBs/MBs as static connection nodes for wouldSplitCluster.
+        this.anchors = [];
+        if (params.anchors !== undefined && Array.isArray(params.anchors))
+           {
+           this.anchors = params.anchors;
+           }
+
         this.bot_id = null;     // ID of the currently moving bot (e.g. "id_7")
         this.bot_start = null;  // Position {x, y, z} of the start (for debug/visual)
         this.bot_target = null; // Target coordinate {x, y, z}
@@ -359,59 +366,99 @@ class MorphVehicleKinematics extends MorphBase
     // NOTE: wouldSplitCluster is now checked for ALL bots (including Reserve-Bots).
     //       The internal R* skip was removed on 02.05.2026.
     //
-    wouldSplitCluster(bot, collection = this.cells)
+    wouldSplitCluster(bot, collection = this.cells, excludedBotIds = new Set())
     {
+        const DEBUG_WOULD_SPLIT = false; // true für B43-Debug-Log (console.log)
+        const isDebugBot = DEBUG_WOULD_SPLIT && String(bot?.id ?? "") === "B43";
+
         if (!bot.id) {
             console.warn("Bot without ID:", bot);
         }
 
-        // Get all bots except the one to be (temporarily) removed
-        const bots = this.getAllBots(collection).filter(b => b.id !== bot.id);
-        if (bots.length === 0) {
-            return false;
+        // Build a deduplicated position map from the collection.
+        const key = (b) => `${Number(b.x)},${Number(b.y)},${Number(b.z)}`;
+        const posMap = new Map();
+
+        for (const b of this.getAllBots(collection)) {
+            const k = key(b);
+            if (!posMap.has(k)) {
+                posMap.set(k, {
+                    id: b.id,
+                    x: Number(b.x), y: Number(b.y), z: Number(b.z)
+                });
+            }
         }
 
-        // Function to generate unique coordinate key
-        const key = (b) => `${b.x},${b.y},${b.z}`;
+        // Remove the bot being checked + already wave-selected bots
+        posMap.delete(key(bot));
+        for (const [k, b] of posMap) {
+            if (excludedBotIds.has(b.id)) posMap.delete(k);
+        }
 
-        // Find the master bot (the cluster's anchor, usually at a fixed position)
-        const master = this.getAllBots(collection).find(b =>
-            b.x === this.MASTER_BOT_POSITION.x &&
-            b.y === this.MASTER_BOT_POSITION.y &&
-            b.z === this.MASTER_BOT_POSITION.z
+        // Force-add ALL anchors (hMBs)
+        const anchors = this.anchors || [];
+        for (const a of anchors) {
+            const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+            posMap.set(ak, {
+                id: `anchor_${a.x}_${a.y}_${a.z}`,
+                x: Number(a.x), y: Number(a.y), z: Number(a.z)
+            });
+        }
+
+        if (posMap.size === 0) return false;
+
+        // Find master
+        const botsArray = Array.from(posMap.values());
+        let master = botsArray.find(b =>
+            Number(b.x) === Number(this.MASTER_BOT_POSITION.x) &&
+            Number(b.y) === Number(this.MASTER_BOT_POSITION.y) &&
+            Number(b.z) === Number(this.MASTER_BOT_POSITION.z)
         );
 
-        if (!master) {
-            console.warn("No master bot present in the cluster!");
-            return true;
+        if (!master && anchors.length > 0) {
+            const anchorMaster = anchors.find(a =>
+                Number(a.x) === Number(this.MASTER_BOT_POSITION.x) &&
+                Number(a.y) === Number(this.MASTER_BOT_POSITION.y) &&
+                Number(a.z) === Number(this.MASTER_BOT_POSITION.z)
+            );
+            if (anchorMaster) {
+                const mk = `${Number(anchorMaster.x)},${Number(anchorMaster.y)},${Number(anchorMaster.z)}`;
+                posMap.set(mk, { id: `anchor_master`, x: Number(anchorMaster.x), y: Number(anchorMaster.y), z: Number(anchorMaster.z) });
+                master = posMap.get(mk);
+            }
         }
+        if (!master) { console.warn("wouldSplitCluster: No master!"); return true; }
 
-        // BFS from the master bot to see which bots are still connected
+        // BFS
         const visited = new Set();
-        const queue = [];
+        const queue = [key(master)];
         visited.add(key(master));
-        queue.push(master);
-
         while (queue.length > 0) {
-            const current = queue.shift();
-            for (const nb of bots) {
-                if (visited.has(key(nb))) continue;
-                const dx = Math.abs(current.x - nb.x);
-                const dy = Math.abs(current.y - nb.y);
-                const dz = Math.abs(current.z - nb.z);
-                const dist = dx + dy + dz;
-                if (dist === 1) {
-                    visited.add(key(nb));
-                    queue.push(nb);
+            const currentKey = queue.shift();
+            const current = posMap.get(currentKey);
+            if (!current) continue;
+            for (const [nbKey, nb] of posMap) {
+                if (visited.has(nbKey)) continue;
+                if (Math.abs(current.x - nb.x) + Math.abs(current.y - nb.y) + Math.abs(current.z - nb.z) === 1) {
+                    visited.add(nbKey); queue.push(nbKey);
                 }
             }
         }
 
-        // After BFS: check if all remaining bots were visited (= connected)
-        const allKeys = new Set(bots.map(b => key(b)));
-        const isSplit = [...allKeys].some(k => !visited.has(k));
+        // Check anchors: reachable + has neighbor
+        for (const a of anchors) {
+            const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+            if (!visited.has(ak)) { if (isDebugBot) console.log("[DEBUG B43] anchor (" + a.x + "," + a.y + "," + a.z + ") NOT visited → split"); return true; }
+            let hasNeighbor = false;
+            for (const [vk, vb] of posMap) {
+                if (vk === ak) continue;
+                if (Math.abs(Number(a.x) - Number(vb.x)) + Math.abs(Number(a.y) - Number(vb.y)) + Math.abs(Number(a.z) - Number(vb.z)) === 1) { hasNeighbor = true; break; }
+            }
+            if (!hasNeighbor) { if (isDebugBot) console.log("[DEBUG B43] anchor (" + a.x + "," + a.y + "," + a.z + ") no neighbor → split"); return true; }
+        }
 
-        return isSplit;
+        const allKeys = new Set(posMap.keys());
+        return [...allKeys].some(k => !visited.has(k));
     } // wouldSplitCluster
 
 
@@ -613,7 +660,7 @@ class MorphVehicleKinematics extends MorphBase
                 }
 
                 // wouldSplitCluster check for ALL bots (including Reserve-Bots)
-                const splitCheckOk = !this.wouldSplitCluster(bot, collection);
+                const splitCheckOk = !this.wouldSplitCluster(bot, collection, movedBotsInWave);
                 if (!splitCheckOk) {
                     this.debugLog(`choosePair: skip bot=${bot.id} target=(${target.x},${target.y},${target.z}) reason=wouldSplitCluster`);
                     continue;

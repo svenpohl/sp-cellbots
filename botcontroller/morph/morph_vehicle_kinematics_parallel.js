@@ -29,6 +29,11 @@ const MorphBase = require('./morph_base');
 const fs = require('fs');
 const path = require('path');
 const config_parser = require('../../common/config_parser.js');
+const Logger = require('../logger');
+const DEBUG_LOG_PATH = require('path').join(__dirname, '..', 'logs', 'wouldsplit_debug.log');
+function debugLog(msg) {
+    try { require('fs').appendFileSync(DEBUG_LOG_PATH, new Date().toISOString() + ' ' + msg + '\n'); } catch(e) {}
+}
 
 class MorphVehicleKinematics extends MorphBase
 {
@@ -372,51 +377,82 @@ class MorphVehicleKinematics extends MorphBase
     // NOTE: wouldSplitCluster is now checked for ALL bots (including Reserve-Bots).
     //       The internal R* skip was removed on 02.05.2026.
     //
-    wouldSplitCluster(bot, collection = this.cells)
+    wouldSplitCluster(bot, collection = this.cells, excludedBotIds = new Set())
     {
+        // DEBUG: Aktivieren um wouldSplitCluster für B43 zu loggen
+        const DEBUG_WOULD_SPLIT = false; // true für B43-Debug-Log (logs/wouldsplit_debug.log)
+        const isDebugBot = DEBUG_WOULD_SPLIT && String(bot?.id ?? "") === "B43";
+
         if (!bot.id) {
             console.warn("Bot without ID:", bot);
         }
 
-        // Get all bots except the one to be (temporarily) removed
-        const bots = this.getAllBots(collection).filter(b => b.id !== bot.id);
+        // Build a deduplicated position map from the collection.
+        // Using a Map avoids duplicates (start+target positions for moved bots).
+        const key = (b) => `${Number(b.x)},${Number(b.y)},${Number(b.z)}`;
+        const posMap = new Map();
 
-        // Add anchors (hMBs) as static nodes for BFS check.
-        // They are not in this.cells (not moved by the morph), but
-        // they exist physically in the cluster and must stay connected.
-        const anchors = this.anchors || [];
-        for (const a of anchors) {
-            const alreadyInBots = bots.some(b =>
-                Number(b.x) === Number(a.x) &&
-                Number(b.y) === Number(a.y) &&
-                Number(b.z) === Number(a.z)
-            );
-            if (!alreadyInBots) {
-                bots.push({
-                    id: `anchor_${a.x}_${a.y}_${a.z}`,
-                    x: Number(a.x),
-                    y: Number(a.y),
-                    z: Number(a.z)
+        for (const b of this.getAllBots(collection)) {
+            const k = key(b);
+            if (!posMap.has(k)) {
+                posMap.set(k, {
+                    id: b.id,
+                    x: Number(b.x), y: Number(b.y), z: Number(b.z)
                 });
             }
         }
 
-        if (bots.length === 0) {
+        if (isDebugBot) {
+            debugLog("[DEBUG wouldSplitCluster B43] anchors.length=" + (this.anchors?.length ?? 0) + " excludedBotIds=" + excludedBotIds.size + " posMap.size=" + posMap.size);
+            debugLog("[DEBUG wouldSplitCluster B43] anchors=" + JSON.stringify(this.anchors));
+            // Alle Positionen in der Nähe von hMB2 (0,0,5) loggen
+            let nearHmb2 = [];
+            for (const [k, b] of posMap) {
+                const dist = Math.abs(Number(b.x)) + Math.abs(Number(b.y)) + Math.abs(Number(b.z) - 5);
+                if (dist <= 3) nearHmb2.push({ id: b.id, x: b.x, y: b.y, z: b.z, dist: dist });
+            }
+            debugLog("[DEBUG wouldSplitCluster B43] bots near hMB2: " + JSON.stringify(nearHmb2));
+        }
+
+        // Remove the bot that is being (temporarily) removed
+        posMap.delete(key(bot));
+
+        // Remove all bots that have already been selected for the current wave
+        // (movedBotsInWave). These are still in collection but will be moved
+        // in the same wave, so they cannot serve as neighbors for anchors.
+        for (const [k, b] of posMap) {
+            if (excludedBotIds.has(b.id)) {
+                if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] removing wave-selected bot: " + b.id + " @ (" + b.x + "," + b.y + "," + b.z + ")");
+                posMap.delete(k);
+            }
+        }
+
+        // Force-add ALL anchors (hMBs) – überschreibt ggf. existierende Positionen,
+        // damit hMBs als statische Knoten in der BFS garantiert enthalten sind.
+        const anchors = this.anchors || [];
+        for (const a of anchors) {
+            const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+            posMap.set(ak, {
+                id: `anchor_${a.x}_${a.y}_${a.z}`,
+                x: Number(a.x), y: Number(a.y), z: Number(a.z)
+            });
+            if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] added anchor: (" + a.x + "," + a.y + "," + a.z + ")");
+        }
+
+        if (posMap.size === 0) {
+            if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] posMap empty → return false");
             return false;
         }
 
-        // Function to generate unique coordinate key
-        const key = (b) => `${b.x},${b.y},${b.z}`;
-
-        // Find the master bot (the cluster's anchor, usually at a fixed position)
-        // Zuerst in der Collection suchen, dann in den Ankern
-        let master = this.getAllBots(collection).find(b =>
-            b.x === this.MASTER_BOT_POSITION.x &&
-            b.y === this.MASTER_BOT_POSITION.y &&
-            b.z === this.MASTER_BOT_POSITION.z
+        // Find the master bot (primary MB) in the position map
+        const botsArray = Array.from(posMap.values());
+        let master = botsArray.find(b =>
+            Number(b.x) === Number(this.MASTER_BOT_POSITION.x) &&
+            Number(b.y) === Number(this.MASTER_BOT_POSITION.y) &&
+            Number(b.z) === Number(this.MASTER_BOT_POSITION.z)
         );
 
-        // Fallback: Master in Ankern suchen (z.B. primary MB als Anchor)
+        // Fallback: Master in Ankern suchen
         if (!master && anchors.length > 0) {
             const anchorMaster = anchors.find(a =>
                 Number(a.x) === Number(this.MASTER_BOT_POSITION.x) &&
@@ -424,46 +460,77 @@ class MorphVehicleKinematics extends MorphBase
                 Number(a.z) === Number(this.MASTER_BOT_POSITION.z)
             );
             if (anchorMaster) {
-                master = {
+                const mk = `${Number(anchorMaster.x)},${Number(anchorMaster.y)},${Number(anchorMaster.z)}`;
+                posMap.set(mk, {
                     id: `anchor_master`,
                     x: Number(anchorMaster.x),
                     y: Number(anchorMaster.y),
                     z: Number(anchorMaster.z)
-                };
-                bots.push(master);
+                });
+                master = posMap.get(mk);
             }
         }
 
         if (!master) {
             console.warn("wouldSplitCluster: No master bot or anchor at MASTER_BOT_POSITION!");
+            if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] no master → return true");
             return true;
         }
 
-        // BFS from the master bot to see which bots are still connected
+        if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] master found at (" + master.x + "," + master.y + "," + master.z + ")");
+
+        // BFS from master to check connectivity
         const visited = new Set();
-        const queue = [];
+        const queue = [key(master)];
         visited.add(key(master));
-        queue.push(master);
 
         while (queue.length > 0) {
-            const current = queue.shift();
-            for (const nb of bots) {
-                if (visited.has(key(nb))) continue;
-                const dx = Math.abs(current.x - nb.x);
-                const dy = Math.abs(current.y - nb.y);
-                const dz = Math.abs(current.z - nb.z);
-                const dist = dx + dy + dz;
+            const currentKey = queue.shift();
+            const current = posMap.get(currentKey);
+            if (!current) continue;
+            for (const [nbKey, nb] of posMap) {
+                if (visited.has(nbKey)) continue;
+                const dist = Math.abs(current.x - nb.x) + Math.abs(current.y - nb.y) + Math.abs(current.z - nb.z);
                 if (dist === 1) {
-                    visited.add(key(nb));
-                    queue.push(nb);
+                    visited.add(nbKey);
+                    queue.push(nbKey);
                 }
             }
         }
 
-        // After BFS: check if all remaining bots were visited (= connected)
-        const allKeys = new Set(bots.map(b => key(b)));
+        if (isDebugBot) {
+            debugLog("[DEBUG wouldSplitCluster B43] BFS visited=" + visited.size + " total=" + posMap.size);
+        }
+
+        // Check 1: Jeder Anker muss erreichbar sein UND mindestens einen Nachbarn haben
+        for (const a of anchors) {
+            const ak = `${Number(a.x)},${Number(a.y)},${Number(a.z)}`;
+            if (!visited.has(ak)) {
+                if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] anchor (" + a.x + "," + a.y + "," + a.z + ") NOT visited → return true");
+                return true; // Anker nicht erreichbar → split
+            }
+            // Prüfe ob Anker mindestens einen orthogonalen Nachbarn im Set hat
+            let hasNeighbor = false;
+            let neighborId = "";
+            for (const [vk, vb] of posMap) {
+                if (vk === ak) continue;
+                const dist = Math.abs(Number(a.x) - Number(vb.x)) + Math.abs(Number(a.y) - Number(vb.y)) + Math.abs(Number(a.z) - Number(vb.z));
+                if (dist === 1) { hasNeighbor = true; neighborId = String(vb.id ?? ""); break; }
+            }
+            if (isDebugBot) {
+                if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] anchor (" + a.x + "," + a.y + "," + a.z + ") visited=" + visited.has(ak) + " hasNeighbor=" + hasNeighbor + (hasNeighbor ? " neighbor=" + neighborId : ""));
+            }
+            if (!hasNeighbor) {
+                if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] anchor (" + a.x + "," + a.y + "," + a.z + ") no neighbor → return true");
+                return true; // Anker hat keine Nachbarn → würde isoliert dastehen
+            }
+        }
+
+        // Check 2: Alle Positionen erreicht?
+        const allKeys = new Set(posMap.keys());
         const isSplit = [...allKeys].some(k => !visited.has(k));
 
+        if (isDebugBot) debugLog("[DEBUG wouldSplitCluster B43] final result: isSplit=" + isSplit);
         return isSplit;
     } // wouldSplitCluster
 
@@ -663,7 +730,8 @@ class MorphVehicleKinematics extends MorphBase
                 }
 
                 // wouldSplitCluster check for ALL bots (including Reserve-Bots)
-                const splitCheckOk = !this.wouldSplitCluster(bot, collection);
+                // Pass movedBotsInWave so bots already selected in this wave are excluded
+                const splitCheckOk = !this.wouldSplitCluster(bot, collection, movedBotsInWave);
                 if (!splitCheckOk) {
                     this.debugLog(`choosePair: skip bot=${bot.id} target=(${target.x},${target.y},${target.z}) reason=wouldSplitCluster`);
                     continue;
