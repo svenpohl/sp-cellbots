@@ -46,14 +46,14 @@ class FailureInjector {
             return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
         }
         this.masterbot.bots[botIndex].mobility = (mobile === true || mobile === "true");
-        // WebGUI-Refresh
-        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+        // WebGUI-Refresh (direkt via ws, da send_webgui nur bei setlivelogging=true sendet)
+        if (this.masterbot.ws && this.masterbot.getclusterdata_json) {
             let raw = this.masterbot.getclusterdata_json();
             let jsondata = null;
             try { jsondata = JSON.parse(raw); } catch(e) {}
             if (jsondata) {
                 let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
-                this.masterbot.send_webgui(JSON.stringify(msg));
+                this.masterbot.ws.send(JSON.stringify(msg));
             }
         }
         return {
@@ -107,6 +107,292 @@ class FailureInjector {
             bot_id: botId,
             active: active,
             inactive: newState
+        };
+    }
+
+    //
+    // setMoveInterruption(botId, enabled, mode, param)
+    // Sets a bot's move interruption behaviour for failure injection.
+    // enabled=true → bot will stop during MOVE execution.
+    // mode = "half_way" | "random" | "after"
+    // param = probability (random) or step count (after)
+    //
+    setMoveInterruption(botId, enabled, mode, param) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id).trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        bot.move_interruption_enabled = (enabled === true || enabled === "true");
+        bot.move_interruption_mode    = String(mode || "half_way").trim().toLowerCase();
+        bot.move_interruption_param   = Number(param ?? 0);
+        bot.move_interruption_counter = 0;
+
+        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            let jsondata = null;
+            try { jsondata = JSON.parse(raw); } catch(e) {}
+            if (jsondata) {
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.send_webgui(JSON.stringify(msg));
+            }
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            enabled: bot.move_interruption_enabled,
+            mode: bot.move_interruption_mode,
+            param: bot.move_interruption_param
+        };
+    }
+
+    //
+    // teleportBot(botId, x, y, z, vx, vy, vz)
+    // Teleports a bot to an absolute position without moving it through the mesh.
+    // Useful for failure injection (displace, remove, swap scenarios).
+    // Triggers a WebGUI refresh.
+    //
+    teleportBot(botId, x, y, z, vx, vy, vz) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id).trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        bot.x = Number(x ?? 0);
+        bot.y = Number(y ?? 0);
+        bot.z = Number(z ?? 0);
+        // Orientation nur überschreiben, wenn explizit angegeben
+        if (vx !== undefined) bot.vector_x = Number(vx);
+        if (vy !== undefined) bot.vector_y = Number(vy);
+        if (vz !== undefined) bot.vector_z = Number(vz);
+
+        // WebGUI-Refresh
+        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            let jsondata = null;
+            try { jsondata = JSON.parse(raw); } catch(e) {}
+            if (jsondata) {
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.send_webgui(JSON.stringify(msg));
+            }
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
+            orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) }
+        };
+    }
+
+    //
+    // addBot(botId, x, y, z, vx, vy, vz)
+    // Creates a new bot in the cluster simulation that the BotController
+    // does not know about yet (Fehlertyp 17 - Add unknown bot).
+    // Useful for testing BotController scan discovery of new bots.
+    //
+    addBot(botId, x, y, z, vx, vy, vz) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        // Prüfen ob Bot-ID bereits existiert
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id).trim() === botId) {
+                return { ok: false, error: "BOT_ALREADY_EXISTS", bot_id: botId };
+            }
+        }
+
+        // Neuen Bot erstellen
+        const bot_class = require('../bot_class');
+        let bot = new bot_class();
+        bot.setvalues(
+            botId,                                              // id
+            "",                                                 // rid
+            Number(x ?? 0), Number(y ?? 0), Number(z ?? 0),     // x, y, z
+            Number(vx ?? 1), Number(vy ?? 0), Number(vz ?? 0), // vx, vy, vz (default 1,0,0)
+            0,                                                  // inactive
+            0,                                                  // servicebay
+            "eeeeee",                                           // color
+            this.masterbot.config?.physical_bot_move_delay || 300,
+            this.masterbot.config?.enable_signing,
+            this.masterbot.config?.signature_type,
+            this.masterbot.config?.public_key_or_secret
+        );
+
+        this.masterbot.bots.push(bot);
+
+        // Bot-Index und Nachbarschafts-Indizes initialisieren
+        let newBotIdx = this.masterbot.bots.length - 1;
+        let botKey = this.masterbot.getKey_3d(Number(x), Number(y), Number(z));
+        if (this.masterbot.botindex) {
+            this.masterbot.botindex[botKey] = newBotIdx;
+        }
+        if (typeof this.masterbot.update_bot_index_neighbors === "function") {
+            this.masterbot.update_bot_index_neighbors(newBotIdx);
+        }
+
+        // WebGUI-Refresh
+        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            let jsondata = null;
+            try { jsondata = JSON.parse(raw); } catch(e) {}
+            if (jsondata) {
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.send_webgui(JSON.stringify(msg));
+            }
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
+            orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
+            total_bots: this.masterbot.bots.length
+        };
+    }
+
+    //
+    // setObstacle(enabled, x, y, z)
+    // Adds or removes an obstacle at a specific coordinate.
+    // Obstacles are displayed as semi-transparent black cubes in the
+    // ClusterSim WebGUI. They are NOT functional (no mesh blocking) yet.
+    //
+    setObstacle(enabled, x, y, z) {
+        let cx = Number(x ?? 0), cy = Number(y ?? 0), cz = Number(z ?? 0);
+
+        if (enabled === true || enabled === "true") {
+            // Prüfen ob bereits vorhanden
+            let exists = false;
+            for (let i = 0; i < this.masterbot.obstacles.length; i++) {
+                let o = this.masterbot.obstacles[i];
+                if (Number(o.x) === cx && Number(o.y) === cy && Number(o.z) === cz) { exists = true; break; }
+            }
+            if (!exists) {
+                this.masterbot.obstacles.push({ x: cx, y: cy, z: cz });
+            }
+        } else {
+            // Entfernen
+            this.masterbot.obstacles = this.masterbot.obstacles.filter(o =>
+                !(Number(o.x) === cx && Number(o.y) === cy && Number(o.z) === cz)
+            );
+        }
+
+        // WebGUI-Refresh
+        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            let jsondata = null;
+            try { jsondata = JSON.parse(raw); } catch(e) {}
+            if (jsondata) {
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.send_webgui(JSON.stringify(msg));
+            }
+        }
+
+        return {
+            ok: true,
+            enabled: (enabled === true || enabled === "true"),
+            position: { x: cx, y: cy, z: cz },
+            obstacles_count: this.masterbot.obstacles.length
+        };
+    }
+
+    //
+    // configSlot(botId, slotConfig)
+    // Configures slot reliability for a bot.
+    // slotConfig format: "F:1.0;B:0.5" (semicolon-separated, slot:probability)
+    // Only slots with probability != 1.0 activate special_slot_configuration.
+    //
+    configSlot(botId, slotConfig) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id).trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        let configStr = String(slotConfig ?? "").trim();
+        if (configStr === "") {
+            return { ok: false, error: "EMPTY_CONFIG" };
+        }
+
+        // Slot-Namen normalisieren (lowercase)
+        let pairs = configStr.split(";");
+        let anyNonDefault = false;
+
+        for (let p of pairs) {
+            let parts = p.trim().split(":");
+            if (parts.length < 2) continue;
+            let slot = parts[0].trim().toLowerCase();
+            let val = parseFloat(parts[1]);
+            if (isNaN(val)) continue;
+            if (!["f","r","b","l","t","d"].includes(slot)) continue;
+
+            bot.slot_reliability[slot] = val;
+            if (val !== 1.0) anyNonDefault = true;
+        }
+
+        // Prüfen ob nach der Operation irgendein Slot != 1.0 ist (auch ältere, nicht erwähnte)
+        let allDefault = true;
+        for (let s of ["f","r","b","l","t","d"]) {
+            let v = bot.slot_reliability[s];
+            if (v !== undefined && v !== 1.0) { allDefault = false; break; }
+        }
+        bot.special_slot_configuration = !allDefault;
+
+        // WebGUI-Refresh
+        if (this.masterbot.ws && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            try {
+                let jsondata = JSON.parse(raw);
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.ws.send(JSON.stringify(msg));
+            } catch(e) {}
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            slot_reliability: { ...bot.slot_reliability },
+            special_slot_configuration: bot.special_slot_configuration
         };
     }
 }
