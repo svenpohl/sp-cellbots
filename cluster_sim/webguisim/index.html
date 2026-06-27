@@ -285,8 +285,17 @@
            addServicebayCube(sbid, new THREE.Vector3(sbx, sby, sbz));
            } // for
        } // if
-          
-         
+
+       // Obstacles rendern
+       if (Array.isArray(decodedobject.jsondata.obstacles)) {
+           let obs_size = decodedobject.jsondata.obstacles.length;
+           for (let i=0; i<obs_size; i++) {
+               let ox = decodedobject.jsondata.obstacles[i].x;
+               let oy = decodedobject.jsondata.obstacles[i].y;
+               let oz = decodedobject.jsondata.obstacles[i].z;
+               addObstacleCube(ox, oy, oz);
+           }
+       }
   
         } // if (decodedobject.answer == "answer_getclusterdata")
 
@@ -588,6 +597,33 @@ servicebayCubes.push(cube_tmp);
 botGroupMap["servicebay_" + servicebayid] = group_tmp;
 } // addServicebayCube()
 
+//
+// addObstacleCube(x, y, z)
+// Renders a semi-transparent black cube as an obstacle.
+//
+function addObstacleCube(x, y, z) {
+    let position = { x: Number(x), y: Number(y), z: Number(z) };
+    position.z = -position.z;
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.5,
+        metalness: 0.0,
+        roughness: 1.0
+    });
+    const geometry = new THREE.BoxGeometry(0.99, 0.99, 0.99);
+    const cube_tmp = new THREE.Mesh(geometry, material);
+    
+    cube_tmp.position.x = position.x;
+    cube_tmp.position.y = position.y;
+    cube_tmp.position.z = position.z;
+    
+    rotateGroup.add(cube_tmp);
+    cubes.push(cube_tmp);
+    botGroupMap["obstacle_" + x + "_" + y + "_" + z] = cube_tmp;
+} // addObstacleCube()
+
  
 // MOVE        
 function animateMove(group, from, to, durationMs, onDone) {
@@ -830,6 +866,7 @@ function removeAllCubes() {
 
     Object.keys(botGroupMap).forEach(key => {
         if (key.startsWith("servicebay_")) delete botGroupMap[key];
+        if (key.startsWith("obstacle_")) delete botGroupMap[key];
     }); // forEach
 
 }
@@ -1230,12 +1267,22 @@ window.addEventListener('resize', () => {
   </div>
   <select id="api_cli_examples" style="margin-top:6px; width:100%; background:#1a1c23; color:#d4d4d4; border:1px solid #444; border-radius:4px; padding:4px 6px; font-family:monospace; font-size:12px; outline:none;">
     <option value="">— Select example —</option>
+    <option value="get_status">get_status</option>
+    <option value="get_status obstacles">get_status obstacles</option>
     <option value="describe">describe</option>
     <option value="get_bot_info SB1">get_bot_info SB1</option>
     <option value="disable_bot SB1">disable_bot SB1</option>
     <option value="enable_bot SB1">enable_bot SB1</option>
     <option value="set_mobility SB1 false">set_mobility SB1 false (immobile)</option>
     <option value="set_mobility SB1 true">set_mobility SB1 true (mobile)</option>
+    <option value="config_slot SB1 F:1.0;B:0.5">config_slot SB1 "F:1.0;B:0.5"</option>
+    <option value="config_slot SB1 F:0;R:0;B:0;L:0;T:0;D:0">config_slot SB1 all disabled</option>
+    <option value="set_obstacle true 3 1 2">set_obstacle true 3 1 2</option>
+    <option value="set_obstacle false 3 1 2">set_obstacle false 3 1 2</option>
+    <option value="set_move_interruption SB1 true half_way">set_move_interruption SB1 half_way</option>
+    <option value="set_move_interruption SB1 false">set_move_interruption SB1 false</option>
+    <option value="teleport_bot_to SB1 5 1 1 1 0 0">teleport_bot_to SB1 5 1 1 ...</option>
+    <option value="add_bot_to SB3 2 1 0 1 0 0">add_bot_to SB3 2 1 0</option>
   </select>
   <div id="api_cli_output" style="display:none; margin-top:4px; background:#111; border:1px solid #333; border-radius:4px; padding:6px 10px; font-family:monospace; font-size:12px; color:#fba8a8; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
 </div>
