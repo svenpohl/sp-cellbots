@@ -103,6 +103,7 @@ class masterbot_class
   this.botindex = [];
   this.payload_bot_ids = {};
   this.servicebay_cells = [];
+  this.obstacles = []; // [{x, y, z}, ...] für set_obstacle
   
   
   this.setlivelogging = false;
@@ -114,7 +115,7 @@ class masterbot_class
   // AccessDomainSimulator (parallel zum bestehenden Code, nur lesend)
   this.ads = new AccessDomainSimulator(this);
 
-  // FailureInjector (Simulated-Fault-API auf Port 3101)
+  // FailureInjector (Simulated-Fault-API on Port 3101)
   this.failureInjector = new FailureInjector(this);
       
   } // constructor
@@ -277,7 +278,7 @@ this.ws = ws;
 //
 send_webgui( msg )
 {
-if ( this.setlivelogging == true )
+if ( this.ws != null )
    {
    this.ws.send(msg);
    }
@@ -1093,6 +1094,21 @@ start_failure_api() {
                 let answer = { ok: false, error: "UNKNOWN_COMMAND" };
                 if (decoded.cmd === "disable_bot" || decoded.cmd === "enable_bot") {
                     answer = this.failureInjector.setBotActive(decoded.bot_id, decoded.cmd === "enable_bot");
+                } else if (decoded.cmd === "get_status") {
+                    let mode = String(decoded.mode ?? "").trim().toLowerCase();
+                    let status = {
+                        ok: true,
+                        answer: "api_get_status",
+                        total_bots: this.bots.length,
+                        obstacles_count: this.obstacles ? this.obstacles.length : 0
+                    };
+                    if (mode === "obstacles" || mode === "all") {
+                        status.obstacles = this.obstacles || [];
+                    }
+                    if (mode === "bots" || mode === "all") {
+                        status.bots = this.bots.map(b => ({ id: b.id, x: b.x, y: b.y, z: b.z }));
+                    }
+                    answer = status;
                 } else if (decoded.cmd === "describe") {
                     let filePath = path.join(__dirname, "api_ref", "core_commands.txt");
                     let text = "";
@@ -1104,6 +1120,45 @@ start_failure_api() {
                     if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
                     else if (mobile === undefined || mobile === null) { answer = { ok: false, error: "MISSING_MOBILE_FLAG" }; }
                     else { answer = this.failureInjector.setBotMobility(botId, mobile); }
+                } else if (decoded.cmd === "config_slot") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let slotConfig = String(decoded.slot_config ?? "").trim();
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else if (!slotConfig) { answer = { ok: false, error: "MISSING_SLOT_CONFIG" }; }
+                    else { answer = this.failureInjector.configSlot(botId, slotConfig); }
+                } else if (decoded.cmd === "set_obstacle") {
+                    let enabled = decoded.enabled;
+                    let x = Number(decoded.x ?? 0);
+                    let y = Number(decoded.y ?? 0);
+                    let z = Number(decoded.z ?? 0);
+                    answer = this.failureInjector.setObstacle(enabled, x, y, z);
+                } else if (decoded.cmd === "add_bot_to") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let x = Number(decoded.x ?? 0);
+                    let y = Number(decoded.y ?? 0);
+                    let z = Number(decoded.z ?? 0);
+                    let vx = decoded.vx !== undefined ? Number(decoded.vx) : undefined;
+                    let vy = decoded.vy !== undefined ? Number(decoded.vy) : undefined;
+                    let vz = decoded.vz !== undefined ? Number(decoded.vz) : undefined;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.addBot(botId, x, y, z, vx, vy, vz); }
+                } else if (decoded.cmd === "teleport_bot_to") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let x = Number(decoded.x ?? 0);
+                    let y = Number(decoded.y ?? 0);
+                    let z = Number(decoded.z ?? 0);
+                    let vx = decoded.vx !== undefined ? Number(decoded.vx) : undefined;
+                    let vy = decoded.vy !== undefined ? Number(decoded.vy) : undefined;
+                    let vz = decoded.vz !== undefined ? Number(decoded.vz) : undefined;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.teleportBot(botId, x, y, z, vx, vy, vz); }
+                } else if (decoded.cmd === "set_move_interruption") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let enabled = decoded.enabled;
+                    let mode = String(decoded.mode ?? "half_way").trim();
+                    let param = Number(decoded.param ?? 0);
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.setMoveInterruption(botId, enabled, mode, param); }
                 } else if (decoded.cmd === "get_bot_info") {
                     let botId = String(decoded.bot_id ?? "").trim();
                     if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
@@ -1425,6 +1480,13 @@ for (let i=0; i<this.servicebay_cells.length; i++)
 
 jsondata += " ] ";
 
+jsondata += ", \"obstacles\": [ ";
+for (let i=0; i<this.obstacles.length; i++) {
+    jsondata += JSON.stringify(this.obstacles[i]);
+    if (i < (this.obstacles.length-1)) jsondata += ", ";
+}
+jsondata += " ] ";
+
 jsondata += "}";
 
  
@@ -1554,6 +1616,13 @@ for (let i=0; i<servicebay_size; i++)
        } // if
     } // for
 
+jsondata += " ] ";
+
+jsondata += ', "obstacles": [ ';
+for (let i=0; i<this.obstacles.length; i++) {
+    jsondata += JSON.stringify(this.obstacles[i]);
+    if (i < (this.obstacles.length-1)) jsondata += ", ";
+}
 jsondata += " ] ";
 
 jsondata += "}";
@@ -1781,6 +1850,24 @@ for (let i=0; i < this.bots.length; i++)
 
              }
                            
+          // Slot reliability check (outgoing: Sender-Seite)
+          if (!LOCKED && this.bots[i].special_slot_configuration) {
+              let outSlot = destslot.toLowerCase();
+              let outRel = this.bots[i].slot_reliability[outSlot];
+              if (outRel !== undefined && outRel < 1.0 && Math.random() > outRel) {
+                  LOCKED = true; // Nachricht auf dem Weg verloren
+              }
+          }
+
+          // Slot reliability check (incoming: Empfänger-Seite)
+          if (!LOCKED && slot_inbound != "" && this.bots[tmp_botindex].special_slot_configuration) {
+              let inSlot = slot_inbound.toLowerCase();
+              let inRel = this.bots[tmp_botindex].slot_reliability[inSlot];
+              if (inRel !== undefined && inRel < 1.0 && Math.random() > inRel) {
+                  LOCKED = true; // Nachricht am Ziel nicht angekommen
+              }
+          }
+
           if (!LOCKED)
              {
              this.bots[tmp_botindex].push_msg( cmdnext );
@@ -1959,12 +2046,15 @@ if (
    } else
      {
      let key2 = this.getKey_3d(newx,newy,newz);
-     let botindex2 = this.botindex[key2];
+     let botindex2 = this.botindex ? this.botindex[key2] : undefined;
     
-
-     source_vector_x = this.bots[botindex2].vector_x;
-     source_vector_y = this.bots[botindex2].vector_y;
-     source_vector_z = this.bots[botindex2].vector_z;
+     if (botindex2 === undefined || botindex2 === null) {
+         source_vector_x = 0; source_vector_y = 0; source_vector_z = 0;
+     } else {
+         source_vector_x = this.bots[botindex2].vector_x;
+         source_vector_y = this.bots[botindex2].vector_y;
+         source_vector_z = this.bots[botindex2].vector_z;
+     }
      }
      
 

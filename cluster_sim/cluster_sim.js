@@ -365,6 +365,52 @@ wss.on('connection', (ws) => {
                if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
                else if (mobile === "") { result = { ok: false, error: "MISSING_MOBILE_FLAG" }; }
                else { result = masterbot_class_obj.failureInjector.setBotMobility(botId, mobile); }
+           } else if (args.startsWith("config_slot ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let slotConfig = (parts.slice(2).join(" ") || "").replace(/^["']|["']$/g, "");
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else if (!slotConfig) { result = { ok: false, error: "MISSING_SLOT_CONFIG" }; }
+               else { result = masterbot_class_obj.failureInjector.configSlot(botId, slotConfig); }
+           } else if (args.startsWith("set_obstacle ")) {
+               let parts = args.split(" ");
+               let flag = parts[1] || "";
+               let x = Number(parts[2] ?? 0);
+               let y = Number(parts[3] ?? 0);
+               let z = Number(parts[4] ?? 0);
+               let enabled = (flag === "true" || flag === "1");
+               if (!flag) { result = { ok: false, error: "MISSING_FLAG" }; }
+               else { result = masterbot_class_obj.failureInjector.setObstacle(enabled, x, y, z); }
+           } else if (args.startsWith("add_bot_to ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let x = Number(parts[2] ?? 0);
+               let y = Number(parts[3] ?? 0);
+               let z = Number(parts[4] ?? 0);
+               let vx = Number(parts[5] ?? 0);
+               let vy = Number(parts[6] ?? 0);
+               let vz = Number(parts[7] ?? 0);
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.addBot(botId, x, y, z, vx, vy, vz); }
+           } else if (args.startsWith("teleport_bot_to ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let x = Number(parts[2] ?? 0);
+               let y = Number(parts[3] ?? 0);
+               let z = Number(parts[4] ?? 0);
+               let vx = parts[5] !== undefined ? Number(parts[5]) : undefined;
+               let vy = parts[6] !== undefined ? Number(parts[6]) : undefined;
+               let vz = parts[7] !== undefined ? Number(parts[7]) : undefined;
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.teleportBot(botId, x, y, z, vx, vy, vz); }
+           } else if (args.startsWith("set_move_interruption ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let enabled = parts[2] || "true";
+               let mode = parts[3] || "half_way";
+               let param = Number(parts[4] ?? 0);
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.setMoveInterruption(botId, enabled, mode, param); }
            } else if (args.startsWith("get_bot_info ")) {
                let botId = args.split(" ")[1] || "";
                if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
@@ -383,6 +429,17 @@ wss.on('connection', (ws) => {
                            inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0
                        };
                    }
+               }
+           } else if (args.startsWith("get_status")) {
+               let parts = args.split(" ");
+               let mode = parts[1] || "";
+               result = { ok: true, total_bots: masterbot_class_obj.bots.length };
+               result.obstacles_count = (masterbot_class_obj.obstacles || []).length;
+               if (mode === "obstacles" || mode === "all") {
+                   result.obstacles = masterbot_class_obj.obstacles || [];
+               }
+               if (mode === "bots" || mode === "all") {
+                   result.bots = masterbot_class_obj.bots.map(b => ({ id: b.id, x: b.x, y: b.y, z: b.z }));
                }
            } else if (args === "describe") {
                let filePath = path.join(__dirname, "api_ref", "core_commands.txt");

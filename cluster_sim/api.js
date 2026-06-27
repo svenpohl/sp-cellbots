@@ -47,17 +47,82 @@ if (cmd === "disable_bot" || cmd === "enable_bot") {
         process.exit(1);
     }
     requestObject = { cmd: "set_mobility", bot_id: botId, mobile: mobile === "true" };
+} else if (cmd === "set_move_interruption") {
+    let botId = process.argv[3] ?? "";
+    let enabled = process.argv[4] ?? "true";
+    let mode = process.argv[5] ?? "half_way";
+    let param = process.argv[6] ?? "0";
+    if (!botId) {
+        console.error("Usage: node api.js set_move_interruption <bot_id> <true|false> [half_way|random|after] [param]");
+        process.exit(1);
+    }
+    requestObject = { cmd: "set_move_interruption", bot_id: botId, enabled: enabled === "true", mode: mode, param: Number(param) };
+} else if (cmd === "config_slot") {
+    let botId = process.argv[3] ?? "";
+    let slotConfig = process.argv.slice(4).join(" ");
+    if (!botId) {
+        console.error("Usage: node api.js config_slot <bot_id> \"F:1.0;B:0.5\"");
+        process.exit(1);
+    }
+    requestObject = { cmd: "config_slot", bot_id: botId, slot_config: slotConfig };
+} else if (cmd === "set_obstacle") {
+    let flag = process.argv[3] ?? "";
+    let x = Number(process.argv[4] ?? 0);
+    let y = Number(process.argv[5] ?? 0);
+    let z = Number(process.argv[6] ?? 0);
+    let enabled = (flag === "true" || flag === "1");
+    if (!flag) {
+        console.error("Usage: node api.js set_obstacle <true|false> <x> <y> <z>");
+        process.exit(1);
+    }
+    requestObject = { cmd: "set_obstacle", enabled: enabled, x: x, y: y, z: z };
+} else if (cmd === "add_bot_to") {
+    let botId = process.argv[3] ?? "";
+    let x = Number(process.argv[4] ?? 0);
+    let y = Number(process.argv[5] ?? 0);
+    let z = Number(process.argv[6] ?? 0);
+    let vx = process.argv[7] !== undefined ? Number(process.argv[7]) : undefined;
+    let vy = process.argv[8] !== undefined ? Number(process.argv[8]) : undefined;
+    let vz = process.argv[9] !== undefined ? Number(process.argv[9]) : undefined;
+    if (!botId) {
+        console.error("Usage: node api.js add_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]");
+        process.exit(1);
+    }
+    requestObject = { cmd: "add_bot_to", bot_id: botId, x: x, y: y, z: z, vx: vx, vy: vy, vz: vz };
+} else if (cmd === "teleport_bot_to") {
+    let botId = process.argv[3] ?? "";
+    let x = Number(process.argv[4] ?? 0);
+    let y = Number(process.argv[5] ?? 0);
+    let z = Number(process.argv[6] ?? 0);
+    let vx = process.argv[7] !== undefined ? Number(process.argv[7]) : undefined;
+    let vy = process.argv[8] !== undefined ? Number(process.argv[8]) : undefined;
+    let vz = process.argv[9] !== undefined ? Number(process.argv[9]) : undefined;
+    if (!botId) {
+        console.error("Usage: node api.js teleport_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]");
+        process.exit(1);
+    }
+    requestObject = { cmd: "teleport_bot_to", bot_id: botId, x: x, y: y, z: z, vx: vx, vy: vy, vz: vz };
+} else if (cmd === "get_status") {
+    let mode = process.argv[3] ?? "";
+    requestObject = { cmd: "get_status" };
+    if (mode) requestObject.mode = mode;
 } else if (cmd === "describe") {
     requestObject = { cmd: "describe" };
 } else {
     console.log("ClusterSim Failure-Injection API");
     console.log("");
     console.log("Usage:");
+    console.log("  node api.js get_status [obstacles|bots|all] – Show cluster status (bot count, obstacles)");
     console.log("  node api.js describe                  – Show available commands");
     console.log("  node api.js get_bot_info <bot_id>     – Show bot position, orientation, status");
     console.log("  node api.js disable_bot <bot_id>      – Deactivate a bot (offline)");
     console.log("  node api.js enable_bot  <bot_id>      – Reactivate a bot");
-    console.log("  node api.js set_mobility <id> <t/f>   – Set bot mobility (true=move, false=immobile)");
+    console.log("  node api.js set_mobility <id> <t/f>       – Set bot mobility (true=move, false=immobile)");
+    console.log("  node api.js set_move_interruption <id> <t/f> [half_way|random|after] [param]  – Stop bot mid-move for failure testing");
+    console.log("  node api.js config_slot <id> \"<slot:prob>;...\"                     – Configure slot reliability (e.g. \"F:1.0;B:0.5\")");
+    console.log("  node api.js set_obstacle <true|false> <x> <y> <z>                 – Add/remove an obstacle (black cube)");
+    console.log("  node api.js add_bot_to <id> <x> <y> <z> [vx] [vy] [vz]             – Add a NEW bot (unknown to BotController)");
+    console.log("  node api.js teleport_bot_to <id> <x> <y> <z> [vx] [vy] [vz]            – Teleport bot to position (no mesh movement)");
     process.exit(0);
 }
 

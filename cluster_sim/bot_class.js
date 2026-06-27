@@ -38,7 +38,20 @@ constructor()
   this.servicebay = 0;
   this.mobility   = true;      // false = immobile (pseudo-bot, hMB, fixed anchor)
   this.masterbot  = bot_class.MB_NONE;  // MB_NONE | MB_PRIMARY | MB_HELPER
-  
+
+  //
+  // failure injections
+  //
+  this.move_interruption_enabled = false;
+  this.move_interruption_mode    = "half_way";   // half_way, random, after
+  this.move_interruption_param   = 0;
+  this.move_interruption_counter = 0;
+  this.slot_reliability = {};            // {f:1.0, r:1.0, b:1.0, l:1.0, t:1.0, d:1.0} – default all 1.0
+  this.special_slot_configuration = false; // true wenn ein Slot != 1.0 konfiguriert wurde
+  //
+  // end - failure injections
+  //
+
   this.msgqueue        = [];
   this.msgqueue_bc     = [];   // Queue for BotController (pollable per bot)
   this.index_neighbors = [];
@@ -62,6 +75,8 @@ constructor()
   
   this.physical_bot_move_delay = 0;
   
+   
+    
   this.enable_signing       = false;
   this.signature_type       = "";
   this.public_key_or_secret = "";
@@ -696,6 +711,26 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           break;
           } // if
 
+       // Helper: prüft ob Koordinate in caller.obstacles ist
+       function _isObstacle(x, y, z) {
+           if (!caller || !Array.isArray(caller.obstacles)) return false;
+           for (let o of caller.obstacles) {
+               if (Number(o.x) === Number(x) && Number(o.y) === Number(y) && Number(o.z) === Number(z)) return true;
+           }
+           return false;
+       }
+       // Helper: WebGUI-Refresh nach obstacle-bedingtem Stopp
+       function _refreshGUI() {
+           if (caller && caller.ws && typeof caller.getclusterdata_json === "function") {
+               try {
+                   let raw = caller.getclusterdata_json();
+                   let jsondata = JSON.parse(raw);
+                   let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                   caller.ws.send(JSON.stringify(msg));
+               } catch(e) {}
+           }
+       }
+
        let sub    = cmdarray.subcmd[i].sub;       
        let repeat = cmdarray.subcmd[i].repeat;
        let fa     = cmdarray.subcmd[i].fa;
@@ -720,6 +755,7 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                   //
                   if (size2 == 1)
                      {
+                     let saveX = this.x, saveY = this.y, saveZ = this.z;
                      await this.motoric_move( caller, fa, la, moves[i3] );
 
                      if (this.servicebay_extracted === true)
@@ -727,10 +763,19 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                         move_sequence_aborted = true;
                         break;
                         } // if
+                     
+                     // Obstacle-Prüfung nach Bewegung
+                     if (_isObstacle(this.x, this.y, this.z)) {
+                         this.x = saveX; this.y = saveY; this.z = saveZ;
+                         move_sequence_aborted = true;
+                         _refreshGUI();
+                         break;
+                     }
                      }
                      
                   if (size2 == 2)
                      {
+                     let saveX = this.x, saveY = this.y, saveZ = this.z;
                      if (i3==0) await this.motoric_move( caller, fa, "", moves[i3] );
                      if (i3==1) await this.motoric_move( caller, "", la, moves[i3] );
 
@@ -739,8 +784,33 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                         move_sequence_aborted = true;
                         break;
                         } // if
+                     
+                     // Obstacle-Prüfung nach Bewegung
+                     if (_isObstacle(this.x, this.y, this.z)) {
+                         this.x = saveX; this.y = saveY; this.z = saveZ;
+                         move_sequence_aborted = true;
+                         _refreshGUI();
+                         break;
+                     }
                      } // if (size2 == 2)  
-                          
+
+                  // Failure injection: move interruption
+                  if (this.move_interruption_enabled) {
+                      this.move_interruption_counter++;
+                      let shouldStop = false;
+                      if (this.move_interruption_mode === "half_way" && this.move_interruption_counter >= Math.floor(size2 * 0.5)) {
+                          shouldStop = true;
+                      } else if (this.move_interruption_mode === "random" && Math.random() < this.move_interruption_param) {
+                          shouldStop = true;
+                      } else if (this.move_interruption_mode === "after" && this.move_interruption_counter >= this.move_interruption_param) {
+                          shouldStop = true;
+                      }
+                      if (shouldStop) {
+                          console.log("[INJECTION] Move interrupted for " + (this.id || "unknown") + " (mode=" + this.move_interruption_mode + ")");
+                          move_sequence_aborted = true;
+                          break;
+                      }
+                  }                          
  
                   
                   } // for i3...
@@ -768,6 +838,27 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
                      move_sequence_aborted = true;
                      break;
                      } // if
+
+                  // Obstacle-Prüfung nach Rotation: orthogonale Nachbarn in X/Z prüfen
+                  if (Array.isArray(this.index_neighbors)) {
+                      let horizSlots = ['f','r','b','l'];
+                      for (let s of horizSlots) {
+                          let nv = this.index_neighbors[s];
+                          if (!nv || !Array.isArray(nv)) continue;
+                          let nx = Number(this.x) + Number(nv[0] || 0);
+                          let ny = Number(this.y) + Number(nv[1] || 0);
+                          let nz = Number(this.z) + Number(nv[2] || 0);
+                          if (_isObstacle(nx, ny, nz)) {
+                              // Zurück rotieren
+                              let backDir = (direction === "L") ? "R" : "L";
+                              await this.motoric_spin(caller, fa, la, backDir);
+                              move_sequence_aborted = true;
+                              _refreshGUI();
+                              break;
+                          }
+                      }
+                      if (move_sequence_aborted) break;
+                  }
 
                   if (this.servicebay_extracted === true)
                      {
