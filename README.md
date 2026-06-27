@@ -66,11 +66,18 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.1**  
+Current version: **1.9.2**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.2** (27.06.2026)  
+**ClusterSim Obstacles & Slot Reliability**  
+  - `set_obstacle true/false <x> <y> <z>`: Place/remove obstacles in ClusterSim – blocks MOV and SPIN commands (functional mesh blocking). Use `forbidden_add` on BotController side for path planner awareness  
+  - `config_slot <bot_id> "<slot>:<prob>"`: Configure per-slot reliability (0.0–1.0) on individual bots to simulate dirty/corrupted link interfaces – affects both outgoing and incoming traffic  
+  - `verify_bot_position`, `trace_move_path`, `integrate_bot`: New resilience diagnostics  
+  - ClusterSim failure-injection API (port 3101): `disable_bot`, `enable_bot`, `set_mobility`, `get_bot_info`, `describe`, `teleport_bot_to`, `add_bot_to`, `set_move_interruption`, `config_slot`, `set_obstacle`, `get_status`
 
 - **1.9.1** (24.06.2026)  
 **Resilience Controller & World Model Consistency Tools**  
