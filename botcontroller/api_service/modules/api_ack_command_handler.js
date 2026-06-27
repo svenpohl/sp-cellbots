@@ -16,7 +16,8 @@ const cmd = decodedobject?.cmd ?? "";
 if (cmd === "recalibrate_bot_address")
    {
    let mode = decodedobject.mode ?? "standard";
-   let ret = controller.apicall_recalibrate_bot_address(decodedobject.bot_id, mode);
+   let blocked = decodedobject.blocked ?? "";
+   let ret = controller.apicall_recalibrate_bot_address(decodedobject.bot_id, mode, blocked);
    controller.append_api_action_log("recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: mode }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, error: ret.error ?? "" });
    controller.append_api_bot_history(decodedobject.bot_id, "recalibrate_bot_address", { bot_id: decodedobject.bot_id, mode: mode }, { ok: ret.ok, answer: ret.answer, changed: ret.changed ?? false, old_adress: ret.old_adress ?? "", new_adress: ret.new_adress ?? "" });
    await write_and_close(socket, ret);

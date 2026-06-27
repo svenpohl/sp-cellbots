@@ -37,6 +37,10 @@ if (ack_botindex == null)
    return(ack_retaddr);
    } // if
 
+let pos_x = Number(bot_snapshot.position.x);
+let pos_y = Number(bot_snapshot.position.y);
+let pos_z = Number(bot_snapshot.position.z);
+
 if (target_orientation)
    {
    bots_tmp_ack[ack_botindex].vector_x = Number(target_orientation.x);
@@ -44,31 +48,68 @@ if (target_orientation)
    bots_tmp_ack[ack_botindex].vector_z = Number(target_orientation.z);
    } // if
 
-ack_retaddr = controller.apicall_derive_ack_returnaddr_from_neighbours(
-                                                                        {
-                                                                        x: Number(bot_snapshot.position.x),
-                                                                        y: Number(bot_snapshot.position.y),
-                                                                        z: Number(bot_snapshot.position.z),
-                                                                        vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
-                                                                        vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
-                                                                        vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
-                                                                        },
-                                                                        bots_tmp_ack
-                                                                        );
+// Get the bot's origin MB for BFS routing (analog zu move_bot_to)
+let ack_mb_origin = controller.apicall_get_bot_origin(bot_snapshot.id);
+let ack_mb_pos = {
+    x: Number(ack_mb_origin.x),
+    y: Number(ack_mb_origin.y),
+    z: Number(ack_mb_origin.z)
+};
 
+// Recalculate all adresses in the temp snapshot (needed for BFS routing)
+for (let b = 0; b < bots_tmp_ack.length; b++)
+    {
+    if (bots_tmp_ack[b].id == "masterbot")
+       {
+       continue;
+       } // if
+
+    bots_tmp_ack[b].adress = controller.get_mb_returnaddr(
+                                                     {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+                                                     {x: bots_tmp_ack[b].x, y: bots_tmp_ack[b].y, z: bots_tmp_ack[b].z},
+                                                     bots_tmp_ack,
+                                                     [],
+                                                     { exclude_masterbots: true }
+                                                     );
+    } // for
+
+// PRIMARY: BFS return path direkt zum zuständigen MB (analog move_bot_to)
+ack_retaddr = controller.get_mb_returnaddr(
+    {x: pos_x, y: pos_y, z: pos_z},
+    {x: Number(ack_mb_pos.x), y: Number(ack_mb_pos.y), z: Number(ack_mb_pos.z)},
+    bots_tmp_ack,
+    [],
+    { exclude_masterbots: true }
+);
+
+// FALLBACK 1: Neighbour-based derivation (alte Methode)
 if (ack_retaddr == "")
    {
    ack_retaddr = controller.apicall_derive_ack_returnaddr_from_neighbours(
                                                                            {
-                                                                           x: Number(bot_snapshot.position.x),
-                                                                           y: Number(bot_snapshot.position.y),
-                                                                           z: Number(bot_snapshot.position.z),
+                                                                           x: pos_x,
+                                                                           y: pos_y,
+                                                                           z: pos_z,
                                                                            vector_x: Number(bots_tmp_ack[ack_botindex].vector_x),
                                                                            vector_y: Number(bots_tmp_ack[ack_botindex].vector_y),
                                                                            vector_z: Number(bots_tmp_ack[ack_botindex].vector_z)
                                                                            },
                                                                            bots_tmp_ack
                                                                            );
+   } // if
+
+// FALLBACK 2: Inverse address (analog move_bot_to)
+if (ack_retaddr == "")
+   {
+   let botindex_map_ack = controller.apicall_build_botindex_map_for_bots(bots_tmp_ack);
+   let masterbot_key = controller.getKey_3d(Number(ack_mb_pos.x), Number(ack_mb_pos.y), Number(ack_mb_pos.z));
+
+   ack_retaddr = controller.apicall_get_inverse_address_for_bots(
+                                                                  masterbot_key,
+                                                                  String(bots_tmp_ack[ack_botindex].adress ?? ""),
+                                                                  bots_tmp_ack,
+                                                                  botindex_map_ack
+                                                                  );
    } // if
 
 return(ack_retaddr);
@@ -233,6 +274,10 @@ if (planned_raw_cmd)
        if (connInfo) {
            rotationConnector = connInfo.connector_id;
        }
+       // Fallback: primary MB connector falls bot keine ADC-Zuordnung hat
+       if (!rotationConnector && typeof controller.accessDomainController.adc_getPrimaryConnectorId === "function") {
+           rotationConnector = controller.accessDomainController.adc_getPrimaryConnectorId();
+       }
    }
    raw_ret = controller.apicall_raw_cmd(planned_raw_cmd, rotationConnector);
    controller.append_api_raw_cmd_log(planned_raw_cmd, bot_id, raw_ret.accepted ?? false);
@@ -252,6 +297,7 @@ if (planned_raw_cmd)
          controller.apicall_gui_refresh();
          } // if
       } // if
+
    } // if
 
 return({
@@ -433,6 +479,7 @@ if (planned_raw_cmd)
          controller.apicall_gui_refresh();
          } // if
       } // if
+
    } // if
 
 return({
@@ -586,17 +633,9 @@ if (
    Number(rotate_right_once.z) === matched_target.z
    )
    {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["R"],
-          reason: "ROTATION_PLAN_READY"
-          });
+   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["R"], matched_target);
+   execRet.answer = "api_rotate_bot_to";
+   return(execRet);
    } // if
 
 if (
@@ -606,17 +645,9 @@ if (
    Number(rotate_left_once.z) === matched_target.z
    )
    {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["L"],
-          reason: "ROTATION_PLAN_READY"
-          });
+   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["L"], matched_target);
+   execRet.answer = "api_rotate_bot_to";
+   return(execRet);
    } // if
 
 if (
@@ -626,17 +657,9 @@ if (
    Number(rotate_right_twice.z) === matched_target.z
    )
    {
-   return({
-          ok: true,
-          answer: "api_rotate_bot_to",
-          bot_id: bot_id,
-          executable: true,
-          executed: false,
-          current_state: bot_snapshot,
-          target_orientation: matched_target,
-          rotation_plan: ["R", "R"],
-          reason: "ROTATION_PLAN_READY"
-          });
+   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["R", "R"], matched_target);
+   execRet.answer = "api_rotate_bot_to";
+   return(execRet);
    } // if
 
 return({

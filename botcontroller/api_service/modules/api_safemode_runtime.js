@@ -74,10 +74,11 @@ return(adress);
 } // apicall_get_safe_adress()
 
 
-function apicall_recalibrate_bot_address(controller, bot_id, mode = "standard")
+function apicall_recalibrate_bot_address(controller, bot_id, mode = "standard", blocked = "")
 {
 let normalized_bot_id = String(bot_id ?? "").trim();
 let normalized_mode = String(mode ?? "standard").trim().toLowerCase();
+let blockedStr = String(blocked ?? "").trim();
 let communication_mode = String(controller?.config?.communication_mode ?? "mesh_opcode").trim().toLowerCase();
 let botindex = controller.get_bot_by_id(normalized_bot_id, controller.bots);
 let old_adress = "";
@@ -164,6 +165,19 @@ if (Array.isArray(controller.detected_inactive_bots)) {
                 Number(controller.bots[bi].y) === Number(d.y) &&
                 Number(controller.bots[bi].z) === Number(d.z)) {
                 blockedBots.push(controller.bots[bi]); break;
+            }
+        }
+    }
+}
+// Benutzer-definierte blockierte Koordinaten hinzufügen (Format: "x,y,z;x,y,z")
+if (blockedStr !== "") {
+    let parts = blockedStr.split(";");
+    for (let p of parts) {
+        let coords = p.trim().split(",");
+        if (coords.length >= 3) {
+            let bx = Number(coords[0]), by = Number(coords[1]), bz = Number(coords[2]);
+            if (!isNaN(bx) && !isNaN(by) && !isNaN(bz)) {
+                blockedBots.push({ x: bx, y: by, z: bz });
             }
         }
     }

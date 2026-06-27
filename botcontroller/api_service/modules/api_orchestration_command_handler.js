@@ -433,6 +433,55 @@ if (cmd === "diagnose_bot_address")
    return(true);
    } // if
 
+if (cmd === "trace_move_path")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let x = Number(decodedobject.x ?? 0);
+   let y = Number(decodedobject.y ?? 0);
+   let z = Number(decodedobject.z ?? 0);
+   let ret = { ok: false, answer: "api_trace_move_path", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.trace_move_path === "function")
+      {
+      ret = await controller.resilienceController.trace_move_path(botId, x, y, z);
+      ret.answer = "api_trace_move_path";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "verify_bot_position")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let x = Number(decodedobject.x ?? 0);
+   let y = Number(decodedobject.y ?? 0);
+   let z = Number(decodedobject.z ?? 0);
+   let ret = { ok: false, answer: "api_verify_bot_position", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.verify_bot_position === "function")
+      {
+      ret = await controller.resilienceController.verify_bot_position(botId, x, y, z);
+      ret.answer = "api_verify_bot_position";
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
+if (cmd === "integrate_bot")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let ret = { ok: false, answer: "api_integrate_bot", error: "RESILIENCE_NOT_AVAILABLE" };
+   if (controller.resilienceController && typeof controller.resilienceController.integrate_bot === "function")
+      {
+      try {
+          ret = await controller.resilienceController.integrate_bot(botId);
+          ret.answer = "api_integrate_bot";
+      } catch(e) {
+          ret = { ok: false, answer: "api_integrate_bot", error: e.message };
+      }
+      }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "check_mbs")
    {
    let ret = { ok: false, answer: "api_check_mbs", error: "RESILIENCE_NOT_AVAILABLE" };
