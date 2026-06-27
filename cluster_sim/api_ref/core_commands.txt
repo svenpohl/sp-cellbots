@@ -3,10 +3,31 @@ ClusterSim Failure-Injection API
 Injects simulated faults into the cluster simulation at runtime.
 Useful for testing the BotController's resilience and recovery logic.
 
+1a. Slot Configuration (Fehlertyp 11/12 – Disable/Sporadic slot)
+
+node api.js config_slot <bot_id> "<slot>:<prob>;<slot>:<prob>;..."
+-> Configure slot reliability for a bot. Each slot (F,R,B,L,T,D) gets
+   a probability value between 0.0 and 1.0. 1.0 = always works (default).
+   0.0 = never works (disabled slot), 0.5 = 50% chance per message.
+   Only slots with probability != 1.0 activate the special handling.
+   Slots not mentioned keep their current value.
+   Use quotes for the config string.
+
+   Examples:
+     node api.js config_slot SB1 "F:1.0;B:0.5"      # B only 50% reliable
+     node api.js config_slot SB1 "F:0;R:0;B:0;L:0;T:0;D:0"  # all disabled
+     node api.js config_slot SB1 "R:0.8"              # R 80% reliable
+
 1. Bot Status
 
 node api.js describe
 -> Show this core commands overview (default).
+
+node api.js get_status [obstacles|bots|all]
+-> Show cluster status: total_bots, obstacles_count.
+   With "obstacles": list of obstacle coordinates.
+   With "bots": list of all bots with id and position.
+   With "all": both obstacles and bots.
 
 node api.js get_bot_info <bot_id>
 -> Show position, orientation and active/inactive status of a bot.
@@ -26,5 +47,65 @@ node api.js set_mobility <bot_id> <true|false>
    The bot can still communicate, but MOVE commands are rejected.
    The bot resumes normal operation and responds to messages again.
    The WebGUI restores the bot's original colour.
+
+2. Move Interruption (Fehlertyp 02 - Bot stop during move)
+
+node api.js set_move_interruption <bot_id> <true|false> [mode] [param]
+-> Inject a move interruption into a bot. When enabled, the bot will
+   stop executing its MOVE command partway through the submoves.
+   Modes:
+     half_way (default) - stops after ~50% of the submoves
+     random <prob>      - stops with probability <prob> after each submove
+                          e.g. random 0.3 = 30% chance per step
+     after <n>          - stops after exactly <n> submoves
+   The bot's position in the simulation is frozen. The BotController
+   will not receive a RALIFE and sees ack="pending".
+   Use false to disable the interruption.
+
+   Examples:
+     node api.js set_move_interruption SB1 true                 # half_way
+     node api.js set_move_interruption SB1 true random 0.3      # 30% per step
+     node api.js set_move_interruption SB1 true after 5         # after 5 submoves
+     node api.js set_move_interruption SB1 false                # disable
+
+3. Obstacles (Fehlertyp 07 - Place obstacle)
+
+node api.js set_obstacle <true|false> <x> <y> <z>
+-> Add or remove an obstacle at a specific coordinate.
+   Obstacles are displayed as semi-transparent black cubes in the
+   ClusterSim WebGUI. They block MOV and SPIN commands: bots cannot
+   move or rotate into an obstacle cell (functional mesh blocking).
+   On the BotController side, use forbidden_add to mark the cell for
+   the path planner so routes avoid the obstacle.
+
+   Examples:
+     node api.js set_obstacle true 2 1 0          # place obstacle at (2,1,0)
+     node api.js set_obstacle false 2 1 0         # remove obstacle at (2,1,0)
+
+4. Add Bot (Fehlertyp 17 - Add unknown bot)
+
+node api.js add_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
+-> Create a new bot in the simulation that the BotController has never
+   seen before. The new bot appears in the ClusterSim WebGUI but is
+   unknown to the BotController until the next scan discovers it.
+   Useful for testing BotController discovery of foreign/unknown bots.
+   Default orientation is (0,0,0) if omitted.
+
+   Examples:
+     node api.js add_bot_to SB3 2 1 0
+     node api.js add_bot_to SB3 2 1 0 1 0 0
+
+4. Teleport (Fehlertyp 03 - Bot displace / Bot swap / Bot remove)
+
+node api.js teleport_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
+-> Teleport a bot to an absolute position without moving it through
+   the mesh. Useful for failure injection (displace, swap, remove).
+   If orientation (vx, vy, vz) is omitted, the bot's current
+   orientation is preserved (not reset to defaults).
+   A WebGUI refresh is triggered after the teleport.
+
+   Examples:
+     node api.js teleport_bot_to SB1 4 1 1                  # teleport, keep orientation
+     node api.js teleport_bot_to SB1 4 1 1 1 0 0            # teleport + set orientation
 
 --- EOF /cluster_sim/api_ref/core_commands.txt ---
