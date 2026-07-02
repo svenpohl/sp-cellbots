@@ -544,6 +544,63 @@ if (cmd === "set_active")
    return(true);
    } // if
 
+if (cmd === "remove_bot")
+   {
+   let botId = String(decodedobject.bot_id ?? "").trim();
+   let ret = { ok: false, answer: "api_remove_bot", error: "BOT_NOT_FOUND" };
+   let botIdx = controller.get_bot_by_id(botId, controller.bots);
+   if (botIdx !== null && botIdx !== undefined) {
+       let bot = controller.bots[botIdx];
+       let pos = { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) };
+
+       // Aus detected_inactive_bots entfernen falls vorhanden
+       if (Array.isArray(controller.detected_inactive_bots)) {
+           let botKey = controller.getKey_3d(pos.x, pos.y, pos.z);
+           controller.detected_inactive_bots = controller.detected_inactive_bots.filter(d => {
+               let dKey = controller.getKey_3d(Number(d.x), Number(d.y), Number(d.z));
+               return dKey !== botKey;
+           });
+       }
+
+       // ADC-Zuordnung aufräumen
+       if (controller.accessDomainController && controller.accessDomainController.botMap) {
+           delete controller.accessDomainController.botMap[botId];
+       }
+
+       // Resilience-Score löschen
+       if (controller.resilienceController && controller.resilienceController.botScores) {
+           delete controller.resilienceController.botScores[botId];
+       }
+
+       // Bot aus Weltmodell entfernen
+       controller.bots.splice(botIdx, 1);
+       // botindex konsistent halten: alten Eintrag löschen, alle Indizes ab botIdx neu setzen
+       let botKey = controller.getKey_3d(pos.x, pos.y, pos.z);
+       delete controller.botindex[botKey];
+       for (let ri = botIdx; ri < controller.bots.length; ri++) {
+           if (controller.bots[ri]) {
+               controller.set_3d(controller.bots[ri].x, controller.bots[ri].y, controller.bots[ri].z, ri);
+           }
+       }
+       ret = { ok: true, answer: "api_remove_bot", bot_id: botId, removed: true, position: pos };
+
+       // Adress-Neuberechnung (stört den anschliessenden Ping nicht – integrate_bot nutzt Zielkoordinate)
+       if (typeof controller.apicall_recalibrate_bot_addresses === "function") {
+           controller.apicall_recalibrate_bot_addresses("standard");
+           ret.recalibrate_triggered = true;
+       }
+
+       // GUI aktualisieren
+       if (typeof controller.apicall_gui_refresh === "function") {
+           controller.apicall_gui_refresh();
+       }
+
+       ret.message = "Bot " + botId + " removed from world model – use ping_position + integrate_bot to re-add";
+   }
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "set_mobility")
    {
    let botId = String(decodedobject.bot_id ?? "").trim();

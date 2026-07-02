@@ -26,6 +26,9 @@ for (let i = 0; i < controller.bots.length; i++)
        continue;
        } // if
 
+    // Skip inactive bots entirely (cannot route through them)
+    if (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) continue;
+
     bots_tmp.push({
                    id: bot.id,
                    x: Number(bot.x),

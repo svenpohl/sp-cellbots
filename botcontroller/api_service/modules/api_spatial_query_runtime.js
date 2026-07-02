@@ -405,7 +405,10 @@ return({
                  (Array.isArray(controller.detected_inactive_bots) ? controller.detected_inactive_bots.some(d =>
                      Number(d.x) === Number(bot.x) && Number(d.y) === Number(bot.y) && Number(d.z) === Number(bot.z)
                  ) : false),
-       mobility: (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true
+       mobility: (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true,
+       resilience_scores: controller.resilienceController
+           ? controller.resilienceController.get_bot_scores(bot.id)
+           : {}
        });
 } // apicall_get_bot_info()
 
@@ -414,40 +417,75 @@ function apicall_ping_position(controller, x, y, z)
 {
 let tx = Number(x), ty = Number(y), tz = Number(z);
 
+// ADC-aware origin: find bot at target position and use its assigned hMB
+let originPos = { x: Number(controller.mb.x), y: Number(controller.mb.y), z: Number(controller.mb.z) };
+let targetBot = controller.bots.find(b =>
+    Number(b.x) === tx && Number(b.y) === ty && Number(b.z) === tz
+);
+if (targetBot && typeof controller.apicall_get_bot_origin === "function") {
+    let botOrigin = controller.apicall_get_bot_origin(String(targetBot.id ?? "").trim());
+    if (botOrigin) {
+        let bx = Number(botOrigin.x), by = Number(botOrigin.y), bz = Number(botOrigin.z);
+        if (bx !== 0 || by !== 0 || bz !== 0) {
+            originPos = { x: bx, y: by, z: bz };
+        }
+    }
+} else if (!targetBot && controller.accessDomainController && controller.accessDomainController.helper_masterbots) {
+    // Bot not in world model – find nearest hMB by Manhattan distance
+    let bestDist = Infinity;
+    let bestHmb = null;
+    for (let mid in controller.accessDomainController.helper_masterbots) {
+        let mb = controller.accessDomainController.helper_masterbots[mid];
+        if (mb.type !== "masterbot" || mb.active === false) continue;
+        let dist = Math.abs(Number(mb.pos.x) - tx) + Math.abs(Number(mb.pos.y) - ty) + Math.abs(Number(mb.pos.z) - tz);
+        if (dist < bestDist) {
+            bestDist = dist;
+            bestHmb = mb;
+        }
+    }
+    if (bestHmb) {
+        originPos = { x: Number(bestHmb.pos.x), y: Number(bestHmb.pos.y), z: Number(bestHmb.pos.z) };
+    }
+}
+
 let adr = controller.get_mb_returnaddr(
-    {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
+    originPos,
     {x: tx, y: ty, z: tz},
     controller.bots, [], { routing_mode: "standard", exclude_masterbots: true }
 );
 
 if (!adr || adr === "")
    {
-   // BFS failed – try to find a known neighbor within ±1 orthogonal
+   // BFS failed – find nearest known bot (Manhattan distance) and use its address
    let neighbor_bot = null;
    let neighbor_slot = "";
-   let neighbor_dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-   for (let d of neighbor_dirs)
-       {
-       let nx = tx + d[0], ny = ty + d[1], nz = tz + d[2];
-       let bot = controller.bots.find(b => Number(b.x)===nx && Number(b.y)===ny && Number(b.z)===nz);
-       if (!bot) continue;
-       neighbor_bot = bot;
-       // Slot from neighbor to target
-       let slot = controller.get_cell_slot_byvector(-d[0], -d[1], -d[2],
-           Number(bot.vector_x), Number(bot.vector_y), Number(bot.vector_z));
-       if (slot) { neighbor_slot = slot; break; }
+   let neighbor_dist = Infinity;
+   for (let bi = 0; bi < controller.bots.length; bi++) {
+       let b = controller.bots[bi];
+       if (!b) continue;
+       if (b.masterbot > 0) continue; // Skip MBs/hMBs
+       let dx = tx - Number(b.x), dy = ty - Number(b.y), dz = tz - Number(b.z);
+       let dist = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+       if (dist === 0) continue; // Skip target position itself
+       if (dist < neighbor_dist) {
+           // Check if direction maps to a valid slot
+           let slot = controller.get_cell_slot_byvector(dx, dy, dz,
+               Number(b.vector_x), Number(b.vector_y), Number(b.vector_z));
+           if (slot) {
+               neighbor_dist = dist;
+               neighbor_bot = b;
+               neighbor_slot = slot;
+           }
        }
+   }
    if (!neighbor_bot || !neighbor_slot)
       {
       return({ ok: false, answer: "api_ping_position", error: "NO_ROUTE_TO_TARGET", target: {x: tx, y: ty, z: tz} });
       } // if
-   // Route to neighbor + slot to target
-   let neighbor_adr = controller.get_mb_returnaddr(
-       {x: controller.mb.x, y: controller.mb.y, z: controller.mb.z},
-       {x: Number(neighbor_bot.x), y: Number(neighbor_bot.y), z: Number(neighbor_bot.z)},
-       controller.bots, [], { routing_mode: "standard", exclude_masterbots: true });
-   if (!neighbor_adr) neighbor_adr = "";
-   adr = neighbor_adr + neighbor_slot;
+   // Use neighbor's ACTUAL address + slot (like structurescan does with this.bots[i].adress + cmd_slot)
+   let neighborAdr = String(neighbor_bot.adress ?? "").trim();
+   if (!neighborAdr) neighborAdr = "";
+   adr = neighborAdr + neighbor_slot;
    } // if
 
 controller.ping_seq = (controller.ping_seq || 0) + 1;
@@ -460,7 +498,7 @@ if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
 let stl_id = "MB";
 if (adr.length > 1) {
     let path_to_stl = adr.slice(0, -1);
-    let cx = Number(controller.mb.x), cy = Number(controller.mb.y), cz = Number(controller.mb.z);
+    let cx = Number(originPos.x), cy = Number(originPos.y), cz = Number(originPos.z);
     for (let s = 0; s < path_to_stl.length; s++) {
         let cur = controller.bots.find(b => Number(b.x)===cx && Number(b.y)===cy && Number(b.z)===cz);
         if (!cur) break;
@@ -470,6 +508,11 @@ if (adr.length > 1) {
         cx = Number(t.x); cy = Number(t.y); cz = Number(t.z);
     }
     stl_id = controller.getKey_3d(cx, cy, cz);
+} else if (Number(originPos.x) !== Number(controller.mb.x) ||
+           Number(originPos.y) !== Number(controller.mb.y) ||
+           Number(originPos.z) !== Number(controller.mb.z)) {
+    // Single-hop ping from hMB → use hMB position as STL
+    stl_id = controller.getKey_3d(Number(originPos.x), Number(originPos.y), Number(originPos.z));
 }
 
 controller.ping_waiting_info[tmpid] = {
@@ -481,20 +524,54 @@ controller.ping_waiting_info[tmpid] = {
 };
 
 // Calculate and send return address via get_inverse_address
-let firstindex = controller.getKey_3d(controller.mb.x, controller.mb.y, controller.mb.z);
+let firstindex = controller.getKey_3d(Number(originPos.x), Number(originPos.y), Number(originPos.z));
 let retaddr = controller.get_inverse_address(firstindex, adr);
 let cmd = adr + "#INFO#" + tmpid + "#" + retaddr;
 cmd = controller.sign(cmd);
-let cellbot_cmd = '{ "cmd":"push", "param":"' + cmd + '" }\n';
-if (controller.client && typeof controller.client.write === "function") {
+
+// ADC-aware send: nutze den Connector des Zielbots (falls vorhanden)
+let pingConnector = "";
+if (targetBot && controller.accessDomainController) {
+    let connInfo = controller.accessDomainController.adc_getConnectorForBot(String(targetBot.id ?? "").trim());
+    if (connInfo) {
+        pingConnector = connInfo.connector_id;
+    }
+}
+// Fallback: ohne targetBot – nutze Connector des hMB, das originPos entspricht
+if (!pingConnector && controller.accessDomainController && controller.accessDomainController.helper_masterbots) {
+    for (let mid in controller.accessDomainController.helper_masterbots) {
+        let mb = controller.accessDomainController.helper_masterbots[mid];
+        if (mb.type === "masterbot" && mb.active !== false &&
+            Number(mb.pos.x) === Number(originPos.x) &&
+            Number(mb.pos.y) === Number(originPos.y) &&
+            Number(mb.pos.z) === Number(originPos.z)) {
+            pingConnector = mb.connector_id;
+            break;
+        }
+    }
+}
+
+if (pingConnector && controller.accessDomainController && typeof controller.accessDomainController.adc_sendPush === "function") {
+    // Senden via ADC (hMB) – korrekter Startpunkt
+    controller.accessDomainController.adc_sendPush(pingConnector, cmd);
+    // ADC-Queue leeren (RINFO kommt über hMB)
+    if (typeof controller.accessDomainController.adc_popAll === "function") {
+        controller.accessDomainController.adc_popAll();
+    }
+} else if (controller.client && typeof controller.client.write === "function") {
+    // Fallback: Legacy-MB
+    let cellbot_cmd = '{ "cmd":"push", "param":"' + cmd + '" }\n';
     controller.client.write(cellbot_cmd);
-    // Pop so RINFO is fetched from ClusterSim queue and processed by handle_answer()
     let cmd_pop = '{ "cmd":"pop", "param":"" }\n';
     controller.client.write(cmd_pop);
+    // Auch ADC-Queue leeren – RINFO könnte über hMB kommen
+    if (controller.accessDomainController && typeof controller.accessDomainController.adc_popAll === "function") {
+        controller.accessDomainController.adc_popAll();
+    }
 }
 
 const Logger = require('../../logger');
-Logger.log("Ping sent to (" + tx + "," + ty + "," + tz + ") adr='" + adr + "' tmpid=" + tmpid);
+Logger.log("Ping sent to (" + tx + "," + ty + "," + tz + ") adr='" + adr + "' tmpid=" + tmpid + " connector=" + (pingConnector || "legacy"));
 return({
        ok: true,
        answer: "api_ping_position",
@@ -509,6 +586,14 @@ return({
 
 function apicall_ping_status(controller, tmpid)
 {
+// ADC-Queue leeren, damit ggf. noch ausstehende RINFOs ankommen
+if (controller.accessDomainController && typeof controller.accessDomainController.adc_popAll === "function") {
+    controller.accessDomainController.adc_popAll();
+}
+// Auch Legacy-Queue poppen, um handle_answer zu triggern
+if (controller.client && typeof controller.client.write === "function") {
+    controller.client.write('{ "cmd":"pop", "param":"" }\n');
+}
 if (!controller.ping_waiting_info) controller.ping_waiting_info = {};
 let entry = controller.ping_waiting_info[tmpid];
 
@@ -527,6 +612,7 @@ return({
        status: entry.status,
        bot_found: bot_found,
        timed_out: timed_out,
+       rtt_ms: bot_found ? (Number(entry.responded_at ?? entry.timestamp ?? Date.now()) - Number(entry.timestamp ?? Date.now())) : null,
        target: {x: entry.x, y: entry.y, z: entry.z},
        response: bot_found ? {
                               bot_id: String(entry.botid ?? ""),
