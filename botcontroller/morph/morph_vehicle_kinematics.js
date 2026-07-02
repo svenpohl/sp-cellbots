@@ -368,8 +368,8 @@ class MorphVehicleKinematics extends MorphBase
     //
     wouldSplitCluster(bot, collection = this.cells, excludedBotIds = new Set())
     {
-        const DEBUG_WOULD_SPLIT = false; // true für B43-Debug-Log (console.log)
-        const isDebugBot = DEBUG_WOULD_SPLIT && String(bot?.id ?? "") === "B43";
+        const DEBUG_WOULD_SPLIT = true; // true für Debug-Log (console.log)
+        const isDebugBot = DEBUG_WOULD_SPLIT && (String(bot?.id ?? "") === "B39" || String(bot?.id ?? "") === "B43");
 
         if (!bot.id) {
             console.warn("Bot without ID:", bot);

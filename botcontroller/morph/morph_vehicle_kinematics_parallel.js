@@ -380,8 +380,8 @@ class MorphVehicleKinematics extends MorphBase
     wouldSplitCluster(bot, collection = this.cells, excludedBotIds = new Set())
     {
         // DEBUG: Aktivieren um wouldSplitCluster für B43 zu loggen
-        const DEBUG_WOULD_SPLIT = false; // true für B43-Debug-Log (logs/wouldsplit_debug.log)
-        const isDebugBot = DEBUG_WOULD_SPLIT && String(bot?.id ?? "") === "B43";
+        const DEBUG_WOULD_SPLIT = true; // true für Debug-Log (logs/wouldsplit_debug.log)
+        const isDebugBot = DEBUG_WOULD_SPLIT && (String(bot?.id ?? "") === "B39" || String(bot?.id ?? "") === "B43");
 
         if (!bot.id) {
             console.warn("Bot without ID:", bot);
@@ -592,7 +592,7 @@ class MorphVehicleKinematics extends MorphBase
     // NOTE: wouldSplitCluster is checked for ALL bots (including Reserve-Bots).
     //       Reserve-Bots are still preferred in the sorting order.
     //
-    choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets = new Set(), movedBotsInWave = new Set(), pathResult = null, forbiddenCells = null)
+    choosePair(collection = this.cells, attemptedPairs = new Set(), reservedTargets = new Set(), movedBotsInWave = new Set(), skippedBotsInWave = new Set(), pathResult = null, forbiddenCells = null)
     {
         // 1. Find all unhappy bots (not at master position and not already at their target)
         //    Exclude bots that have already been moved in the current wave
@@ -603,6 +603,7 @@ class MorphVehicleKinematics extends MorphBase
               bot.z === this.MASTER_BOT_POSITION.z) &&
             !this.isHappy(bot.x, bot.y, bot.z) &&
             !movedBotsInWave.has(bot.id) &&
+            !skippedBotsInWave.has(bot.id) &&
             bot.inactive !== true &&
             bot.mobility !== false
         );
@@ -786,9 +787,11 @@ class MorphVehicleKinematics extends MorphBase
                         pathResult.vkResult = vkResult;
                     }
                     this.debugLogValidPath(bot.id, { x: bot.x, y: bot.y, z: bot.z, vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1) }, { x: target.x, y: target.y, z: target.z }, dist, vkResult);
-                    this.debugLog(`choosePair: valid pair bot=${bot.id} -> (${target.x},${target.y},${target.z}) dist=${dist.toFixed(2)} (path planner OK, checked ${candidatesChecked} candidates)`);
+                    this.debugLog(`choosePair: PATH FOUND bot=${bot.id} -> (${target.x},${target.y},${target.z}) dist=${dist.toFixed(2)} states=${vkResult?.states?.length ?? 0} (path planner OK, checked ${candidatesChecked} candidates)`);
                 } else {
-                    this.debugLog(`choosePair: rejected pair bot=${bot.id} -> (${target.x},${target.y},${target.z}) (path planner: ${vkResult ? vkResult.error : 'null'})`);
+                    let rejectReason = vkResult ? (vkResult.error || 'NO_ERROR') : 'NO_RESULT';
+                    if (vkResult && vkResult.states && vkResult.states.length < 2) rejectReason = 'TOO_FEW_STATES(' + vkResult.states.length + ')';
+                    this.debugLog(`choosePair: PATH REJECTED bot=${bot.id} -> (${target.x},${target.y},${target.z}) reason=${rejectReason}`);
                 }
             }
         }
@@ -2443,6 +2446,7 @@ class MorphVehicleKinematics extends MorphBase
         const attemptedPairs = new Set();
         const reservedTargets = new Set();
         const movedBotsInWave = new Set();
+        const skippedBotsInWave = new Set(); // skipped bots stay in plannedCells, NOT passed to wouldSplitCluster
         const wavePairs = [];
         // Start with initial forbidden cells (hMB positions + inactive bot positions)
         // and add wave-specific forbidden cells during collection
@@ -2459,7 +2463,7 @@ class MorphVehicleKinematics extends MorphBase
 
             const success = this.choosePair(
                 plannedCells, attemptedPairs, reservedTargets,
-                movedBotsInWave, pathResult, waveForbiddenCells
+                movedBotsInWave, skippedBotsInWave, pathResult, waveForbiddenCells
             );
 
             if (!success || !this.bot_start || !this.bot_target) {
@@ -2472,7 +2476,7 @@ class MorphVehicleKinematics extends MorphBase
 
             if (!pathValid) {
                 this.debugLog(`Skipping bot=${this.bot_id} — path invalid`);
-                movedBotsInWave.add(this.bot_id);
+                skippedBotsInWave.add(this.bot_id);
                 continue;
             }
 
@@ -2484,7 +2488,7 @@ class MorphVehicleKinematics extends MorphBase
             const forbiddenKeys = new Set(waveForbiddenCells.map(c => Number(c.x) + ',' + Number(c.y) + ',' + Number(c.z)));
             if (forbiddenKeys.has(startKey)) {
                 this.debugLog(`Skipping bot=${this.bot_id} — start position (${this.bot_start.x},${this.bot_start.y},${this.bot_start.z}) conflicts with forbidden cells`);
-                movedBotsInWave.add(this.bot_id);
+                skippedBotsInWave.add(this.bot_id);
                 continue;
             }
 
