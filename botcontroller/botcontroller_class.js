@@ -4368,6 +4368,8 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
             Number(b.z) === Number(current.pos.z)
         );
         if (!from_bot) continue;
+        // Skip inactive bots as routing nodes
+        if (from_bot.inactive == 'true' || from_bot.inactive === true || from_bot.inactive == 1) continue;
 
         let candidate_neighbours = [];
 
@@ -4375,6 +4377,9 @@ get_mb_returnaddr(pos_from, pos_to, bots_tmp, blockedBots=[], options={}) {
         for (let bot of bots_tmp) {
             // -----> New: skip blocked-bots!
             if (blockedSet.has(`${bot.x},${bot.y},${bot.z}`)) continue;
+
+            // Skip inactive bots (cannot forward mesh traffic)
+            if (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) continue;
 
             // Skip masterbots (primary MB / helper hMB) when exclude_masterbots is active.
             // Masterbots are endpoints, not routing nodes – they do not forward mesh traffic.
@@ -7742,7 +7747,12 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
    if (logging) console.log("RINFO detected");
    
    let bottmpid = msgarray.bottmpid;
-   
+
+   // Resilience: Duplicate-Message-Erkennung via tmpid-Ringbuffer
+   if (this.resilienceController) {
+       this.resilienceController.record_message(bottmpid, "RINFO", msgarray.botid);
+   }
+
     
    if (this.scan_waiting_info[bottmpid] === undefined) 
       {
@@ -7750,7 +7760,25 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
       if (this.ping_waiting_info && this.ping_waiting_info[bottmpid] !== undefined)
          {
          this.ping_waiting_info[bottmpid].status = 1;
+         this.ping_waiting_info[bottmpid].responded_at = Date.now();
          this.ping_waiting_info[bottmpid].botid = msgarray.botid;
+
+         // Resilience: ID-Übermittlungs-Score prüfen (Fake-ID-Erkennung)
+         if (this.resilienceController) {
+             let p_info2 = this.ping_waiting_info[bottmpid];
+             let pp_x = Number(p_info2.x), pp_y = Number(p_info2.y), pp_z = Number(p_info2.z);
+             let expectedBotIdx = this.get_3d(pp_x, pp_y, pp_z);
+             if (expectedBotIdx !== null && expectedBotIdx !== undefined) {
+                 let expectedId = String(this.bots[expectedBotIdx].id ?? "");
+                 let receivedId = String(msgarray.botid ?? "");
+                 let isMismatch = (expectedId !== "" && receivedId !== "" && expectedId !== receivedId);
+                 if (isMismatch) {
+                     Logger.log("[RESILIENCE] ID mismatch at (" + pp_x + "," + pp_y + "," + pp_z +
+                               ") expected=" + expectedId + " received=" + receivedId);
+                 }
+                 this.resilienceController.record_id_response(expectedId, isMismatch, receivedId);
+             }
+         }
 
          // Register or update bot position (like scan_waiting_info does)
          let p_info = this.ping_waiting_info[bottmpid];
@@ -7837,21 +7865,58 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
             Logger.log("Ping updated bot: " + msgarray.botid + " to " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
             } else
               {
-              // New bot – register it
-              let bot_obj = new bot_class_mini();
-              let stl_id = this.getKey_3d(p_x, p_y, p_z);
-              bot_obj.setvalues(
-                  msgarray.botid, stl_id, p_x, p_y, p_z,
-                  ovx, ovy, ovz,
-                  "888888"
-              );
-              bot_obj.adress = p_addr;
-              this.register_bot(bot_obj);
-              Logger.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
-              if (this.resilienceController && typeof this.resilienceController.log_bot_event === "function") {
-                  this.resilienceController.log_bot_event("BOT_UNKNOWN", msgarray.botid, { pos: { x: p_x, y: p_y, z: p_z } });
+              // Check if a bot already exists at this position (ID mismatch)
+              let existingBotAtIndex = this.get_3d(p_x, p_y, p_z);
+              if (existingBotAtIndex !== null && existingBotAtIndex !== undefined) {
+                  // Bot at this position has a different ID – DON'T overwrite,
+                  // just update position/orientation and log the ID anomaly.
+                  let existingId = String(this.bots[existingBotAtIndex].id ?? "");
+                  Logger.log("[RESILIENCE] ID mismatch: received=" + msgarray.botid +
+                             " at (" + p_x + "," + p_y + "," + p_z + ") but existing bot=" + existingId +
+                             " – keeping original ID, updating pose only");
+                  this.bots[existingBotAtIndex].x = p_x;
+                  this.bots[existingBotAtIndex].y = p_y;
+                  this.bots[existingBotAtIndex].z = p_z;
+                  this.bots[existingBotAtIndex].vector_x = ovx;
+                  this.bots[existingBotAtIndex].vector_y = ovy;
+                  this.bots[existingBotAtIndex].vector_z = ovz;
+                  this.bots[existingBotAtIndex].adress = p_addr;
+              } else {
+                  // New bot at new position – register it
+                  let bot_obj = new bot_class_mini();
+                  let stl_id = this.getKey_3d(p_x, p_y, p_z);
+                  bot_obj.setvalues(
+                      msgarray.botid, stl_id, p_x, p_y, p_z,
+                      ovx, ovy, ovz,
+                      "888888"
+                  );
+                  bot_obj.adress = p_addr;
+                  this.register_bot(bot_obj);
+                  // ADC-Connector zuweisen (nächstes hMB per Distanz)
+                  if (this.accessDomainController && this.accessDomainController.helper_masterbots) {
+                      let bestHmb = null, bestDist = Infinity;
+                      for (let mid in this.accessDomainController.helper_masterbots) {
+                          let mb = this.accessDomainController.helper_masterbots[mid];
+                          if (mb.type !== "masterbot" || mb.active === false) continue;
+                          let dist = Math.abs(Number(mb.pos.x) - p_x) + Math.abs(Number(mb.pos.y) - p_y) + Math.abs(Number(mb.pos.z) - p_z);
+                          if (dist < bestDist) { bestDist = dist; bestHmb = mb; }
+                      }
+                      if (bestHmb) {
+                          this.accessDomainController.adc_assignBot(bestHmb.id, msgarray.botid);
+                      }
+                  }
+                  Logger.log("Ping registered new bot: " + msgarray.botid + " at " + p_x + "," + p_y + "," + p_z + " orientation=(" + ovx + "," + ovy + "," + ovz + ")");
+                  if (this.resilienceController && typeof this.resilienceController.log_bot_event === "function") {
+                      this.resilienceController.log_bot_event("BOT_UNKNOWN", msgarray.botid, { pos: { x: p_x, y: p_y, z: p_z } });
+                  }
               }
               }
+            // Also store orientation in ping_waiting_info for ping_status response
+            if (this.ping_waiting_info[bottmpid]) {
+                this.ping_waiting_info[bottmpid].vector_x = ovx;
+                this.ping_waiting_info[bottmpid].vector_y = ovy;
+                this.ping_waiting_info[bottmpid].vector_z = ovz;
+            }
             // Refresh frontend after bot update/registration
             this.apicall_gui_refresh();
          } else

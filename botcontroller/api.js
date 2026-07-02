@@ -758,6 +758,13 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "remove_bot") {
+    return {
+      cmd: "remove_bot",
+      bot_id: process.argv[3] ?? ""
+    };
+  } // if
+
   if (cmd == "set_mobility") {
     return {
       cmd: "set_mobility",
@@ -1303,7 +1310,8 @@ function main() {
             masterbot: responseObject.masterbot,
             connector: responseObject.connector,
             inactive: responseObject.inactive ?? false,
-            mobility: responseObject.mobility ?? true
+            mobility: responseObject.mobility ?? true,
+            resilience_scores: responseObject.resilience_scores ?? {}
           };
         } else if (answer === "api_morph_get_algos") {
           result = {
@@ -1388,6 +1396,8 @@ function main() {
             status: responseObject.status ?? 0,
             bot_found: responseObject.bot_found === true,
             timed_out: responseObject.timed_out === true,
+            rtt_ms: responseObject.rtt_ms ?? null,
+            target: responseObject.target ?? null,
             response: responseObject.response ?? null
           };
         } else if (answer === "api_build_address") {
@@ -1508,6 +1518,15 @@ function main() {
             active: responseObject.active ?? true,
             recalibrate_triggered: responseObject.recalibrate_triggered ?? false
           };
+        } else if (answer === "api_remove_bot") {
+          result = {
+            ok: responseObject.ok === true,
+            result: "api_remove_bot",
+            bot_id: responseObject.bot_id ?? "",
+            removed: responseObject.removed ?? false,
+            recalibrate_triggered: responseObject.recalibrate_triggered ?? false,
+            message: responseObject.message ?? ""
+          };
         } else if (answer === "api_set_mobility") {
           result = {
             ok: responseObject.ok === true,
@@ -1523,6 +1542,10 @@ function main() {
             status: responseObject.status ?? "",
             message: responseObject.message ?? "",
             config_loaded: responseObject.config_loaded ?? false,
+            register_unexpected_ids: responseObject.register_unexpected_ids ?? false,
+            register_duplicate_msg: responseObject.register_duplicate_msg ?? false,
+            duplicate_msg_detected: responseObject.duplicate_msg_detected ?? false,
+            duplicate_msg_count: responseObject.duplicate_msg_count ?? 0,
             register_duplicate_ids: responseObject.register_duplicate_ids ?? false,
             duplicate_ids_detected: responseObject.duplicate_ids_detected ?? false,
             duplicate_ids_list: responseObject.duplicate_ids_list ?? [],
