@@ -372,6 +372,44 @@ wss.on('connection', (ws) => {
                if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
                else if (!slotConfig) { result = { ok: false, error: "MISSING_SLOT_CONFIG" }; }
                else { result = masterbot_class_obj.failureInjector.configSlot(botId, slotConfig); }
+           } else if (args.startsWith("config_fakeid ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let fakeIdConfig = (parts.slice(2).join(" ") || "").replace(/^["']|["']$/g, "");
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configFakeId(botId, fakeIdConfig); }
+           } else if (args.startsWith("config_duplicate_msg ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let factor = parseInt(parts[2] ?? "1", 10);
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configDuplicateMsg(botId, factor); }
+           } else if (args.startsWith("config_disable_forwarding ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let disabled = parts[2] || "true";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configDisableForwarding(botId, disabled); }
+           } else if (args.startsWith("config_msg_delay ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let delayMs = parseInt(parts[2]) || 0;
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configMsgDelay(botId, delayMs); }
+           } else if (args.startsWith("config_max_msgqueue ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let maxSize = parts[2] || "default";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configMaxMsgQueue(botId, maxSize); }
+           } else if (args.startsWith("config_corrupt_msg ")) {
+               let parts = args.split(" ");
+               let botId = parts[1] || "";
+               let prob = parseFloat(parts[2]) || 0;
+               let pattern = parts[3] || "";
+               let replacement = parts[4] || "";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.configCorruptMsg(botId, prob, pattern, replacement); }
            } else if (args.startsWith("set_obstacle ")) {
                let parts = args.split(" ");
                let flag = parts[1] || "";
@@ -381,6 +419,10 @@ wss.on('connection', (ws) => {
                let enabled = (flag === "true" || flag === "1");
                if (!flag) { result = { ok: false, error: "MISSING_FLAG" }; }
                else { result = masterbot_class_obj.failureInjector.setObstacle(enabled, x, y, z); }
+           } else if (args.startsWith("remove_bot ")) {
+               let botId = args.split(" ")[1] || "";
+               if (!botId) { result = { ok: false, error: "MISSING_BOT_ID" }; }
+               else { result = masterbot_class_obj.failureInjector.removeBot(botId); }
            } else if (args.startsWith("add_bot_to ")) {
                let parts = args.split(" ");
                let botId = parts[1] || "";
@@ -421,12 +463,20 @@ wss.on('connection', (ws) => {
                    }
                    if (!bot) { result = { ok: false, error: "BOT_NOT_FOUND", bot_id: botId }; }
                    else {
+                       let fi = {
+                           fake_id_config: bot.fake_id_config || null,
+                           duplicate_msg: bot.duplicate_msg || 1,
+                           forwarding_disabled: bot.forwarding_disabled === true,
+                           max_msgqueue: bot.max_msgqueue ?? 500,
+                           corrupt_msg: bot.corrupt_config || null
+                       };
                        result = {
                            ok: true,
                            bot_id: bot.id,
                            position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
                            orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
-                           inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0
+                           inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0,
+                           failure_injection: fi
                        };
                    }
                }

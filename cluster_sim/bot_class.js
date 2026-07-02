@@ -48,6 +48,12 @@ constructor()
   this.move_interruption_counter = 0;
   this.slot_reliability = {};            // {f:1.0, r:1.0, b:1.0, l:1.0, t:1.0, d:1.0} – default all 1.0
   this.special_slot_configuration = false; // true wenn ein Slot != 1.0 konfiguriert wurde
+  this.fake_id_config = null;            // {fakeId: "SB1", probability: 0.3} – config_fakeid
+  this.real_id = null;                   // original ID when fake_id_config.probability >= 1.0
+  this.duplicate_msg = 1;                // 1=normal, 2=double, 3=triple, ... – config_duplicate_msg
+  this.forwarding_disabled = false;       // true=blockiert Weiterleitung, antwortet aber auf direkte Anfragen – config_disable_forwarding
+  this.msg_delay = 0;                     // ms delay for message forwarding (0=no delay) – config_msg_delay
+  this.corrupt_config = null;            // {probability: 0.3, pattern: "RINFO", replacement: "RALIFE"} – config_corrupt_msg
   //
   // end - failure injections
   //
@@ -66,7 +72,8 @@ constructor()
   this.locked        = [];
   
   //this.max_msgqueue = 5;
-  this.max_msgqueue = 500;
+  this.max_msgqueue_default = 500;
+  this.max_msgqueue = this.max_msgqueue_default;
 
   this.cmd_parser_class_obj = new cmd_parser_class();
   
@@ -318,13 +325,73 @@ if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
    return(0);
    }
 
+// Forwarding disabled check (Fehlertyp 08):
+// Block messages that have a non-empty address (need further forwarding).
+// Allow: messages with empty address (for self) and self-generated responses (no @).
+if (this.forwarding_disabled === true) {
+    let atPos = msg.indexOf("@");
+    if (atPos >= 0) {
+        let afterAt = msg.substring(atPos + 1);
+        // Check if there's a non-empty address between @ and #
+        let hashPos = afterAt.indexOf("#");
+        if (hashPos > 0) {
+            // Non-empty address found → this message needs forwarding → drop
+            Logger.log("push_msg("+this.id+") [DROPPED forwarding_disabled] ["+msg+"]");
+            return(0);
+        }
+    }
+}
+
 let size = this.msgqueue.length;
 
 if (size < this.max_msgqueue)
    {   
    Logger.log("push_msg("+this.id+") ["+msg+"]  size("+size+")");
-   
+
+   // Message delay injection (config_msg_delay)
+   if (this.msg_delay > 0) {
+       let delayMs = this.msg_delay;
+       setTimeout(() => {
+           if (this.msgqueue.length < this.max_msgqueue) {
+               // Corrupt message injection (config_corrupt_msg) – vor dem Queue-Push
+               if (this.corrupt_config && Math.random() < this.corrupt_config.probability) {
+                   let oldMsg = msg;
+                   msg = msg.replace(this.corrupt_config.pattern, this.corrupt_config.replacement);
+                   Logger.log("push_msg("+this.id+") [CORRUPTED] ["+oldMsg+"] → ["+msg+"]");
+               }
+               this.msgqueue.push(msg);
+               Logger.log("push_msg("+this.id+") [DELAYED "+delayMs+"ms] ["+msg+"]  size("+this.msgqueue.length+")");
+               // Duplicate message injection (config_duplicate_msg) auch für verzögerte Nachrichten
+               if (this.duplicate_msg > 1) {
+                   for (let d = 1; d < this.duplicate_msg; d++) {
+                       if (this.msgqueue.length < this.max_msgqueue) {
+                           this.msgqueue.push(msg);
+                       }
+                   }
+               }
+           }
+       }, delayMs);
+       return(1);
+   }
+
+   // Corrupt message injection (config_corrupt_msg) – vor dem Queue-Push
+   if (this.corrupt_config && Math.random() < this.corrupt_config.probability) {
+       let oldMsg = msg;
+       msg = msg.replace(this.corrupt_config.pattern, this.corrupt_config.replacement);
+       Logger.log("push_msg("+this.id+") [CORRUPTED] ["+oldMsg+"] → ["+msg+"]");
+   }
+
    this.msgqueue.push( msg );
+
+   // Duplicate message injection (config_duplicate_msg)
+   if (this.duplicate_msg > 1) {
+       for (let d = 1; d < this.duplicate_msg; d++) {
+           if (this.msgqueue.length < this.max_msgqueue) {
+               this.msgqueue.push( msg );
+           }
+       }
+   }
+
    return( 1 );
    } else
      {
@@ -537,7 +604,19 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_INFO )
       } // if (sourceslot == 'D' || sourceslot == 'T')
    
 
-   let cmdreturn = destination + "#RINFO#" + this.id + ";"  +  this.bottmpid +  ";" + this.type + ";" + sourceslot + ";" + rel_x + ","  + rel_y + "," + rel_z + "";
+   // Fake-ID-Injection: Wenn fake_id_config gesetzt ist, ggf. die Bot-ID in der RINFO ersetzen
+   let rinfo_id = this.id;
+   if (this.fake_id_config) {
+       let cfg = this.fake_id_config;
+       if (cfg.probability >= 1.0) {
+           // Bei 100%: Bot "glaubt" dauerhaft, er sei die fake ID (this.id bereits gesetzt)
+           rinfo_id = this.id;
+       } else if (Math.random() < cfg.probability) {
+           // Bei <100%: Nur diese Antwort bekommt die fake ID, ID bleibt erhalten
+           rinfo_id = cfg.fakeId;
+       }
+   }
+   let cmdreturn = destination + "#RINFO#" + rinfo_id + ";"  +  this.bottmpid +  ";" + this.type + ";" + sourceslot + ";" + rel_x + ","  + rel_y + "," + rel_z + "";
    
   
   
@@ -582,7 +661,15 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_CHECK )
    
    // Execute command.
    // In direct_radio mode we bypass slot-routing and return directly to masterbot queue.
-   let cmdreturn = destreturn + "#RCHECK#" + this.id + ";"  +  status + "";
+   // Fake-ID-Injection for RCHECK (wie bei RINFO)
+   let rcheck_id = this.id;
+   if (this.fake_id_config) {
+       let cfg = this.fake_id_config;
+       if (cfg.probability < 1.0 && Math.random() < cfg.probability) {
+           rcheck_id = cfg.fakeId;
+       }
+   }
+   let cmdreturn = destreturn + "#RCHECK#" + rcheck_id + ";"  +  status + "";
 
    if (String(caller?.config?.communication_mode ?? "mesh_opcode") == "direct_radio")
       {

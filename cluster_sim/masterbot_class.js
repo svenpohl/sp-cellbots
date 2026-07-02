@@ -1094,6 +1094,8 @@ start_failure_api() {
                 let answer = { ok: false, error: "UNKNOWN_COMMAND" };
                 if (decoded.cmd === "disable_bot" || decoded.cmd === "enable_bot") {
                     answer = this.failureInjector.setBotActive(decoded.bot_id, decoded.cmd === "enable_bot");
+                } else if (decoded.cmd === "remove_bot") {
+                    answer = this.failureInjector.removeBot(decoded.bot_id);
                 } else if (decoded.cmd === "get_status") {
                     let mode = String(decoded.mode ?? "").trim().toLowerCase();
                     let status = {
@@ -1126,6 +1128,38 @@ start_failure_api() {
                     if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
                     else if (!slotConfig) { answer = { ok: false, error: "MISSING_SLOT_CONFIG" }; }
                     else { answer = this.failureInjector.configSlot(botId, slotConfig); }
+                } else if (decoded.cmd === "config_fakeid") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let fakeIdConfig = String(decoded.fake_id_config ?? "").trim();
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configFakeId(botId, fakeIdConfig); }
+                } else if (decoded.cmd === "config_duplicate_msg") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let factor = decoded.factor ?? 1;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configDuplicateMsg(botId, factor); }
+                } else if (decoded.cmd === "config_disable_forwarding") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let disabled = decoded.disabled;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configDisableForwarding(botId, disabled); }
+                } else if (decoded.cmd === "config_msg_delay") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let delayMs = decoded.delay_ms ?? 0;
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configMsgDelay(botId, delayMs); }
+                } else if (decoded.cmd === "config_max_msgqueue") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let maxSize = decoded.max_size ?? "default";
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configMaxMsgQueue(botId, maxSize); }
+                } else if (decoded.cmd === "config_corrupt_msg") {
+                    let botId = String(decoded.bot_id ?? "").trim();
+                    let probability = decoded.probability ?? 0;
+                    let pattern = decoded.pattern ?? "";
+                    let replacement = decoded.replacement ?? "";
+                    if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
+                    else { answer = this.failureInjector.configCorruptMsg(botId, probability, pattern, replacement); }
                 } else if (decoded.cmd === "set_obstacle") {
                     let enabled = decoded.enabled;
                     let x = Number(decoded.x ?? 0);
@@ -1169,12 +1203,21 @@ start_failure_api() {
                         }
                         if (!bot) { answer = { ok: false, error: "BOT_NOT_FOUND", bot_id: botId }; }
                         else {
+                            // Failure-Injection-Status ermitteln
+                            let fi = {
+                                fake_id_config: bot.fake_id_config || null,
+                                duplicate_msg: bot.duplicate_msg || 1,
+                                forwarding_disabled: bot.forwarding_disabled === true,
+                                max_msgqueue: bot.max_msgqueue ?? 500,
+                                corrupt_msg: bot.corrupt_config || null
+                            };
                             answer = {
                                 ok: true,
                                 bot_id: bot.id,
                                 position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
                                 orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
-                                inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0
+                                inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0,
+                                failure_injection: fi
                             };
                         }
                     }
@@ -1779,7 +1822,6 @@ for (let i=0; i < this.bots.length; i++)
        // Routing message 
        if (destslot != "")
           {
-
           let indexdestbot = this.bots[i].index_neighbors[destslot];
 
           if (indexdestbot == undefined)
