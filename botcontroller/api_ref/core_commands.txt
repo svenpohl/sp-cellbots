@@ -125,6 +125,11 @@ node api.js get_assigned_bots
 node api.js recalibrate_bot_addresses
 -> If acknowledgements are missing or bots seem unreachable, try this first.
 
+node api.js verify_bot_position <bot_id> <x> <y> <z>
+-> Verify a bot at a specific coordinate. Pings the position, checks if the
+   bot is actually there, and updates the world model (position + orientation)
+   if found. Useful when the world model is out of sync with reality.
+
 node api.js structurescan
 -> If recalibrate did not help, run a full scan. The world model may be
    inconsistent because bots communicate via a mesh network. Choosing donor
