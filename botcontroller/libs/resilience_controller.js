@@ -22,6 +22,30 @@ class ResilienceController {
         this._last_action_ts = "";
         this._logPath = path.join(__dirname, '..', 'logs', 'resilience.log');
         this._initLogFile();
+
+        // ================================================================
+        // Bot Resilience Scores (0.0 = critical, 1.0 = perfect)
+        // Indexed by bot ID (first known ID is the primary key).
+        // Each bot gets its own entry on first interaction.
+        //
+        // Structure:
+        //   botScores[botId] = {
+        //     score_id_transmission: {           // ID reliability
+        //       value: 1.0,                       // current score 0.0–1.0
+        //       total_responses: 0,               // total ping/scan responses counted
+        //       unexpected_id_count: 0,           // responses with mismatched ID
+        //       last_unexpected_id: null,          // last fake ID seen
+        //       last_seen_ts: null                // timestamp of last response
+        //     },
+        //     score_bot_reachable:     { value: 1.0 },  // future
+        //     score_slot_reliability:  { value: 1.0 },  // future
+        //     score_movement:          { value: 1.0 },  // future
+        //     score_coupling:          { value: 1.0 },  // future
+        //     score_position:          { value: 1.0 },  // future
+        //     score_orientation:       { value: 1.0 },  // future
+        //   };
+        // ================================================================
+        this.botScores = {};
         // Config laden
         let cfgPath = path.join(__dirname, '..', 'resilience.cfg');
         try {
@@ -761,12 +785,61 @@ class ResilienceController {
         let result = { ok: true, bot_id: botId, actions: [], message: "" };
 
         let botIdx = this.controller.get_bot_by_id(botId, this.controller.bots);
+        let bot = null;
+
         if (botIdx === null || botIdx === undefined) {
-            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+            // Bot not in world model (e.g. removed via remove_bot) – ping to find it
+            if (typeof this.controller.apicall_ping_position === "function") {
+                // Try to find the bot via resilience's trace/ping logic
+                let found = false;
+                // Check ping_waiting_info for recent ping results
+                if (this.controller.ping_waiting_info) {
+                    for (let tmpid in this.controller.ping_waiting_info) {
+                        let entry = this.controller.ping_waiting_info[tmpid];
+                        if (entry && entry.status >= 0 &&
+                            (String(entry.response?.bot_id ?? "").trim() === botId || entry.x !== undefined)) {
+                            // Found in ping results – create bot entry
+                            let pos = entry.response?.position || { x: entry.x, y: entry.y, z: entry.z };
+                            let orient = entry.response?.orientation || {};
+                            // Wenn die RINFO noch nicht da ist, nutzen wir die Zielkoordinate
+                            if (!entry.response) {
+                                pos = { x: Number(entry.x ?? 0), y: Number(entry.y ?? 0), z: Number(entry.z ?? 0) };
+                            }
+                            this.controller.bots.push({
+                                id: botId,
+                                x: Number(pos.x ?? 0),
+                                y: Number(pos.y ?? 0),
+                                z: Number(pos.z ?? 0),
+                                vector_x: Number(orient.x ?? 0),
+                                vector_y: Number(orient.y ?? 0),
+                                vector_z: Number(orient.z ?? 0),
+                                adress: "",
+                                adress_first: "",
+                                adress_short: "",
+                                adress_detour: "",
+                                color: "eeeeee",
+                                masterbot: 0,
+                                inactive: false,
+                                mobility: true
+                            });
+                            botIdx = this.controller.get_bot_by_id(botId, this.controller.bots);
+                            found = true;
+                            result.actions.push("recreated_from_ping");
+                            break;
+                        }
+                    }
+                }
+                if (!found) {
+                    // Not found in ping cache – do a live ping
+                    return { ok: false, error: "BOT_NOT_FOUND_NO_PING_DATA", bot_id: botId, message: "Ping the bot's position first with ping_position, then retry integrate_bot" };
+                }
+            } else {
+                return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+            }
         }
 
         // Bot-Objekt VOR adc_assign_proximity sichern (Index könnte sich ändern)
-        let bot = this.controller.bots[botIdx];
+        bot = this.controller.bots[botIdx];
 
         // 1. ADC proximity assignment
         let adc = this.controller.accessDomainController;
@@ -863,6 +936,10 @@ class ResilienceController {
         };
         if (this._loaded) {
             ret.config_loaded = true;
+            ret.register_unexpected_ids = String(this.config.register_unexpected_ids ?? "false").trim() === "true";
+            ret.register_duplicate_msg = String(this.config.register_duplicate_msg ?? "false").trim() === "true";
+            ret.duplicate_msg_detected = this.duplicate_msg_detected === true;
+            ret.duplicate_msg_count = this.duplicate_msg_count || 0;
             ret.register_duplicate_ids = String(this.config.register_duplicate_ids ?? "false").trim() === "true";
             ret.duplicate_ids_detected = this.duplicate_ids_detected;
             ret.duplicate_ids_list = [...this.duplicate_ids_list];
@@ -882,6 +959,106 @@ class ResilienceController {
             }
         }
         return ret;
+    }
+
+    //
+    // record_message(tmpid, msgType)
+    // Called on every RINFO/RCHECK to track duplicate messages.
+    // Maintains a ring buffer of the last 10 tmpids.
+    // When a tmpid appears twice, a duplicate is logged and counted.
+    // Only active when register_duplicate_msg = true in resilience.cfg.
+    //
+    record_message(tmpid, msgType, botId) {
+        if (String(this.config.register_duplicate_msg ?? "false").trim() !== "true") return;
+        if (!tmpid || String(tmpid).trim() === "") return;
+        let id = String(tmpid).trim();
+        if (!this._recent_tmpids) this._recent_tmpids = [];
+        if (!this._tmpid_to_bot) this._tmpid_to_bot = {};
+        if (this.duplicate_msg_count === undefined) this.duplicate_msg_count = 0;
+
+        if (this._recent_tmpids.includes(id)) {
+            this.duplicate_msg_count++;
+            this.duplicate_msg_detected = true;
+            // Look up which bot caused this duplicate (from first occurrence)
+            let dupBotId = this._tmpid_to_bot[id] || "unknown";
+            this._log("DUPLICATE_MSG type=" + msgType + " tmpid=" + id +
+                      " bot=" + dupBotId + " count=" + this.duplicate_msg_count);
+            // Per-bot counter
+            if (dupBotId && dupBotId !== "unknown") {
+                this.get_bot_scores(dupBotId);
+                let dc = this.botScores[dupBotId].score_msg_duplication_cnt;
+                dc.value = (dc.value || 0) + 1;
+            }
+        } else {
+            this._recent_tmpids.push(id);
+            // Store bot ID for this tmpid (first occurrence)
+            if (botId && String(botId).trim() !== "") {
+                this._tmpid_to_bot[id] = String(botId).trim();
+            }
+            if (this._recent_tmpids.length > 10) {
+                let removed = this._recent_tmpids.shift();
+                delete this._tmpid_to_bot[removed];
+            }
+        }
+    }
+
+    //
+    // record_id_response(expectedBotId, isMismatch, receivedId)
+    // Called on every ping/scan response to track ID transmission reliability.
+    // Updates total_responses and, on mismatch, unexpected_id_count.
+    // Nur aktiv wenn register_unexpected_ids = true in resilience.cfg.
+    //
+    record_id_response(expectedBotId, isMismatch, receivedId) {
+        if (String(this.config.register_unexpected_ids ?? "false").trim() !== "true") return;
+        let id = String(expectedBotId).trim();
+        if (!id) return;
+        // Ensure entry exists
+        this.get_bot_scores(id);
+        let score = this.botScores[id].score_id_transmission;
+        score.total_responses++;
+        if (isMismatch) {
+            score.unexpected_id_count++;
+            score.last_unexpected_id = String(receivedId).trim();
+        }
+        score.last_seen_ts = Date.now();
+        score.value = Math.round(Math.max(0, 1.0 - (score.unexpected_id_count / score.total_responses)) * 1000) / 1000;
+        this._log("SCORE_ID bot=" + id + " received=" + receivedId + " mismatch=" + isMismatch +
+                  " total=" + score.total_responses + " unexpected=" + score.unexpected_id_count +
+                  " score=" + score.value.toFixed(3));
+    }
+
+    //
+    // get_bot_scores(botId)
+    // Returns resilience scores for one bot.
+    // Creates an empty entry if the bot has no scores yet.
+    //
+    get_bot_scores(botId) {
+        if (!botId || String(botId).trim() === "") return {};
+        let id = String(botId).trim();
+        if (!this.botScores[id]) {
+            this.botScores[id] = {
+                score_msg_duplication_cnt:  { value: 0 },
+                score_id_transmission: {
+                    value: 1.0,
+                    total_responses: 0,
+                    unexpected_id_count: 0,
+                    last_unexpected_id: null,
+                    last_seen_ts: null
+                },
+                score_bot_reachable:    { value: 1.0 },
+                score_slot_reliability: { value: 1.0 },
+                score_movement:         { value: 1.0 },
+                score_coupling:         { value: 1.0 },
+                score_position:         { value: 1.0 },
+                score_orientation:      { value: 1.0 }
+            };
+        }
+        // Return only score values (keep internals private)
+        let scores = this.botScores[id];
+        return {
+            score_msg_duplication_cnt: scores.score_msg_duplication_cnt.value,
+            score_id_transmission: scores.score_id_transmission.value
+        };
     }
 }
 
