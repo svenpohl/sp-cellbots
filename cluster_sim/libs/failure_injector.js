@@ -111,6 +111,52 @@ class FailureInjector {
     }
 
     //
+    // removeBot(botId)
+    // Completely removes a bot from the cluster simulation.
+    // The bot is spliced from masterbot.bots[] and the WebGUI is refreshed.
+    // Use add_bot_to to recreate the bot later.
+    //
+    removeBot(botId) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        // Find bot by ID in masterbot.bots[]
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id).trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        // Bot aus dem Array entfernen
+        this.masterbot.bots.splice(botIndex, 1);
+
+        // WebGUI-Refresh auslösen
+        if (this.masterbot.send_webgui && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            let jsondata = null;
+            try { jsondata = JSON.parse(raw); } catch(e) {}
+            if (jsondata) {
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.send_webgui(JSON.stringify(msg));
+            }
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            removed: true
+        };
+    }
+
+    //
     // setMoveInterruption(botId, enabled, mode, param)
     // Sets a bot's move interruption behaviour for failure injection.
     // enabled=true → bot will stop during MOVE execution.
@@ -393,6 +439,255 @@ class FailureInjector {
             bot_id: botId,
             slot_reliability: { ...bot.slot_reliability },
             special_slot_configuration: bot.special_slot_configuration
+        };
+    }
+
+    //
+    // configDuplicateMsg(botId, factor)
+    // Configures duplicate message injection for a bot.
+    // factor 1 = normal (no duplicates)
+    // factor 2 = every message is sent twice
+    // factor 3 = every message is sent three times
+    // factor 0 or false = reset to normal (1)
+    //
+    configDuplicateMsg(botId, factor) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        let val = parseInt(factor, 10);
+        if (isNaN(val) || val <= 0) val = 1;
+        bot.duplicate_msg = val;
+
+        return {
+            ok: true,
+            bot_id: botId,
+            duplicate_msg: bot.duplicate_msg
+        };
+    }
+
+    //
+    // configDisableForwarding(botId, disabled)
+    // Disables/enables message forwarding for a bot.
+    // When disabled: bot still responds to direct INFO/CHECK, but drops
+    //   any messages it should forward to other bots (Fehlertyp 08).
+    //
+    configDisableForwarding(botId, disabled) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        bot.forwarding_disabled = (disabled === true || disabled === "true");
+
+        return {
+            ok: true,
+            bot_id: botId,
+            forwarding_disabled: bot.forwarding_disabled
+        };
+    }
+
+    // configMsgDelay(botId, delayMs)
+    // Sets a forwarding delay (in ms) for all messages passing through this bot.
+    // delayMs=0 disables the delay (default).
+    //
+    configMsgDelay(botId, delayMs) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        bot.msg_delay = Number(delayMs) || 0;
+        console.log("[FAILINJ] msg_delay for " + botId + " = " + bot.msg_delay + "ms");
+        return { ok: true, bot_id: botId, msg_delay: bot.msg_delay };
+    }
+
+    // configMaxMsgQueue(botId, maxSize)
+    // Sets the maximum message queue size for a bot.
+    // When the queue is full, new messages are dropped → overflow.
+    // Use "default" to reset to the default value (500).
+    //
+    configMaxMsgQueue(botId, maxSize) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        if (String(maxSize).toLowerCase() === "default") {
+            bot.max_msgqueue = bot.max_msgqueue_default || 500;
+        } else {
+            let parsed = Number(maxSize);
+            bot.max_msgqueue = (isNaN(parsed) || parsed < 0) ? 500 : Math.max(0, Math.floor(parsed));
+        }
+        console.log("[FAILINJ] max_msgqueue for " + botId + " = " + bot.max_msgqueue);
+        return { ok: true, bot_id: botId, max_msgqueue: bot.max_msgqueue, default: bot.max_msgqueue_default || 500 };
+    }
+
+    // configCorruptMsg(botId, probability, pattern, replacement)
+    // Corrupts messages passing through this bot by replacing text patterns.
+    // probability 0.0-1.0, pattern=search string, replacement=replace string.
+    // Use probability=0 or empty pattern to disable.
+    //
+    configCorruptMsg(botId, probability, pattern, replacement) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+        let prob = Number(probability) || 0;
+        let pat = String(pattern ?? "").trim();
+        let repl = String(replacement ?? "").trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        if (prob <= 0 || pat === "") {
+            bot.corrupt_config = null;
+            console.log("[FAILINJ] corrupt_msg for " + botId + " = disabled");
+            return { ok: true, bot_id: botId, corrupt_msg: "disabled" };
+        }
+        bot.corrupt_config = { probability: Math.min(1, prob), pattern: pat, replacement: repl };
+        console.log("[FAILINJ] corrupt_msg for " + botId + " = p=" + bot.corrupt_config.probability + " '" + pat + "'→'" + repl + "'");
+        return { ok: true, bot_id: botId, corrupt_msg: bot.corrupt_config };
+    }
+
+    //
+    // configFakeId(botId, fakeIdConfig)
+    // Configures fake-ID injection for a bot.
+    // fakeIdConfig format: "SB1:1.0" (fakeId:probability)
+    //   probability 1.0 = bot permanently believes it's SB1
+    //   probability 0.3 = 30% chance per RINFO/RCHECK response
+    //   empty string = disable fake ID
+    //
+    configFakeId(botId, fakeIdConfig) {
+        if (!botId || String(botId).trim() === "") {
+            return { ok: false, error: "MISSING_BOT_ID" };
+        }
+        botId = String(botId).trim();
+
+        let botIndex = null;
+        for (let i = 0; i < this.masterbot.bots.length; i++) {
+            if (this.masterbot.bots[i] && String(this.masterbot.bots[i].id ?? this.masterbot.bots[i].real_id ?? "").trim() === botId) {
+                botIndex = i;
+                break;
+            }
+        }
+        if (botIndex === null) {
+            return { ok: false, error: "BOT_NOT_FOUND", bot_id: botId };
+        }
+
+        let bot = this.masterbot.bots[botIndex];
+        let configStr = String(fakeIdConfig ?? "").trim();
+
+        if (configStr === "") {
+            // Reset: restore original ID and clear config
+            if (bot.real_id) {
+                bot.id = bot.real_id;
+                bot.real_id = null;
+            }
+            bot.fake_id_config = null;
+            return {
+                ok: true,
+                bot_id: botId,
+                fake_id_config: null,
+                message: "Fake-ID disabled, original ID restored"
+            };
+        }
+
+        // Parse "SB1:0.3" format
+        let parts = configStr.split(":");
+        if (parts.length < 2) {
+            return { ok: false, error: "INVALID_FORMAT", expected: "fakeId:probability (e.g. SB1:0.3)" };
+        }
+        let fakeId = parts[0].trim();
+        let prob = parseFloat(parts[1]);
+        if (isNaN(prob) || prob < 0 || prob > 1) {
+            return { ok: false, error: "INVALID_PROBABILITY", value: parts[1] };
+        }
+
+        bot.fake_id_config = { fakeId: fakeId, probability: prob };
+
+        if (prob >= 1.0) {
+            // Permanently replace the bot's ID
+            if (!bot.real_id) {
+                bot.real_id = bot.id;
+            }
+            bot.id = fakeId;
+        }
+
+        // WebGUI-Refresh
+        if (this.masterbot.ws && this.masterbot.getclusterdata_json) {
+            let raw = this.masterbot.getclusterdata_json();
+            try {
+                let jsondata = JSON.parse(raw);
+                let msg = { answer: "answer_getclusterdata", jsondata: jsondata };
+                this.masterbot.ws.send(JSON.stringify(msg));
+            } catch(e) {}
+        }
+
+        return {
+            ok: true,
+            bot_id: botId,
+            fake_id_config: { ...bot.fake_id_config },
+            real_id: bot.real_id || null,
+            current_id: bot.id
         };
     }
 }
