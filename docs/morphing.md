@@ -1,4 +1,4 @@
-[⬅️ Back to Overview](../README.md)
+[⬅️ Prev: Resilience & Error Recovery](resilience.md)  —  [Back to Overview](../README.md)
 
 # 🤖 Morphing – Programmable Shape Transformation
 
@@ -163,4 +163,4 @@ In the long term, various morph strategies will exist:
 ---
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [LLM Collaboration](llm_collaboration.md) | **Next chapter:** [Blender](blender.md)
+**Previous chapter:** [Resilience & Error Recovery](resilience.md) | **Next chapter:** [Blender](blender.md)

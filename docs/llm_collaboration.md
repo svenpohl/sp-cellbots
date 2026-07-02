@@ -1,4 +1,4 @@
-[⬅️ Back to Overview](../README.md)
+[⬅️ Back to Overview](../README.md)  —  [Next: Resilience & Error Recovery ➡️](resilience.md)
 
 ---
 
@@ -298,4 +298,4 @@ node api.js move_bot_to B26 3 4 3
 ---
 
 [⬅️ Back to Overview](../README.md)  
-**Previous chapter:** [API](api.md) | **Next chapter:** [Morphing](morphing.md)
+**Previous chapter:** [API](api.md) | **Next chapter:** [Resilience & Error Recovery](resilience.md)
