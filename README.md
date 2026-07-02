@@ -54,6 +54,7 @@ structures.
 - [Usage & Examples](docs/usage.md)  
 - [API](docs/api.md)  
 - [LLM Collaboration](docs/llm_collaboration.md)  
+- [Resilience & Error Recovery](docs/resilience.md)  
 - [Morphing](docs/morphing.md)  
 - [Blender Replay and Animation](docs/blender.md)  
 - [Tools (Scripts)](docs/tools.md)  
@@ -66,11 +67,17 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.2**  
+Current version: **1.9.3**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.3** (02.07.2026)  
+**Extended Resilience Controller & Failure Injection**  
+  - 18 fault types identified, injectable and diagnosable – see [Resilience & Error Recovery](docs/resilience.md) for details  
+  - `config_corrupt_msg`, `config_msg_delay`, `config_max_msgqueue`: New ClusterSim failure-injection commands  
+  - `config_duplicate_msg`, `config_disable_forwarding`, `config_fakeid`: Extended failure injection
 
 - **1.9.2** (27.06.2026)  
 **ClusterSim Obstacles & Slot Reliability**  
