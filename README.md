@@ -158,6 +158,9 @@ If you use SP-CellBots in your work, please cite one (or more) of the following:
 
 - **Software (GitHub / CITATION.cff):**  
   Use the repository citation metadata (GitHub “Cite this repository” / `CITATION.cff`).
+  
+  
+ 
 
 - **Core concept and opcode protocol:**  
   Pohl, S. (2026). *A Modular and Secure Opcode Protocol for Programmable Matter*. Zenodo.  
@@ -170,6 +173,10 @@ If you use SP-CellBots in your work, please cite one (or more) of the following:
 - **LLM Experiments with Programmable Matter:**  
   Pohl, S. (2026). *LLM Experiments with Programmable Matter: Preliminary Studies with SP-CellBots*. Zenodo.  
   [https://doi.org/10.5281/zenodo.20474601](https://doi.org/10.5281/zenodo.20474601)
+  
+- **Resilient BotController Strategies for Modular Cubic Robot Clusters:**  
+  Pohl, S. (2026). *Resilient BotController Strategies for Modular Cubic Robot Clusters*. Zenodo.  
+  [https://doi.org/10.5281/zenodo.21204357](https://doi.org/10.5281/zenodo.21204357)  
   
 ---
 
