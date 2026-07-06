@@ -423,6 +423,16 @@ Available commands:
     - answer: api_can_reach_position
     - reachable: boolean
     - reason: string
+- draw_path_for_bot
+  CLI-only command. Calls find_path_for_bot, then draws the resulting path
+  as coloured markers in the WebGUI (green=start, yellow=intermediate, red=target).
+  params:
+    - bot_id: string
+    - x: number
+    - y: number
+    - z: number
+  examples:
+    - node api.js draw_path_for_bot SB1 2 1 2
 - find_path_for_bot
   Calculates a first surface path candidate for a bot to reach a target coordinate.
   params:

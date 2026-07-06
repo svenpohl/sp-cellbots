@@ -52,6 +52,12 @@ node api.js diagnose_move_carrier_to <id> <x> <y> <z> [vx] [vy] [vz]
 node api.js find_path_for_bot <id> <x> <y> <z> [vx] [vy] [vz]
 -> Calculate path, actions and intermediate steps (more detailed than diagnose)
 
+node api.js draw_path_for_bot <id> <x> <y> <z>
+-> Calculate path AND draw it as coloured markers in the WebGUI.
+   Start = green, intermediate steps = yellow, target = red.
+   Calls find_path_for_bot internally, then sets gui_set_marker for each step.
+   Shorthand for: find_path_for_bot + gui_set_marker chain.
+
 ---
 
 3. Execution
