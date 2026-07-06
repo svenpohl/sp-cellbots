@@ -11,17 +11,19 @@ authors:
 repository-code: "https://github.com/svenpohl/sp-cellbots"
 url: "https://github.com/svenpohl/sp-cellbots"
 license: "MIT"
-version: "1.7.6"
-date-released: "2026-05-23"
+version: "1.9.4"
+date-released: "2026-07-06"
 
 keywords:
   - modular robotics
   - voxel morphing
   - self-reconfiguration
   - swarm robotics
+  - resilience
   - api
 
 abstract: >
   SPCellBots is a framework for simulation and API-based control of modular
-  cell-bot clusters, including movement, transport, morphing workflows, and
-  LLM-assisted debugging and planning.
+  cell-bot clusters, including movement, transport, morphing workflows,
+  resilience BotController diagnostics, and LLM-assisted debugging and
+  planning.

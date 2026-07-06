@@ -63,15 +63,29 @@ structures.
 
 ---
 
+## 🚧 Planned Features
+
+- **Decentralized AntMorph algorithm (planned):** Swarm-intelligence-based morphing where bots autonomously negotiate target positions without a central wave planner – inspired by ant colony behaviour and decentralised decision-making.
+- **Extended resilience features (planned):** Additional API diagnostics and manipulation commands for deeper fault injection, automated recovery sequences, and multi-hMB redundancy handling.
+
+---
+
 
 
 ## 🧩 Version
 
-Current version: **1.9.3**  
+Current version: **1.9.4**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.4** (06.07.2026)  
+**ADC-Morph: Multi-MasterBot Support for Vehicle Kinematics & Full-Edge**  
+  - Morph address computation and command dispatch moved from single primary MB to distributed ADC (AccessDomainController)  
+  - RALIFE return routing to nearest MB/hMB (Manhattan distance)  
+  - `draw_path_for_bot <id> <x> <y> <z>`: Calculate path and display as coloured markers in WebGUI  
+  - Documentation update: `docs/resilience.md`, `docs/api.md` expanded, README revised
 
 - **1.9.3** (02.07.2026)  
 **Extended Resilience Controller & Failure Injection**  
