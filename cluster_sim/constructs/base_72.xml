@@ -27,21 +27,21 @@
   <mobility>true</mobility> 
 </cell>
 
-<!--
+ <!--
 <cell>
   <id>SB2</id>
   <col>eeeeff</col>
   <pos>
-    <x>4</x>
+    <x>2</x>
     <y>1</y>
-    <z>1</z>
+    <z>2</z>
     <vx>0</vx>
     <vy>0</vy>
     <vz>1</vz>
   </pos>
   <mobility>true</mobility> 
 </cell>
--->
+ -->
 
 <!--
 <cell>
