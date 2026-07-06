@@ -4087,15 +4087,28 @@ for (let i=0; i<size; i++)
        
 
        
-        // Address update (all bots!) – start from primary MB instead of legacy this.mb
-        let addr_from_x = this.mb.x;
-        let addr_from_y = this.mb.y;
-        let addr_from_z = this.mb.z;
+        // Address update – use per-bot hMB origin instead of always primary MB
+        // Build connector → hMB position map for ADC-aware addressing
+        let connectorOrigins = {};
+        if (this.accessDomainController && this.accessDomainController.helper_masterbots) {
+            for (let mid in this.accessDomainController.helper_masterbots) {
+                let mb = this.accessDomainController.helper_masterbots[mid];
+                if (mb.connector_id) {
+                    connectorOrigins[mb.connector_id] = {
+                        x: Number(mb.pos.x),
+                        y: Number(mb.pos.y),
+                        z: Number(mb.pos.z)
+                    };
+                }
+            }
+        }
+        // Fallback: primary MB position
+        let defaultAddrFrom = { x: Number(this.mb.x), y: Number(this.mb.y), z: Number(this.mb.z) };
         let prime_i = this.get_bot_by_id("MB", this.bots);
         if (prime_i != null && prime_i !== undefined) {
-            addr_from_x = Number(this.bots[prime_i].x);
-            addr_from_y = Number(this.bots[prime_i].y);
-            addr_from_z = Number(this.bots[prime_i].z);
+            defaultAddrFrom.x = Number(this.bots[prime_i].x);
+            defaultAddrFrom.y = Number(this.bots[prime_i].y);
+            defaultAddrFrom.z = Number(this.bots[prime_i].z);
         }
         for (let b = 0; b < bots_tmp.length; b++)
             {
@@ -4105,8 +4118,23 @@ for (let i=0; i<size; i++)
              !(b2.x === this.mb.x && b2.y === this.mb.y && b2.z === this.mb.z) &&
              !(b2.x === bots_tmp[b].x && b2.y === bots_tmp[b].y && b2.z === bots_tmp[b].z)
             );
+            
+            // Determine address origin based on bot's ADC connector
+            let addrFrom = { ...defaultAddrFrom };
+            let botId = bots_tmp[b].id;
+            if (botId && this.accessDomainController && typeof this.accessDomainController.adc_getConnectorForBot === "function") {
+                try {
+                    let connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
+                    if (connInfo && connInfo.connector_id && connectorOrigins[connInfo.connector_id]) {
+                        addrFrom = connectorOrigins[connInfo.connector_id];
+                    }
+                } catch (e) {
+                    // silent – fall back to default
+                }
+            }
+            
             bots_tmp[b].adress = this.get_mb_returnaddr(
-             {x: addr_from_x, y: addr_from_y, z: addr_from_z},
+             addrFrom,
              {x: bots_tmp[b].x, y: bots_tmp[b].y, z: bots_tmp[b].z},
              bots_tmp, cleanedBlockedBots, { exclude_masterbots: false }
             );
@@ -4241,21 +4269,28 @@ for (let i=0; i<size; i++)
         let blockedStr = blockedBots.slice(0, 5).map(b => "(" + b.x + "," + b.y + "," + b.z + ")").join(",");
         Logger.log("[MORPH] retaddr bot=" + thebotid + " from=(" + bot_to.x + "," + bot_to.y + "," + bot_to.z + ") to=(" + this.mb.x + "," + this.mb.y + "," + this.mb.z + ") blocked[" + blockedBots.length + "]=" + blockedStr + (blockedBots.length > 5 ? "..." : "") + " bots_tmp=" + bots_tmp.length);
 
-        // OLD: retaddr always to legacy MasterBot @ this.mb
-        // retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, {x:this.mb.x, y:this.mb.y, z:this.mb.z }, bots_tmp, blockedBots, { exclude_masterbots: true } );
-
-        // ADC: retaddr always goes to the primary MB (0,0,1), not to the individually assigned hMB.
-        // The primary MB is central and always reachable – ADC will route from there.
-        let mb_target_x = this.mb.x;
-        let mb_target_y = this.mb.y;
-        let mb_target_z = this.mb.z;
-        let prime_idx = this.get_bot_by_id("MB", this.bots);
-        if (prime_idx != null && prime_idx !== undefined) {
-            mb_target_x = Number(this.bots[prime_idx].x);
-            mb_target_y = Number(this.bots[prime_idx].y);
-            mb_target_z = Number(this.bots[prime_idx].z);
+        // ADC Phase 3: retaddr to the nearest MB/hMB (Manhattan distance from bot_to).
+        // This distributes RALIFE return traffic across all MBs instead of overloading primary.
+        let mbTargetPos = { x: Number(this.mb.x), y: Number(this.mb.y), z: Number(this.mb.z) };
+        let mbTargetId = "MB";
+        let minMbDist = Infinity;
+        if (this.accessDomainController && this.accessDomainController.helper_masterbots) {
+            for (let mid in this.accessDomainController.helper_masterbots) {
+                let mb = this.accessDomainController.helper_masterbots[mid];
+                if (!mb.active) continue;
+                let dx = Number(bot_to.x) - Number(mb.pos.x);
+                let dy = Number(bot_to.y) - Number(mb.pos.y);
+                let dz = Number(bot_to.z) - Number(mb.pos.z);
+                let dist = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+                if (dist < minMbDist) {
+                    minMbDist = dist;
+                    mbTargetPos = { x: Number(mb.pos.x), y: Number(mb.pos.y), z: Number(mb.pos.z) };
+                    mbTargetId = mid;
+                }
+            }
         }
-        retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, {x:mb_target_x, y:mb_target_y, z:mb_target_z }, bots_tmp, blockedBots, { exclude_masterbots: false } );
+        Logger.log("[MORPH] retaddr target=" + mbTargetId + " @ (" + mbTargetPos.x + "," + mbTargetPos.y + "," + mbTargetPos.z + ") for bot=" + thebotid + " bot_to=(" + bot_to.x + "," + bot_to.y + "," + bot_to.z + ") dist=" + minMbDist);
+        retaddr = this.get_mb_returnaddr({x:bot_to.x, y:bot_to.y, z:bot_to.z }, mbTargetPos, bots_tmp, blockedBots, { exclude_masterbots: false } );
 
         // Fallback: if BFS finds no path, use "S" (self/same slot) as return address
         if (retaddr == "")
@@ -9438,13 +9473,37 @@ const slotnames = ['f','r','b','l','t','d'];
             
            nextcmd = this.sign( nextcmd );            
               
-           // Send via ADC primary MB connector instead of legacy client
-           if (this.accessDomainController && typeof this.accessDomainController.adc_getPrimaryConnectorId === "function") {
-               let primConnId = this.accessDomainController.adc_getPrimaryConnectorId();
-               if (primConnId) {
-                   this.accessDomainController.adc_sendPush(primConnId, nextcmd);
+           // Send via ADC – use bot-specific connector instead of always primary
+           // Parse signal from command format: ADRESSE#MOVE#movecmds;ALIFE;signal#retaddr
+           let targetConnectorId = null;
+           try {
+               const moveParts = nextcmd.split("#MOVE#");
+               if (moveParts.length > 1) {
+                   const afterMove = moveParts[1];
+                   const alifeParts = afterMove.split(";ALIFE;");
+                   if (alifeParts.length > 1) {
+                       const signalPart = alifeParts[1].split("#")[0]?.trim();
+                       if (signalPart && this.signal_botids && this.signal_botids[signalPart]) {
+                           const botId = this.signal_botids[signalPart].thebotid;
+                           if (botId && this.accessDomainController) {
+                               const connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
+                               if (connInfo && connInfo.connector_id) {
+                                   targetConnectorId = connInfo.connector_id;
+                               }
+                           }
+                       }
+                   }
+               }
+           } catch (e) {
+               // silent – fall back to primary connector
+           }
+
+           if (this.accessDomainController && typeof this.accessDomainController.adc_sendPush === "function") {
+               const useConnector = targetConnectorId || this.accessDomainController.adc_getPrimaryConnectorId();
+               if (useConnector) {
+                   this.accessDomainController.adc_sendPush(useConnector, nextcmd);
                } else {
-                   console.warn("thread_botcontroller: No primary connector found, falling back to legacy client");
+                   console.warn("thread_botcontroller: No connector found, falling back to legacy client");
                    cmd = "{ \"cmd\":\"push\", \"param\":\""+nextcmd+"\" }\n";
                    this.client.write(cmd);
                }

@@ -456,6 +456,16 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "draw_path_for_bot") {
+    return {
+      cmd: "draw_path_for_bot",
+      bot_id: process.argv[3] ?? "",
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0)
+    };
+  } // if
+
   if (cmd == "find_path_for_bot_payload") {
     return {
       cmd: "find_path_for_bot_payload",
@@ -983,6 +993,103 @@ function executeBatch(moves) {
 } // executeBatch()
 
 
+// Draws the path for a bot as green markers in the WebGUI.
+// 1. Calls find_path_for_bot to get path steps
+// 2. Sets a green marker (size 0.5) for each step
+// 3. Refreshes the GUI
+function drawPathForBot(apiPort, botId, tx, ty, tz) {
+  const net = require("net");
+
+  // Step 1: Get path from find_path_for_bot
+  const client = new net.Socket();
+  let responseData = "";
+
+  client.connect(apiPort, "127.0.0.1", () => {
+    const req = {
+      cmd: "find_path_for_bot",
+      bot_id: botId,
+      x: Number(tx), y: Number(ty), z: Number(tz),
+      show: false
+    };
+    client.write(JSON.stringify(req) + "\n");
+  });
+
+  client.on("data", (data) => {
+    responseData += data.toString();
+  });
+
+  client.on("close", () => {
+    let steps = [];
+    try {
+      const resp = JSON.parse(responseData);
+      if (resp.path_found === true && Array.isArray(resp.steps)) {
+        steps = resp.steps;
+      } else if (resp.path_found === true && Array.isArray(resp.vehicle_path_dry_run?.states)) {
+        steps = resp.vehicle_path_dry_run.states.map(s => ({
+          x: s.x, y: s.y, z: s.z
+        }));
+      }
+    } catch (e) {
+      console.error("draw_path_for_bot: failed to parse path response:", e.message);
+      return;
+    }
+
+    if (steps.length === 0) {
+      console.log("draw_path_for_bot: no path found or no steps returned");
+      return;
+    }
+
+    // Step 2: Set markers for each step
+    let markerIndex = 0;
+    function setNextMarker() {
+      if (markerIndex >= steps.length) {
+        // Step 3: Refresh GUI
+        const refreshClient = new net.Socket();
+        refreshClient.connect(apiPort, "127.0.0.1", () => {
+          refreshClient.write(JSON.stringify({ cmd: "gui_refresh" }) + "\n");
+        });
+        refreshClient.on("data", () => { refreshClient.destroy(); });
+        refreshClient.on("close", () => {
+          console.log(`draw_path_for_bot: ${steps.length} markers set + GUI refreshed`);
+        });
+        refreshClient.on("error", (err) => {
+          console.error("draw_path_for_bot: refresh error:", err.message);
+        });
+        return;
+      }
+
+      const step = steps[markerIndex];
+      const color = markerIndex === 0 ? "green" : (markerIndex === steps.length - 1 ? "red" : "yellow");
+      const markerClient = new net.Socket();
+      markerClient.connect(apiPort, "127.0.0.1", () => {
+        markerClient.write(JSON.stringify({
+          cmd: "gui_set_marker",
+          x: Number(step.x), y: Number(step.y), z: Number(step.z),
+          size: 0.5,
+          color: color
+        }) + "\n");
+      });
+      markerClient.on("data", () => { markerClient.destroy(); });
+      markerClient.on("close", () => {
+        markerIndex++;
+        setNextMarker();
+      });
+      markerClient.on("error", (err) => {
+        console.error("draw_path_for_bot: marker error:", err.message);
+        markerIndex++;
+        setNextMarker();
+      });
+    }
+
+    setNextMarker();
+  });
+
+  client.on("error", (err) => {
+    console.error("draw_path_for_bot: connection error:", err.message);
+  });
+} // drawPathForBot()
+
+
 function main() {
   const configPath = path.join(__dirname, "config.cfg");
   const config = loadconfig(configPath);
@@ -1017,6 +1124,12 @@ function main() {
     // No connection needed – executeBatch() creates its own connections
     client.destroy();
     executeBatch(batchData);
+    return;
+  } // if
+
+  if (requestObject.cmd === "draw_path_for_bot") {
+    client.destroy();
+    drawPathForBot(apiPort, requestObject.bot_id, requestObject.x, requestObject.y, requestObject.z);
     return;
   } // if
 
