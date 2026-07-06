@@ -199,6 +199,8 @@ node api.js describe
 ### Safety and Addressing
 
 - `safe_mode`
+- `set_active`
+- `set_mobility`
 - `recalibrate_bot_address`
 - `recalibrate_bot_addresses`
 - `build_address`
@@ -206,6 +208,10 @@ node api.js describe
 - `switch_bot_address`
 - `generate_detour_address`
 - `diagnose_ack_route`
+- `diagnose_bot_address`
+- `check_mbs`
+- `get_resilience_status`
+- `register_duplicate_ids`
 
 ### Runtime Roles (Forbidden / ServiceBay)
 
@@ -236,6 +242,10 @@ node api.js describe
 - `would_split_cluster`
 - `diagnose_move_bot_to`
 - `diagnose_move_carrier_to`
+- `verify_bot_position`
+- `trace_move_path`
+- `integrate_bot`
+- `check_if_inactive`
 
 ### Motion and Transport
 
@@ -253,6 +263,7 @@ node api.js describe
 - `morph_get_algos`
 - `morph_start`
 - `morph_check_progress`
+- `draw_path_for_bot`
 
 ### Crater Build / Fill
 
@@ -341,6 +352,31 @@ Important characteristics of the current V1-style interface:
 
 Some semantics are intentionally conservative and may still be refined in future versions.
 For command details, the built-in `describe` output should be treated as the primary live reference.
+
+---
+
+## 🧪 ClusterSim Failure-Injection API
+
+The ClusterSim provides a separate API on **port 3101** for injecting faults at runtime.
+These commands are used together with the BotController resilience tools to test and verify
+error recovery. All commands are called via `node api.js <command>` from the `cluster_sim/` directory.
+
+- `disable_bot <id>` / `enable_bot <id>`
+- `set_mobility <id> <true/false>`
+- `set_move_interruption <id> <true/false> [mode] [param]`
+- `teleport_bot_to <id> <x> <y> <z> [vx] [vy] [vz]`
+- `add_bot_to <id> <x> <y> <z> [vx] [vy] [vz]`
+- `remove_bot <id>`
+- `config_slot <id> "<slot>:<prob>;..."`
+- `config_fakeid <id> "<fakeId>:<prob>"`
+- `config_duplicate_msg <id> <factor>`
+- `config_disable_forwarding <id> [true/false]`
+- `config_msg_delay <id> <ms>`
+- `config_max_msgqueue <id> <size|default>`
+- `config_corrupt_msg <id> <prob> <pattern> <replacement>`
+- `set_obstacle <true/false> <x> <y> <z>`
+
+For full details, see [Resilience & Error Recovery](resilience.md).
 
 ---
 
