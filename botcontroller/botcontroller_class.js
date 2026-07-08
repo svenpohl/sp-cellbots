@@ -253,7 +253,7 @@ constructor()
    
    this.setup_console_interface();   
    this._shutdownRequested = false;
-   
+   this._wasDisconnected = false;
 
    let configPath = path.join(__dirname, 'config.cfg');
    this.config = this.loadconfig(configPath);
@@ -2314,11 +2314,20 @@ connect_to_external_masterbot() {
 //  - tries connection → reconnect on error
 //
 start_masterbot_autoconnect() {
+    if (this._reconnectTimer) {
+        clearTimeout(this._reconnectTimer);
+        this._reconnectTimer = null;
+    }
 
     const tryConnect = () => {
+        if (this.MASTERBOT_CONNECTED) return; // already connected, skip
 
         console.log(`[BotController] Trying to connect to ClusterSim at ${this.HOST}:${this.PORT} ...`);
 
+        // Destroy old socket before creating new one to prevent cascading error handlers
+        if (this.client) {
+            try { this.client.destroy(); } catch (e) { /* ignore */ }
+        }
         this.client = new net.Socket();
         this.client.setNoDelay(true);
 
@@ -2326,6 +2335,10 @@ start_masterbot_autoconnect() {
             console.log("[BotController] Connected with MasterBot");
 
             this.MASTERBOT_CONNECTED = 1;
+            if (this._reconnectTimer) {
+                clearTimeout(this._reconnectTimer);
+                this._reconnectTimer = null;
+            }
 
             // Status anfordern
             this.client.write('{ "cmd":"status" }\n');
@@ -2333,15 +2346,33 @@ start_masterbot_autoconnect() {
             // !!! IMPORTANT:
             // after successful connect, re-enable listeners
             this.setup_masterbot_data_listener();
+
+            // Reconnect ADC connector sockets if this was a reconnect (not first connect).
+            // Flag is set when a previous connection attempt failed.
+            if (this._wasDisconnected && this.accessDomainController) {
+                console.log("[BotController] Reconnecting ADC connector sockets...");
+                this.accessDomainController.adc_disconnectConnectors();
+                this.accessDomainController.adc_connectConnectors();
+                this._wasDisconnected = false;
+            }
+
+            // Start ADC structurescan after short delay (let connector sockets connect)
+            setTimeout(() => {
+                console.log("[BotController] Starting ADC structurescan after reconnect...");
+                this.adc_start_scan(1);
+            }, 500);
         });
 
         this.client.on('error', (err) => {
             console.log("[BotController] Connection failed:", err.code);
 
             this.MASTERBOT_CONNECTED = 0;
+            this._wasDisconnected = true;
 
-            // Retry after 2s
-            setTimeout(tryConnect, 2000);
+            // Retry after 2s (only if not already connected and not shutting down)
+            if (!this.MASTERBOT_CONNECTED && !this._shutdownRequested) {
+                this._reconnectTimer = setTimeout(tryConnect, 2000);
+            }
         });
 
         // NEW: clean close-listener
@@ -2350,10 +2381,11 @@ start_masterbot_autoconnect() {
             console.log("[BotController] Connection closed.");
 
             this.MASTERBOT_CONNECTED = 0;
+            this._wasDisconnected = true;
 
             if (!this._shutdownRequested) {
                 console.log("[BotController] Lost connection → attempting reconnect...");
-                setTimeout(tryConnect, 2000);
+                this._reconnectTimer = setTimeout(tryConnect, 2000);
             }
         });
     };
@@ -2932,6 +2964,7 @@ this.threadcounter      = 0;
 //
 adc_start_scan( reset = 1)
 {
+// console.log("[SCAN-MARKER] adc_start_scan called, reset=" + reset + " MASTERBOT_CONNECTED=" + this.MASTERBOT_CONNECTED + " adc_scan_status=" + this.adc_scan_status);
 this.adc_scan_status = 0;
 
 if (reset == 1)
@@ -3028,7 +3061,8 @@ for (let m = 0; m < scan_mbs.length; m++)
     // Build INFO command and send via ADC-Connector
     let cmd = cmd_slot + "#INFO#" + tmpid + "#" + retaddr;
     cmd = this.sign(cmd);
-    this.accessDomainController.adc_sendPush(connector_id, cmd);
+    let sendOk = this.accessDomainController.adc_sendPush(connector_id, cmd);
+    // console.log("[SCAN-MARKER] adc_start_scan: sent INFO via " + connector_id + " (" + mb_id + ") tmpid=" + tmpid + " target=(" + target_coor.x + "," + target_coor.y + "," + target_coor.z + ") sendOk=" + sendOk);
 
     // console.log("[ADC-SCAN] Sent INFO via " + connector_id + " (" + mb_id + " F-Slot → "
     //    + target_coor.x + "," + target_coor.y + "," + target_coor.z + ") tmpid=" + tmpid);
@@ -8820,45 +8854,12 @@ const slotnames = ['f','r','b','l','t','d'];
 
  
 
-// First Masterbot scan
+// First Masterbot scan – replaced by ADC scan
 if (this.masterbot_first_scan == 1)
    {
-  
-   
-   let cmd_slot =  this.mb['connection'].toUpperCase();
- 
-   let retaddr = "S";
-   
-   let cmd = cmd_slot + "#INFO#" + this.tmpid_cnt + "#" + retaddr;
- 
-   // Must remember tmpid and address (!) for later assignment in case of an RINFO answer.    
-   let targetcoor = this.get_next_target_coor( this.mb['x'],this.mb['y'], this.mb['z'],  this.mb['vx'], this.mb['vy'], this.mb['vz'],  cmd_slot );
-   
-   
-   let stl_id = "MB"; // stl = second to last (not Standard Template Library, sorry C++)
-
-   
-   this.scan_waiting_info[this.tmpid_cnt] = {                         
-                           tmpid: this.tmpid_cnt,
-                           addr: cmd_slot,
-                           status: 0,
-                           x: targetcoor.x,
-                           y: targetcoor.y,
-                           z: targetcoor.z,
-                           stl_id: stl_id,
-                           };
-  
-  
-   cmd = this.sign( cmd );  
-   
-   let mb_cmd = "{ \"cmd\":\"push\", \"param\":\""+cmd+"\" }\n";                                         
-   this.client.write(mb_cmd);
-                   
-    
-   // increment scan_waiting_info cellbot-ID
-   this.tmpid_cnt++;
-   
-   this.masterbot_first_scan = 0;   
+   this.masterbot_first_scan = 0;
+   console.log("[BotController] First connection – starting ADC structurescan...");
+   this.adc_start_scan(1);
    } // if (masterbot_first_scan == 1)
    
 
@@ -9001,6 +9002,7 @@ adc_scan_step()
 {
 const slotnames = ['f','r','b','l','t','d'];
 
+// console.log("[SCAN-MARKER] adc_scan_step() ENTER – adc_scan_status=" + this.adc_scan_status + " bots.length=" + (this.bots ? this.bots.length : 0) + " scanwaitingcounter=" + this.scanwaitingcounter + " MASTERBOT_CONNECTED=" + this.MASTERBOT_CONNECTED);
 if (!this.accessDomainController)
    {
    console.log("[ADC-SCAN] ERROR: accessDomainController not available – aborting.");
@@ -9009,13 +9011,15 @@ if (!this.accessDomainController)
    }
 
 // Alle Bots mit checked == 0 durchgehen
+let uncheckedCount = 0;
+let immobileCount = 0;
 for (let i = 0; i < this.bots.length; i++)
     {
     if (this.bots[i] === undefined || this.bots[i] == null) continue;
     // Skip hMBs/MBs (immobile)
-    if (this.bots[i].mobility === false) continue;
+    if (this.bots[i].mobility === false) { immobileCount++; continue; }
     if (this.bots[i].checked == 0)
-       {
+       { uncheckedCount++; 
        // Determine origin MB (set by RINFO handler via scan_waiting_info)
        let origin_mb_id = String(this.bots[i].scan_origin_mb ?? "").trim();
        if (origin_mb_id == "")
@@ -9116,9 +9120,13 @@ for (let i = 0; i < this.bots.length; i++)
 
 this.scanwaitingcounter++;
 
+if (this.scanwaitingcounter === 1 || this.scanwaitingcounter % 20 === 0) {
+    // console.log("[SCAN-MARKER] adc_scan_step: loop end – bots=" + this.bots.length + " unchecked=" + uncheckedCount + " immobile=" + immobileCount + " scanwaitingcounter=" + this.scanwaitingcounter + " max=" + this.max_scanwaitingcounter);
+}
+
 if (this.scanwaitingcounter > this.max_scanwaitingcounter)
    {
-   // console.log("[ADC-SCAN] Scan timeout – finishing.");
+   // console.log("[SCAN-MARKER] adc_scan_step: TIMEOUT reached – finishing scan. Found " + this.bots.length + " bots");
    this.adc_scan_status = 0;
    this.scanwaitingcounter = 0;
    this.bots_jsonexport("logs/botexport.json");
@@ -9457,6 +9465,7 @@ const slotnames = ['f','r','b','l','t','d'];
 
      if (this.adc_scan_status == 1)
         {
+        // console.log("[SCAN-MARKER] thread: calling adc_scan_step(), adc_scan_status=" + this.adc_scan_status + " bots.length=" + (this.bots ? this.bots.length : 0) + " MASTERBOT_CONNECTED=" + this.MASTERBOT_CONNECTED);
         this.adc_scan_step();
         } /// if (adc_scan_status == 1)
 
@@ -9541,7 +9550,7 @@ const slotnames = ['f','r','b','l','t','d'];
          this.accessDomainController.adc_popAll();
      }
          
-     } // if (0)    
+     } // if (1) – ADC pop always active   
          
      } // if (MASTERBOT_CONNECTED)
 

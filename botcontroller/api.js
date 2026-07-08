@@ -99,6 +99,20 @@ function buildRequestFromCli() {
     return { cmd: "gui_refresh" };
   } // if
 
+  if (cmd == "sleep") {
+    return {
+      cmd: "sleep",
+      ms: Number(process.argv[3] ?? 1000)
+    };
+  } // if
+
+  if (cmd == "batch") {
+    return {
+      cmd: "batch",
+      file: process.argv[3] ?? "test.batch"
+    };
+  } // if
+
   if (cmd == "debug_move") {
     return {
       cmd: "debug_move",
@@ -1103,33 +1117,31 @@ function main() {
   } // if
 
   if (requestObject.cmd === "batch") {
-    // Batch mode: read file and execute sequentially
-    // (separate connections per move in executeBatch())
-    const batchFilePath = path.resolve(__dirname, requestObject.file);
-
-    let batchData;
-    try {
-      const fileContent = fs.readFileSync(batchFilePath, "utf8");
-      batchData = JSON.parse(fileContent);
-    } catch (err) {
-      console.error("Batch file error:", err.message);
-      process.exit(1);
-    } // try
-
-    if (!Array.isArray(batchData) || batchData.length === 0) {
-      console.error("Batch file must contain a non-empty JSON array");
-      process.exit(1);
-    } // if
-
-    // No connection needed – executeBatch() creates its own connections
     client.destroy();
-    executeBatch(batchData);
+    const BatchController = require('./libs/batch_controller');
+    const runner = new BatchController(__dirname);
+    try {
+      runner.load(requestObject.file);
+      runner.run();
+    } catch (e) {
+      console.error("[BATCH] Error:", e.message);
+      process.exit(1);
+    }
     return;
   } // if
 
   if (requestObject.cmd === "draw_path_for_bot") {
     client.destroy();
     drawPathForBot(apiPort, requestObject.bot_id, requestObject.x, requestObject.y, requestObject.z);
+    return;
+  } // if
+
+  if (requestObject.cmd === "sleep") {
+    client.destroy();
+    const ms = requestObject.ms || 1000;
+    setTimeout(() => {
+      console.log(JSON.stringify({ ok: true, result: "slept", ms: ms }));
+    }, ms);
     return;
   } // if
 
