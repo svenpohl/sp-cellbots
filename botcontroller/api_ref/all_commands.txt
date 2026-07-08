@@ -423,6 +423,13 @@ Available commands:
     - answer: api_can_reach_position
     - reachable: boolean
     - reason: string
+- sleep
+  CLI-only command. Blocks for the specified number of milliseconds, then returns.
+  Useful for scripting and batch processing (e.g. waiting for async morph to complete).
+  params:
+    - ms: number (milliseconds to wait)
+  examples:
+    - node api.js sleep 3000
 - draw_path_for_bot
   CLI-only command. Calls find_path_for_bot, then draws the resulting path
   as coloured markers in the WebGUI (green=start, yellow=intermediate, red=target).
@@ -1127,13 +1134,20 @@ Available commands:
 
 CLI-only features (api.js wrapper):
 - batch <file>
-  Reads a JSON file with multiple move_bot_to commands and executes them sequentially.
-  Each move opens its own TCP connection (atomic-request mode).
+  Executes a .batch JSON file sequentially. Each block runs node api.js <cmd>
+  and waits for completion. Supports conditions on previous blocks' responses.
   params:
-    - file: path to JSON file (array of {id, x, y, z, vx?, vy?, vz?})
+    - file: path to .batch file (default: test.batch)
+  block format:
+    {"id": "001", "cmd": "move_bot_to SB1 2 1 0"}
+    {"condition": {"001:result": "succeeded"}, "id": "002", "cmd": "..."}
+  condition format:
+    "blockId:dot.path": "expectedValue"  (e.g. "001:position.x": 2)
+  label jump:
+    file.batch#label  – starts execution at the block with matching "label" or "id"
+    e.g. "node api.js batch base72_smoke.batch#final" jumps to block {"id":"011","label":"final","cmd":"..."}
   returns:
-    - answer: api_batch_complete
-    - total: number of moves
-    - results: array of per-move {index, move, response} all
+    - logs progress to stdout
+    - exits with code 1 on condition failure
 
 --- EOF /botcontroller/api_ref/all_commands.txt ---
