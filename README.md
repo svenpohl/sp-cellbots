@@ -74,11 +74,21 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.4**  
+Current version: **1.9.5**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.5** (08.07.2026)  
+**Batch-Controller: Condition-based sequential test execution**  
+  - `node api.js batch <file.batch>`: Executes a .batch JSON file with sequential blocks  
+  - `node api.js batch <file.batch>#label`: Jump to a specific block by id or label  
+  - **Condition matching**: `"blockId:dot.path": "expected"` – links block results via JSON dot-path navigation  
+  - **Parallel execution**: `"parallel": ["cmd1", "cmd2"]` – runs multiple commands simultaneously  
+  - **Auto-fallback**: batch files in `tests/` subdirectory are found automatically  
+  - `node api.js sleep <ms>`: CLI-only blocking wait command  
+  - Reconnect/auto-scan fix: ADC connector sockets re-initialise when BotController starts before ClusterSim  
 
 - **1.9.4** (06.07.2026)  
 **ADC-Morph: Multi-MasterBot Support for Vehicle Kinematics & Full-Edge**  
