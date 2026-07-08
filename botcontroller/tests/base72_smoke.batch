@@ -1,0 +1,121 @@
+[
+  {
+    "id": "001",
+    "cmd": "get_status"
+  },
+  {
+    "condition": { "001:loaded_bots": 76 },
+    "id": "002",
+    "cmd": "ping_position 5 1 2"
+  },
+  {
+    "condition": { "002:result": "api_ping_position" },
+    "id": "003",
+    "cmd": "move_bot_to SB1 3 1 2 1 0 0"
+  },
+  {
+    "condition": { "003:result": "succeeded" },
+    "id": "004",
+    "cmd": "verify_bot_position SB1 3 1 2"
+  },
+  {
+    "condition": { "004:bot_found": true },
+    "id": "005",
+    "cmd": "rotate_bot SB1 L"
+  },
+  {
+    "condition": { "005:result": "succeeded" },
+    "id": "006",
+    "cmd": "verify_bot_position SB1 3 1 2"
+  },
+  {
+    "condition": { "006:bot_found": true },
+    "id": "007",
+    "cmd": "get_assigned_bots"
+  },
+  {
+    "condition": { "007:count": 73 },
+    "id": "008",
+    "cmd": "get_resilience_status"
+  },
+  {
+    "condition": { "008:status": "active" },
+    "id": "009",
+    "cmd": "move_bot_to B48 5 1 4"
+  },
+  {
+    "condition": { "009:result": "succeeded" },
+    "id": "010",
+    "cmd": "move_bot_to B46 3 1 4"
+  },
+  {
+    "condition": { "010:result": "succeeded" },
+    "id": "011",
+    "cmd": "set_mobility B54 false"
+  },
+  {
+    "condition": { "011:result": "api_set_mobility" },
+    "id": "012",
+    "cmd": "move_bot_to SB1 3 1 3 0 0 -1"
+  },
+  {
+    "condition": { "012:result": "succeeded" },
+    "id": "013",
+    "cmd": "grab_bot SB1 B"
+  },
+  {
+    "condition": { "013:result": "succeeded" },
+    "id": "014",
+    "cmd": "move_bot_to SB1 2 1 2 -1 0 0"
+  },
+  {
+    "condition": { "014:result": "succeeded" },
+    "id": "015",
+    "cmd": "release_bot SB1"
+  },
+  {
+    "condition": { "015:result": "succeeded" },
+    "id": "016",
+    "cmd": "move_bot_to SB1 1 1 2 0 0 -1"
+  },
+  {
+    "condition": { "016:result": "succeeded" },
+    "id": "017",
+    "cmd": "set_mobility B54 true"
+  },
+  {
+    "condition": { "017:result": "api_set_mobility" },
+    "id": "018",
+    "cmd": "move_bot_to B48 3 2 2 0 0 1"
+  },
+  {
+    "condition": { "018:result": "succeeded" },
+    "id": "019",
+    "label": "reset",
+    "cmd": "move_bot_to B48 5 0 5 0 0 -1"
+  },
+  {
+    "condition": { "019:result": "succeeded" },
+    "id": "020",
+    "cmd": "move_bot_to B46 3 0 5 0 0 -1"
+  },
+  {
+    "condition": { "020:result": "succeeded" },
+    "id": "021",
+    "cmd": "move_bot_to SB1 5 1 2 -1 0 0"
+  },
+  {
+    "condition": { "021:result": "succeeded" },
+    "id": "022",
+    "cmd": "get_status"
+  },
+  {
+    "id": "023",
+    "label": "final",
+    "cmd": "move_bot_to SB1 5 1 2 -1 0 0"
+  },
+  {
+    "id": "024",
+    "cmd": "get_status"
+  }
+]

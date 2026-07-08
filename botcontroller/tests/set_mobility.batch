@@ -1,0 +1,62 @@
+[
+  {
+    "id": "001",
+    "parallel": [
+      "set_mobility B1 false",
+      "set_mobility B2 false",
+      "set_mobility B3 false",
+      "set_mobility B4 false",
+      "set_mobility B5 false",
+      "set_mobility B6 false",
+      "set_mobility B7 false",
+      "set_mobility B8 false",
+      "set_mobility B9 false",
+      "set_mobility B10 false"
+    ]
+  },
+  {
+    "id": "002",
+    "parallel": [
+      "set_mobility B11 false",
+      "set_mobility B12 false",
+      "set_mobility B14 false",
+      "set_mobility B15 false",
+      "set_mobility B16 false",
+      "set_mobility B17 false",
+      "set_mobility B18 false",
+      "set_mobility B19 false",
+      "set_mobility B20 false",
+      "set_mobility B21 false"
+    ]
+  },
+  {
+    "id": "003",
+    "parallel": [
+      "set_mobility B22 false",
+      "set_mobility B23 false",
+      "set_mobility B24 false",
+      "set_mobility B25 false",
+      "set_mobility B26 false",
+      "set_mobility B27 false",
+      "set_mobility B28 false",
+      "set_mobility B29 false",
+      "set_mobility B31 false",
+      "set_mobility B32 false"
+    ]
+  },
+  {
+    "id": "004",
+    "parallel": [
+      "set_mobility B33 false",
+      "set_mobility B34 false",
+      "set_mobility B35 false",
+      "set_mobility B36 false",
+      "set_mobility B37 false",
+      "set_mobility B38 false"
+    ]
+  },
+  {
+    "id": "999",
+    "cmd": "get_status"
+  }
+]
