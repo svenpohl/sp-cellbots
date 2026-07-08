@@ -58,6 +58,7 @@ if (cmd === "get_status")
 
 if (cmd === "structurescan")
    {
+   // console.log("[SCAN-MARKER] structurescan command received");
    if (communication_mode == "direct_radio")
       {
       let ret = {
