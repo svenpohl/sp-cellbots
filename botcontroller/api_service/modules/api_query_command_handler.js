@@ -159,6 +159,15 @@ if (cmd === "is_occupied")
    return(true);
    } // if
 
+if (cmd === "get_address_route")
+   {
+   let ret = controller.apicall_get_address_route(decodedobject.start_bot, decodedobject.address);
+   // (route log omitted – use response hops for tracing)
+   controller.append_api_action_log("get_address_route", { start_bot: decodedobject.start_bot, address: decodedobject.address }, { ok: ret.ok, answer: ret.answer, count: ret.count ?? 0 });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "ping_position")
    {
    let ret = controller.apicall_ping_position(decodedobject.x, decodedobject.y, decodedobject.z);
