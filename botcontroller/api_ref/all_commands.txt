@@ -377,6 +377,19 @@ Available commands:
     - answer: api_is_occupied
     - occupied: boolean
     - state: active|inactive|empty
+- get_address_route
+  Traces a routing address (e.g. "FFFFFTTT") from a starting bot through the
+  current cluster. Returns each hop position with bot ID and orientation.
+  The address slots (F/B/L/R/T/D) are interpreted relative to each bot's
+  current orientation, exactly as the mesh network would route them.
+  Useful for diagnosing why a MOVE or RALIFE command stops mid-route.
+  params:
+    - start_bot: string (bot ID, default "MB")
+    - address: string (e.g. "FFFFFTTT")
+  returns:
+    - answer: api_get_address_route
+    - count: number of hops
+    - hops: array of { hop, slot, position: {x,y,z}, orientation, bot_id }
 - get_slot_status
   Returns the status of one relative slot of a bot, respecting the bot orientation.
   params:
