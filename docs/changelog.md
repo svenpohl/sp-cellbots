@@ -6,6 +6,28 @@
 
 ---
 
+- **1.9.6** (11.07.2026)  
+**`get_address_route` API command and reverse-morph fix**  
+  - **`get_address_route`**: New API command that traces a routing address step by step through the current cluster, returning coordinates, bot ID, and orientation for each hop. L/R slot mapping fixed.  
+  - **Reverse-morph fix**: `base_72` with `set_mobility.batch` completes successfully again.  
+
+- **1.9.5** (08.07.2026)  
+**Batch-Controller: Condition-based sequential test execution**  
+  - `node api.js batch <file.batch>`: Executes a .batch JSON file with sequential blocks  
+  - `node api.js batch <file.batch>#label`: Jump to a specific block by id or label  
+  - **Condition matching**: `"blockId:dot.path": "expected"` – links block results via JSON dot-path navigation  
+  - **Parallel execution**: `"parallel": ["cmd1", "cmd2"]` – runs multiple commands simultaneously  
+  - **Auto-fallback**: batch files in `tests/` subdirectory are found automatically  
+  - `node api.js sleep <ms>`: CLI-only blocking wait command  
+  - Reconnect/auto-scan fix: ADC connector sockets re-initialise when BotController starts before ClusterSim  
+
+- **1.9.4** (06.07.2026)  
+**ADC-Morph: Multi-MasterBot Support for Vehicle Kinematics & Full-Edge**  
+  - Morph address computation and command dispatch moved from single primary MB to distributed ADC (AccessDomainController)  
+  - RALIFE return routing to nearest MB/hMB (Manhattan distance)  
+  - `draw_path_for_bot <id> <x> <y> <z>`: Calculate path and display as coloured markers in WebGUI  
+  - Documentation update: `docs/resilience.md`, `docs/api.md` expanded, README revised  
+
 - **1.9.3** (02.07.2026)  
 **Extended Resilience Controller & Failure Injection**  
   - 18 fault types identified, injectable and diagnosable – see [Resilience & Error Recovery](resilience.md) for details  
