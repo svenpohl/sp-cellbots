@@ -421,6 +421,15 @@ function buildRequestFromCli() {
     };
   } // if
 
+  
+  if (cmd == "get_address_route") {
+    return {
+      cmd: "get_address_route",
+      start_bot: process.argv[3] ?? "MB",
+      address: process.argv[4] ?? ""
+    };
+  } // if
+
   if (cmd == "get_slot_status") {
     return {
       cmd: "get_slot_status",
@@ -1336,6 +1345,13 @@ function main() {
           if (responseObject.orientation) {
             result.orientation = { x: responseObject.orientation.x, y: responseObject.orientation.y, z: responseObject.orientation.z };
           }
+                } else if (answer === "api_get_address_route") {
+          result = {
+            ok: true,
+            result: "api_get_address_route",
+            count: responseObject.count ?? 0,
+            hops: responseObject.hops ?? []
+          };
         } else if (answer === "api_version") {
           result = { ok: true, result: "version", version: responseObject.version || "?" };
         } else if (answer === "api_morph_check_progress") {

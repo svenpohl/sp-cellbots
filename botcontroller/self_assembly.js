@@ -25,6 +25,7 @@
  
 const fs = require('fs');
 const readline = require('readline');
+const Logger = require('./logger');
 
 
 class self_assembly 
@@ -76,7 +77,7 @@ addsignal ( caller, signal )
 //
 async run_sequence( filename )
 {
-
+//console.log("[SELF-ASSEMBLY] run_sequence called: " + filename);
 this.assembly_status    = 0;
 this.sequencelist       = [];
 this.sequenceindex      = 0; 
@@ -94,7 +95,7 @@ let parsed = this.parseBlocks(input);
 // console.dir(this.parsed, { depth: null });
 
 this.assembly_status = 1;
- 
+//console.log("[SELF-ASSEMBLY] assembly_status=1, blocks=" + (parsed ? parsed.length : 0));
 this.initBlocks(parsed); 
 
 // Timeout-Handling

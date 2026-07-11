@@ -2356,11 +2356,8 @@ start_masterbot_autoconnect() {
                 this._wasDisconnected = false;
             }
 
-            // Start ADC structurescan after short delay (let connector sockets connect)
-            setTimeout(() => {
-                console.log("[BotController] Starting ADC structurescan after reconnect...");
-                this.adc_start_scan(1);
-            }, 500);
+            // Auto-scan removed: would reset this.bots = [] and interfere with
+            // running morph sequences. Connector socket reconnection above is sufficient.
         });
 
         this.client.on('error', (err) => {
@@ -3795,6 +3792,7 @@ algo.run( this,  function(morphLog, success) {
 //
 morph_finish_handler( morphLog, success ) 
 {
+try {
 console.log("Morphing calculation complete!");
 this.notify_frontend_console("Morphing calculation complete!");
 
@@ -3873,6 +3871,10 @@ this.lastMorphLog = morphLog;
 
 this.self_assembly_obj.run_sequence( "morph" );
   
+ } catch (e) {
+    console.error("[MORPH] ERROR in morph_finish_handler:", e.message);
+    console.error(e.stack);
+ } // try/catch
  } // morph_finish_handler()
 
 
@@ -4058,6 +4060,17 @@ for (let i=0; i<size; i++)
         }
     }
 
+    // Also add the TARGET positions of other bots in the SAME wave to blockedBots.
+    // Without this, the address for bot B may route through a position that is only
+    // occupied AFTER bot A (same wave) finishes its movement. Since commands are sent
+    // sequentially within a block, bot A hasn't arrived yet when bot B's command is
+    // dispatched, causing the route to break at an empty position.
+    for (const mv of morphLog.waves[i].moves) {
+        if (mv.to) {
+            blockedBots.push({ x: Number(mv.to.x), y: Number(mv.to.y), z: Number(mv.to.z) });
+        }
+    }
+
     // Add detected inactive bot positions to blockedBots so BFS avoids routing
     // MOVE opcodes through inactive bots (offline/immobile).
     if (Array.isArray(this.detected_inactive_bots)) {
@@ -4233,6 +4246,8 @@ for (let i=0; i<size; i++)
         let cmd = "";
     
     
+        Logger.log("[DEBUG CREATE_SEQUENCE] wave=" + i + " move=" + i2 + " bot=" + thebotid + " adr=" + bots_tmp[bindex].adress + " pos=(" + bots_tmp[bindex].x + "," + bots_tmp[bindex].y + "," + bots_tmp[bindex].z + ") sig=" + signal);
+
         cmd += bots_tmp[bindex].adress + "#MOVE#";
 
 
@@ -7353,6 +7368,77 @@ return(runtime_is_occupied_excluding_ids(this, x, y, z, excluded_bot_ids));
 
 
 //
+// apicall_get_address_route()
+// Traces a routing address (e.g. "FFFFFTTT") from a starting bot through
+// the current cluster and returns the coordinate chain.
+// Returns each hop position with bot ID and orientation.
+//
+apicall_get_address_route(startBotId, address)
+{
+    if (!this.bots || !address) {
+        return { ok: false, answer: "api_get_address_route", error: "Missing parameters" };
+    }
+    let startIdx = this.get_bot_by_id(startBotId, this.bots);
+    if (startIdx === null || startIdx === undefined) {
+        return { ok: false, answer: "api_get_address_route", error: "Start bot not found: " + startBotId };
+    }
+    let hops = [];
+    let currentPos = { x: Number(this.bots[startIdx].x), y: Number(this.bots[startIdx].y), z: Number(this.bots[startIdx].z) };
+    let currentOri = { x: Number(this.bots[startIdx].vector_x ?? 0), y: Number(this.bots[startIdx].vector_y ?? 0), z: Number(this.bots[startIdx].vector_z ?? 0) };
+    hops.push({
+        hop: 0,
+        position: { x: currentPos.x, y: currentPos.y, z: currentPos.z },
+        orientation: { x: currentOri.x, y: currentOri.y, z: currentOri.z },
+        bot_id: startBotId
+    });
+    for (let s = 0; s < address.length; s++) {
+        const slot = address[s];
+        // Compute delta from slot character and current orientation
+        let dx = 0, dy = 0, dz = 0;
+        // Map slot to relative direction vector based on orientation
+        // Uses same logic as get_cell_slot_byvector but in reverse
+        const vx = currentOri.x, vy = currentOri.y, vz = currentOri.z;
+        if (slot === 'F') { dx = vx; dy = vy; dz = vz; }
+        else if (slot === 'B') { dx = -vx; dy = -vy; dz = -vz; }
+        else if (slot === 'T') { dx = 0; dy = 1; dz = 0; }
+        else if (slot === 'D') { dx = 0; dy = -1; dz = 0; }
+        else if (slot === 'L') { dx = -vz; dy = 0; dz = vx; }
+        else if (slot === 'R') { dx = vz; dy = 0; dz = -vx; }
+        else {
+            return { ok: false, answer: "api_get_address_route", error: "Unknown slot: " + slot, hops: hops };
+        }
+        let newPos = { x: currentPos.x + dx, y: currentPos.y + dy, z: currentPos.z + dz };
+        // Find bot at new position
+        let botIdx = null;
+        for (let bi = 0; bi < this.bots.length; bi++) {
+            if (Number(this.bots[bi].x) === Number(newPos.x) && Number(this.bots[bi].y) === Number(newPos.y) && Number(this.bots[bi].z) === Number(newPos.z)) {
+                botIdx = bi; break;
+            }
+        }
+        let botId = (botIdx !== null && botIdx !== undefined) ? this.bots[botIdx].id : null;
+        let newOri = null;
+        if (botId) {
+            newOri = {
+                x: Number(this.bots[botIdx].vector_x ?? 0),
+                y: Number(this.bots[botIdx].vector_y ?? 0),
+                z: Number(this.bots[botIdx].vector_z ?? 0)
+            };
+        }
+        hops.push({
+            hop: s + 1,
+            slot: slot,
+            position: { x: newPos.x, y: newPos.y, z: newPos.z },
+            orientation: newOri,
+            bot_id: botId
+        });
+        currentPos = newPos;
+        if (newOri) currentOri = newOri;
+    }
+    return { ok: true, answer: "api_get_address_route", count: hops.length, hops: hops };
+} // apicall_get_address_route()
+
+
+//
 // apicall_get_slot_status()
 //
 apicall_get_slot_status(bot_id, slot)
@@ -9471,15 +9557,15 @@ const slotnames = ['f','r','b','l','t','d'];
 
      
      if ( this.self_assembly_obj.assembly_status == 1 )
-        {        
+        {
+        // console.log("[SELF-ASSEMBLY] Thread: assembly_status=1, calling pop_cmd()");
         
         let nextcmd = this.self_assembly_obj.pop_cmd();
 
  
         if (nextcmd != undefined)
            {
-            
-            
+           
            nextcmd = this.sign( nextcmd );            
               
            // Send via ADC – use bot-specific connector instead of always primary
