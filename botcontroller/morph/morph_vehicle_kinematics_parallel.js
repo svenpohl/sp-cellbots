@@ -2602,13 +2602,33 @@ class MorphVehicleKinematics extends MorphBase
 
         // Write human-readable morph plan for debugging
         try {
+            // Known MB/hMB positions for nearest-MB display
+            const mbPositions = [
+                { id: "MB",   x: 0, y: 0, z: 0 },
+                { id: "hMB1", x: 0, y: 0, z: 2 },
+                { id: "hMB2", x: 0, y: 0, z: 5 }
+            ];
+            const findNearestMb = (pos) => {
+                if (!pos) return "?";
+                let best = mbPositions[0];
+                let bestDist = Infinity;
+                for (const mb of mbPositions) {
+                    const d = Math.abs(pos.x - mb.x) + Math.abs(pos.y - mb.y) + Math.abs(pos.z - mb.z);
+                    if (d < bestDist) { bestDist = d; best = mb; }
+                }
+                return best.id + " @" + best.x + "," + best.y + "," + best.z;
+            };
             let planLines = [];
             planLines.push(`=== Wave ${this.wavecnt} (${waveMoves.length} bots) ===`);
             for (const m of waveMoves) {
-                const start = m.botStart ? `(${m.botStart.x},${m.botStart.y},${m.botStart.z})` : '(?,?,?)';
-                const target = m.botTarget ? `(${m.botTarget.x},${m.botTarget.y},${m.botTarget.z})` : '(?,?,?)';
+                const start = m.botStart ? `(${m.botStart.x},${m.botStart.y},${m.botStart.z}) (${m.botStart.vx ?? 0},${m.botStart.vy ?? 0},${m.botStart.vz ?? 0})` : '(?,?,?)';
+                const target = m.botTarget ? `(${m.botTarget.x},${m.botTarget.y},${m.botTarget.z}) (${m.botTarget.vx ?? 0},${m.botTarget.vy ?? 0},${m.botTarget.vz ?? 0})` : '(?,?,?)';
+                const startMb = findNearestMb(m.botStart);
+                const targetMb = findNearestMb(m.botTarget);
                 const pathStr = m.path ? m.path.map(p => `(${p[0]},${p[1]},${p[2]})`).join(' → ') : 'no path';
-                planLines.push(`  ${m.botId}: ${start} → ${target}  Path: ${pathStr}`);
+                planLines.push(`  ${m.botId}: ${start} → ${target}`);
+                planLines.push(`    MB: ${startMb} → ${targetMb}`);
+                planLines.push(`    Path: ${pathStr}`);
             }
             planLines.push('');
             fs.appendFileSync(this.morphPlanLogPath, planLines.join('\n'), 'utf8');
