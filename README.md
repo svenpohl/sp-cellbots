@@ -74,11 +74,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.5**  
+Current version: **1.9.6**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.6** (11.07.2026)  
+**`get_address_route` API command and reverse-morph fix**  
+  - **`get_address_route`**: New API command that traces a routing address step by step through the current cluster, returning coordinates, bot ID, and orientation for each hop. L/R slot mapping fixed.  
+  - **Reverse-morph fix**: `base_72` with `set_mobility.batch` completes successfully again.  
 
 - **1.9.5** (08.07.2026)  
 **Batch-Controller: Condition-based sequential test execution**  
