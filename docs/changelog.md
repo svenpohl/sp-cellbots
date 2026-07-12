@@ -6,6 +6,11 @@
 
 ---
 
+- **1.9.7** (12.07.2026)  
+**First approach to direct re-morphing in Vehicle Kinematics mode (Parallel Vehicle Kinematics Morph 2)**  
+  - **`parallel_vehicle_kinematics_2`** now supports `emptyArea` bounding boxes: surplus bots inside the emptyArea that are not at target positions are automatically detected and moved to cleanup targets outside the area during the same morph pass.  
+  - **Working test structures**: `25_l4` ↔ `25_l5` (4-bot roundtrip).  
+
 - **1.9.6** (11.07.2026)  
 **`get_address_route` API command and reverse-morph fix**  
   - **`get_address_route`**: New API command that traces a routing address step by step through the current cluster, returning coordinates, bot ID, and orientation for each hop. L/R slot mapping fixed.  
