@@ -74,11 +74,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.6**  
+Current version: **1.9.7**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **1.9.7** (12.07.2026)  
+**First approach to direct re-morphing in Vehicle Kinematics mode (Parallel Vehicle Kinematics Morph 2)**  
+  - **`parallel_vehicle_kinematics_2`** now supports `emptyArea` bounding boxes: surplus bots inside the emptyArea that are not at target positions are automatically detected and moved to cleanup targets outside the area during the same morph pass.  
+  - **Working test structures**: `25_l4` ↔ `25_l5` (4-bot roundtrip).  
 
 - **1.9.6** (11.07.2026)  
 **`get_address_route` API command and reverse-morph fix**  
