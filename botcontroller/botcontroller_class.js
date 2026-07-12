@@ -45,6 +45,7 @@ const { parse_config_file } = require('../common/config_parser');
 const MorphBFSWavefront = require('./morph/morph_bfs_wavefront');
 const MorphVehicleKinematics = require('./morph/morph_vehicle_kinematics');
 const MorphVehicleKinematicsParallel = require('./morph/morph_vehicle_kinematics_parallel');
+const MorphVehicleKinematicsParallel2 = require('./morph/morph_vehicle_kinematics_parallel2');
 
 
 const Logger = require('./logger');
@@ -434,10 +435,16 @@ constructor()
         id: "parallel_vehicle_kinematics",
         name : "Parallel Vehicle Kinematics Morph",
         description: "Vehicle-kinematics-based morphing using parallel path planning.",
+        default: false
+        },
+        {
+        id: "parallel_vehicle_kinematics_2",
+        name : "Parallel Vehicle Kinematics Morph 2",
+        description: "Experimental variant with emptyArea support for direct re-morphing.",
         default: true
         }
     ];
-    this.morphAlgorithmSelected = "parallel_vehicle_kinematics";
+    this.morphAlgorithmSelected = "parallel_vehicle_kinematics_2";
 
 
 
@@ -3321,6 +3328,7 @@ createAlgorithm(algoName, startBots, targetBots, params) {
         case "wavefront": return new MorphBFSWavefront(startBots, targetBots, params);
         case "vehicle_kinematics": return new MorphVehicleKinematics(startBots, targetBots, params);
         case "parallel_vehicle_kinematics": return new MorphVehicleKinematicsParallel(startBots, targetBots, params);
+        case "parallel_vehicle_kinematics_2": return new MorphVehicleKinematicsParallel2(startBots, targetBots, params);
         default: throw new Error("Unknown algorithm: " + algoName);
     }
 } // createAlgorithm
@@ -3338,16 +3346,24 @@ const parsed = JSON.parse(data);
 
 if (Array.isArray(parsed))
    {
+   let emptyArea = null;
+   let structureArray = parsed;
+   // Check if the first array element is a meta-element with emptyArea definition
+   if (parsed.length > 0 && parsed[0].emptyArea && !parsed[0].hasOwnProperty('x')) {
+       emptyArea = parsed[0].emptyArea;
+       structureArray = parsed.slice(1); // Remove meta-element, keep only bot positions
+   }
    return {
           name: structure,
           meta: {},
-          structure: parsed,
+          structure: structureArray,
+          emptyArea: emptyArea,
           carrier: [],
           reserve: [],
           x: [],
           forbidden: [],
           inactive: [],
-          raw: parsed
+          raw: structureArray
           };
    }
 
@@ -3567,6 +3583,23 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
    algo = this.createAlgorithm("parallel_vehicle_kinematics", startBots, targetBots, params);
 
    } // "parallel_vehicle_kinematics"
+   
+if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" ) 
+   {
+   console.log("Prepare parallel_vehicle_kinematics_2...");
+
+   params = {
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
+            forbiddenCells: forbiddenCells,
+            emptyArea: targetDefinition.emptyArea || null,
+            max_paths_in_wave: 14,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("parallel_vehicle_kinematics_2", startBots, targetBots, params);
+
+   } // "parallel_vehicle_kinematics_2"
   
  
  
@@ -3849,14 +3882,24 @@ fs.writeFileSync("logs/morphresult.json", JSON.stringify(morphLog, null, 2));
                      }
                  }
              }
+             // If morph has no waves (all targets already occupied, no moves needed),
+             // skip sequence creation/execution and go directly to finished.
+             if (!morphLog || !morphLog.waves || morphLog.waves.length === 0) {
+                 console.log("Morph: no waves to execute – marking finished directly.");
+                 this.apicall_update_morph_status({
+                     running: false,
+                     phase: "finished",
+                     progress: 100,
+                     success: true,
+                     finished_at: new Date().toISOString(),
+                     message: "Finish morph process!"
+                 });
+                 return;
+             }
+
              let retstruct      = this.create_opcode_sequence( morphLog );
              let opcodes        = retstruct.opcodes;
              this.signal_botids = retstruct.signal_botids;
-          
-              
-             // console.log("RETSTRUCT: ");
-             // console.log( retstruct );
-             // console.log(JSON.stringify(retstruct, null, 2));
 
 // Write opcodes to file  
 const filePath = path.join(__dirname, 'sequences', 'morph.sequence');
@@ -9834,6 +9877,7 @@ handleGUIMessage(message) {
             answer = JSON.stringify({
                 answer: "answer_getpreviewtarget",
                 target: targetDefinition.structure,
+                emptyArea: targetDefinition.emptyArea || null,
                 structure_roles: {
                                   carrier: targetDefinition.carrier,
                                   reserve: targetDefinition.reserve,
