@@ -833,9 +833,11 @@ addConsoleLine("Connected" );
                              ? decodedobject.structure_roles.x
                              : (Array.isArray(decodedobject.target?.x) ? decodedobject.target.x : []);
 
+           const emptyArea = decodedobject.emptyArea || null;
            showTargets(scene, targets);
            showForbidden(scene, forbidden);
            showServiceBay(scene, service_x);
+           showEmptyArea(scene, emptyArea);
            targetPreviewVisible = true;
 
            } // answer_getpreviewtarget
@@ -1568,6 +1570,10 @@ function hideTargetPreview() {
   hideTargets();
   showForbidden(scene, []);
   showServiceBay(scene, []);
+  if (emptyAreaGroup) {
+    rotateGroup.remove(emptyAreaGroup);
+    emptyAreaGroup = null;
+  }
   targetPreviewVisible = false;
 } // hideTargetPreview()
 
@@ -1632,6 +1638,40 @@ function showServiceBay(scene, serviceArray) {
   serviceBayGroup.name = 'serviceBayGroup';
   rotateGroup.add(serviceBayGroup);
 } // showServiceBay()
+
+
+//
+// showEmptyArea()
+// Draws a yellow wireframe box for the emptyArea bounding box (if present).
+//
+let emptyAreaGroup = null;
+
+function showEmptyArea(scene, emptyArea) {
+  if (emptyAreaGroup) {
+    rotateGroup.remove(emptyAreaGroup);
+    emptyAreaGroup = null;
+  }
+  if (!emptyArea || emptyArea.x === undefined) return;
+
+  const cx = (emptyArea.x + emptyArea.x2) / 2;
+  const cy = (emptyArea.y + emptyArea.y2) / 2;
+  const cz = (emptyArea.z + emptyArea.z2) / 2;
+  const sx = (emptyArea.x2 - emptyArea.x) + 1;
+  const sy = (emptyArea.y2 - emptyArea.y) + 1;
+  const sz = (emptyArea.z2 - emptyArea.z) + 1;
+
+  const geometry = new THREE.BoxGeometry(sx, sy, sz);
+  const edges = new THREE.EdgesGeometry(geometry);
+  const material = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2 });
+  const wireframe = new THREE.LineSegments(edges, material);
+
+  emptyAreaGroup = new THREE.Group();
+  emptyAreaGroup.name = 'emptyAreaGroup';
+  // z+ = depth → negate for display
+  wireframe.position.set(cx, cy, cz * -1);
+  emptyAreaGroup.add(wireframe);
+  rotateGroup.add(emptyAreaGroup);
+} // showEmptyArea()
 
 
 //
