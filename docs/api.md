@@ -264,6 +264,7 @@ node api.js describe
 - `morph_start`
 - `morph_check_progress`
 - `draw_path_for_bot`
+- `get_address_route`
 
 ### Crater Build / Fill
 
@@ -273,9 +274,11 @@ node api.js describe
 - `crater_fill`
 - `crater_list`
 
-### Low-Level
+### Low-Level / CLI
 
 - `raw_cmd`
+- `batch <file>`
+- `sleep <ms>`
 
 ---
 
