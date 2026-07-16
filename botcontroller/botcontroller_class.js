@@ -34,6 +34,7 @@ const http      = require('http');
 
 const self_assembly   = require('./self_assembly'); 
 const NightWatch      = require('./libs/nightwatch');
+const VoxelEditController = require('./libs/voxeledit_controller');
 const AccessDomainController = require('./libs/accessdomaincontroller');
 const ResilienceController = require('./libs/resilience_controller');
 const signature_class = require('../common/signature/signature_class'); 
@@ -100,7 +101,25 @@ const {
       apicall_servicebay_add: runtime_servicebay_add,
       apicall_servicebay_remove: runtime_servicebay_remove,
       apicall_servicebay_clear: runtime_servicebay_clear,
-      apicall_servicebay_list: runtime_servicebay_list
+      apicall_servicebay_list: runtime_servicebay_list,
+      // VoxelEdit API
+      apicall_ve_new: runtime_ve_new,
+      apicall_ve_create_box: runtime_ve_create_box,
+      apicall_ve_import: runtime_ve_import,
+      apicall_ve_emptyarea: runtime_ve_emptyarea,
+      apicall_ve_get_status: runtime_ve_get_status,
+      apicall_ve_set_voxel: runtime_ve_set_voxel,
+      apicall_ve_clear_voxel: runtime_ve_clear_voxel,
+      apicall_ve_get_voxels: runtime_ve_get_voxels,
+      apicall_ve_save: runtime_ve_save,
+      apicall_ve_load: runtime_ve_load,
+      apicall_ve_gravity: runtime_ve_gravity,
+      apicall_ve_is_connected: runtime_ve_is_connected,
+      apicall_ve_show: runtime_ve_show,
+      apicall_ve_hide: runtime_ve_hide,
+      apicall_ve_clear_set: runtime_ve_clear_set,
+      apicall_ve_translate: runtime_ve_translate,
+      apicall_ve_duplicate: runtime_ve_duplicate
       } = require('./api_service/modules/api_roles_runtime');
 const {
       apicall_get_bots: runtime_get_bots,
@@ -243,6 +262,7 @@ constructor()
    this.self_assembly_obj   = new self_assembly( );
    this.nightwatch          = new NightWatch(this);
    this.nightwatch.start();
+   this.voxeledit           = new VoxelEditController();
    this.accessDomainController = new AccessDomainController(this);
    this.accessDomainController.loadConfig();
    // this.accessDomainController.init(config_hmb); // TODO: in v1.9/v2.0 aktivieren
@@ -3340,6 +3360,28 @@ createAlgorithm(algoName, startBots, targetBots, params) {
 //
 load_structure_definition(structure)
 {
+// Virtual structure :voxeledit – use in-memory voxel data directly
+if (structure === ':voxeledit') {
+    if (!this.voxeledit) {
+        console.error("[MORPH] :voxeledit requested but VoxelEdit not initialized");
+        return { name: ':voxeledit', meta: {}, structure: [], emptyArea: null, carrier: [], reserve: [], x: [], forbidden: [], inactive: [], raw: [] };
+    }
+    const voxels = this.voxeledit.getVoxelsAsArray();
+    console.log("[MORPH] Using :voxeledit – " + voxels.length + " voxels");
+    return {
+        name: ':voxeledit',
+        meta: {},
+        structure: voxels,
+        emptyArea: this.voxeledit.emptyArea || null,
+        carrier: [],
+        reserve: [],
+        x: [],
+        forbidden: [],
+        inactive: [],
+        raw: voxels
+    };
+}
+
 const filepath = path.join(__dirname, 'structures', structure + '.json');
 const data = fs.readFileSync(filepath, 'utf8');
 const parsed = JSON.parse(data);
@@ -7161,6 +7203,115 @@ return(runtime_forbidden_list(this));
 
 
 //
+// VoxelEdit API
+//
+apicall_ve_new()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.reset();
+} // apicall_ve_new()
+
+apicall_ve_create_box(setId, x1, y1, z1, x2, y2, z2)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.createBox(setId, x1, y1, z1, x2, y2, z2);
+} // apicall_ve_create_box()
+
+apicall_ve_clear_set(setId)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.clearSet(setId);
+} // apicall_ve_clear_set()
+
+apicall_ve_translate(setId, dx, dy, dz)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.translate(setId, dx, dy, dz);
+} // apicall_ve_translate()
+
+apicall_ve_duplicate(srcId, dstId)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.duplicate(srcId, dstId);
+} // apicall_ve_duplicate()
+
+apicall_ve_import(x1, y1, z1, x2, y2, z2)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.importFromController(this, x1, y1, z1, x2, y2, z2);
+} // apicall_ve_import()
+
+apicall_ve_emptyarea(x, y, z, x2, y2, z2)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+if (x === undefined || x === null || String(x).toLowerCase() === "clear") {
+    return this.voxeledit.clearEmptyArea();
+}
+return this.voxeledit.setEmptyArea(x, y, z, x2, y2, z2);
+} // apicall_ve_emptyarea()
+
+apicall_ve_get_status()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.getStatus();
+} // apicall_ve_get_status()
+
+apicall_ve_set_voxel(setId, x, y, z, vx, vy, vz)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.setVoxel(setId, x, y, z, vx, vy, vz);
+} // apicall_ve_set_voxel()
+
+apicall_ve_clear_voxel(setId, x, y, z)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.clearVoxel(setId, x, y, z);
+} // apicall_ve_clear_voxel()
+
+apicall_ve_get_voxels(setId)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.getVoxels(setId);
+} // apicall_ve_get_voxels()
+
+apicall_ve_save(name)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.save(name);
+} // apicall_ve_save()
+
+apicall_ve_load(name)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.load(name);
+} // apicall_ve_load()
+
+apicall_ve_gravity()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.gravity();
+} // apicall_ve_gravity()
+
+apicall_ve_is_connected()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.isConnected(this);
+} // apicall_ve_is_connected()
+
+apicall_ve_show()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.show(this);
+} // apicall_ve_show()
+
+apicall_ve_hide()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.hide(this);
+} // apicall_ve_hide()
+
+
+//
 // apicall_servicebay_add()
 //
 apicall_servicebay_add(x, y, z)
@@ -10148,6 +10299,39 @@ async handleAPIMessage_internal(message, socket) {
            {
            return;
            } // if
+
+        // VoxelEdit API routing
+        if (decodedobject.cmd && decodedobject.cmd.startsWith('ve_')) {
+            let obj = null;
+            try {
+                switch (decodedobject.cmd) {
+                    case 've_new':          obj = this.apicall_ve_new(); break;
+                    case 've_create_box':   obj = this.apicall_ve_create_box(decodedobject.setId, decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
+                    case 've_import':       obj = this.apicall_ve_import(decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
+                    case 've_emptyarea':    obj = this.apicall_ve_emptyarea(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
+                    case 've_get_status':   obj = this.apicall_ve_get_status(); break;
+                    case 've_set_voxel':    obj = this.apicall_ve_set_voxel(decodedobject.setId, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz); break;
+                    case 've_clear_voxel':  obj = this.apicall_ve_clear_voxel(decodedobject.setId, decodedobject.x, decodedobject.y, decodedobject.z); break;
+                    case 've_get_voxels':   obj = this.apicall_ve_get_voxels(decodedobject.setId); break;
+                    case 've_save':         obj = this.apicall_ve_save(decodedobject.name); break;
+                    case 've_load':         obj = this.apicall_ve_load(decodedobject.name); break;
+                    case 've_gravity':      obj = this.apicall_ve_gravity(); break;
+                    case 've_is_connected': obj = this.apicall_ve_is_connected(); break;
+                    case 've_clear_set':    obj = this.apicall_ve_clear_set(decodedobject.setId); break;
+                    case 've_translate':    obj = this.apicall_ve_translate(decodedobject.setId, decodedobject.dx, decodedobject.dy, decodedobject.dz); break;
+                    case 've_duplicate':    obj = this.apicall_ve_duplicate(decodedobject.srcId, decodedobject.dstId); break;
+                    case 've_show':         obj = this.apicall_ve_show(); break;
+                    case 've_hide':         obj = this.apicall_ve_hide(); break;
+                    default:
+                        obj = { ok: false, result: "failed", error: "UNKNOWN_VE_COMMAND", cmd: decodedobject.cmd };
+                }
+            } catch (e) {
+                obj = { ok: false, result: "failed", error: e.message };
+            }
+            answer = JSON.stringify(obj) + "\n";
+            socket.write(answer, () => { socket.end(); });
+            return;
+        }
 
         let gui_handled = await handle_gui_roles_api_command(this, decodedobject, socket);
         if (gui_handled === true)
