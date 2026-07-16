@@ -24,6 +24,11 @@ catch (err)
           });
    } // catch
 
+// Add virtual :voxeledit structure if VoxelEdit is available
+if (controller && controller.voxeledit) {
+    structures.push(':voxeledit');
+}
+
 return({
        ok: true,
        answer: "api_morph_get_structures",
@@ -85,7 +90,7 @@ if (!selected_algo)
           });
    } // if
 
-if (!(structures_ret.list ?? []).includes(normalized_structure))
+if (normalized_structure !== ':voxeledit' && !(structures_ret.list ?? []).includes(normalized_structure))
    {
    return({
           ok: false,
@@ -162,7 +167,7 @@ if (!selected_algo)
           });
    } // if
 
-if (!(structures_ret.list ?? []).includes(normalized_structure))
+if (normalized_structure !== ':voxeledit' && !(structures_ret.list ?? []).includes(normalized_structure))
    {
    return({
           ok: false,
