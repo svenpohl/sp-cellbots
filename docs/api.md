@@ -16,24 +16,6 @@ The transport is currently:
 - one request per connection
 - one structured response per request
 
----
-
-## 🎯 Start Here
-
-The most important entry point is the built-in self-description:
-
-```bash
-node api.js describe
-```
-
-This command prints the currently available API commands together with:
-
-- short descriptions
-- expected parameters
-- typical return fields
-
-So the API is not only callable, but also largely **self-describing**.
-
 For quick inspection and experimentation, `describe` should usually be the first step.
 
 ---
@@ -145,6 +127,22 @@ For full parameter/return details use:
 ```bash
 node api.js describe
 ```
+
+### 🎯 Start Here
+
+The most important entry point is the built-in self-description:
+
+```bash
+node api.js describe
+```
+
+This command prints the currently available API commands together with short descriptions, expected parameters, and typical return fields. For the full reference including all commands:
+
+```bash
+node api.js describe all
+```
+
+The API is not only callable, but also largely **self-describing**.
 
 ### CLI Help
 
@@ -382,6 +380,30 @@ error recovery. All commands are called via `node api.js <command>` from the `cl
 For full details, see [Resilience & Error Recovery](resilience.md).
 
 ---
+
+## 🧱 VoxelEdit API (`ve_` prefix)
+
+In-memory voxel structure editor for task-specific morph planning.  
+Managed in `libs/voxeledit_controller.js`, visualised in WebGUI as semi-transparent purple cubes.  
+Direct morph via `:voxeledit` without file save.
+
+- `ve_new`
+- `ve_get_status`
+- `ve_set_voxel setId x y z [vx vy vz]`
+- `ve_clear_voxel setId x y z`
+- `ve_get_voxels [setId]`
+- `ve_create_box setId x1 y1 z1 x2 y2 z2`
+- `ve_emptyarea x y z x2 y2 z2`
+- `ve_import x1 y1 z1 x2 y2 z2`
+- `ve_show`
+- `ve_hide`
+- `ve_load name`
+- `ve_gravity`
+- `ve_is_connected`
+- `ve_clear_set setId`
+- `ve_translate setId dx dy dz`
+- `ve_duplicate srcId dstId`
+- `ve_save name`
 
 ## 📚 Next Steps
 
