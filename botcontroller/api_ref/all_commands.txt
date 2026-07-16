@@ -1145,6 +1145,175 @@ Available commands:
     - count: number
     - messages: list
 
+VoxelEdit API (ve_ prefix) – Set-based voxel structure editor.
+
+All commands accept a set_id as first parameter (default 0 = union of all sets).
+Sets allow independent editing of sub-structures: create, copy, translate, delete.
+
+- ve_new
+  Resets all voxel sets and emptyArea.
+  returns:
+    - answer: ve_new
+    - count: number
+    - sets: object
+
+- ve_get_status
+  Returns voxel count, bounding box and per-set statistics.
+  returns:
+    - answer: ve_get_status
+    - count: number
+    - bounding_box: object|null
+    - sets: object (set_id → voxel count)
+
+- ve_set_voxel setId x y z [vx vy vz]
+  Sets a voxel in the given set at (x, y, z) with optional orientation.
+  Removes existing voxel at same position first.
+  With setId=0, removes from ALL user sets first, then adds to set 0.
+  params:
+    - setId: number (0 = union)
+    - x, y, z: position
+    - vx, vy, vz: orientation (optional)
+  returns:
+    - answer: ve_set_voxel
+    - set: number
+    - position: {x,y,z}
+    - count: number
+
+- ve_clear_voxel setId x y z
+  Removes a voxel at (x, y, z) from the given set.
+  With setId=0, removes from all sets.
+  params:
+    - setId: number
+    - x, y, z: position
+  returns:
+    - answer: ve_clear_voxel
+    - set: number
+    - position: {x,y,z}
+    - removed: boolean
+    - count: number
+
+- ve_get_voxels [setId]
+  Returns all voxels (setId=0, default) or from a specific set.
+  params:
+    - setId: number (optional, default 0)
+  returns:
+    - answer: ve_get_voxels
+    - set: number
+    - count: number
+    - voxels: array
+
+- ve_create_box setId x1 y1 z1 x2 y2 z2
+  Fills a rectangular solid of voxels in the given set.
+  params:
+    - setId: number (must be > 0)
+    - x1, y1, z1: first corner
+    - x2, y2, z2: opposite corner
+  returns:
+    - answer: ve_create_box
+    - set: number
+    - count: number
+    - box: {x1,y1,z1,x2,y2,z2}
+
+- ve_emptyarea x y z x2 y2 z2
+  Sets the emptyArea bounding box. Use "clear" as first parameter to remove.
+  params:
+    - x y z x2 y2 z2: corners, or "clear"
+  returns:
+    - answer: ve_emptyarea
+    - emptyArea: object|null
+
+- ve_import x1 y1 z1 x2 y2 z2
+  Imports bots from the cluster into set 0.
+  params:
+    - x1, y1, z1, x2, y2, z2: region corners
+  returns:
+    - answer: ve_import
+    - count: number
+    - region: object
+
+- ve_show
+  Sends the structure to the WebGUI as semi-transparent purple cubes.
+  returns:
+    - answer: ve_show
+    - count: number
+    - frontend_attached: boolean
+
+- ve_hide
+  Clears the voxel visualization from the WebGUI.
+  returns:
+    - answer: ve_hide
+
+- ve_load name
+  Loads a structure from structures/ into set 0.
+  params:
+    - name: structure name (without .json)
+  returns:
+    - answer: ve_load
+    - name: string
+    - count: number
+    - emptyArea: object|null
+
+- ve_gravity
+  Calculates estimated weight distribution per y-level.
+  weight_per_bot = bots_above / bots_in_level (rounded to 2 decimals).
+  returns:
+    - answer: ve_gravity
+    - total_voxels: number
+    - min_y: number
+    - max_y: number
+    - levels: array of {y, bots, bots_above, weight_per_bot}
+
+- ve_is_connected
+  Checks if all voxels form a single connected component and if any
+  voxel touches the existing cluster (orthogonal neighbour in controller.bots).
+  returns:
+    - answer: ve_is_connected
+    - connected: boolean
+    - cluster_contact: boolean
+    - count: number
+    - details: {components, isolated, contact_points}
+
+- ve_clear_set setId
+  Deletes all voxels in the given set (set 0 cannot be cleared).
+  params:
+    - setId: number (> 0)
+  returns:
+    - answer: ve_clear_set
+    - set: number
+    - count: number
+
+- ve_translate setId dx dy dz
+  Translates (moves) an entire set by (dx, dy, dz). setId=0 moves all sets.
+  params:
+    - setId: number
+    - dx, dy, dz: delta
+  returns:
+    - answer: ve_translate
+    - set: number
+    - delta: {dx,dy,dz}
+    - count: number
+
+- ve_duplicate srcId dstId
+  Copies a source set to a destination set (deep copy).
+  params:
+    - srcId: source set number (> 0)
+    - dstId: destination set number (> 0)
+  returns:
+    - answer: ve_duplicate
+    - src: number
+    - dst: number
+    - count: number
+
+- ve_save name
+  Saves the union (set 0) as a JSON file in structures/.
+  params:
+    - name: string (without .json)
+  returns:
+    - answer: ve_save
+    - name: string
+    - file: string
+    - count: number
+
 CLI-only features (api.js wrapper):
 - batch <file>
   Executes a .batch JSON file sequentially. Each block runs node api.js <cmd>
