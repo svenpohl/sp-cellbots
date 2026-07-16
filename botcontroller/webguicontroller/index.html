@@ -661,6 +661,20 @@ cube.position.set(Number(x), Number(y), -Number(z));
 markerGroup.add(cube);
 } // addMarker()
 
+// VoxelEdit visualization
+let voxelGroup = null;
+function clearVoxels() {
+  if (voxelGroup) { rotateGroup.remove(voxelGroup); voxelGroup = null; }
+}
+function addVoxel(x, y, z, size, color, opacity) {
+  if (!voxelGroup) { voxelGroup = new THREE.Group(); voxelGroup.name = "voxelEditGroup"; rotateGroup.add(voxelGroup); }
+  const geometry = new THREE.BoxGeometry(size, size, size);
+  const material = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity });
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.set(x, y, z * -1);
+  voxelGroup.add(cube);
+}
+
       
                
 
@@ -977,6 +991,23 @@ addConsoleLine("Connected" );
                if (updateEvent.event == 'clearmarkers')
                   {
                   clearMarkers();
+                  } // if
+
+               if (updateEvent.event == 'voxeledit_clear')
+                  {
+                  clearVoxels();
+                  } // if
+
+               if (updateEvent.event == 'voxeledit_voxel')
+                  {
+                  addVoxel(
+                    updateEvent.x,
+                    updateEvent.y,
+                    updateEvent.z,
+                    updateEvent.size,
+                    updateEvent.color,
+                    updateEvent.opacity
+                  );
                   } // if
 
                if (updateEvent.event == 'refreshworld')
