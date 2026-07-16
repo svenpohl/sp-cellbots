@@ -74,12 +74,21 @@ structures.
 
 ## 🧩 Version
 
-Current version: **1.9.7**  
+Current version: **2.0**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
 
+- **2.0** (16.07.2026)  
+**VoxelEdit API – LLM-driven structure generation and analysis**  
+  - **17 `ve_`-commands** for creating, editing, and analysing voxel structures via API: `ve_set_voxel`, `ve_create_box`, `ve_get_voxels`, `ve_show`, `ve_save`, `ve_load`, `ve_gravity`, `ve_is_connected`, and more.  
+  - **Set-based editing**: independent sub-structures (e.g. table legs) can be created, copied (`ve_duplicate`), moved (`ve_translate`), and deleted independently within the same design.  
+  - **`ve_is_connected`** checks whether the structure forms a single connected component and whether any voxel has orthogonal contact to the existing cluster.  
+  - **`ve_gravity`** estimates static weight distribution per y-level.  
+  - **`morph_start :voxeledit`** morphs the current voxel design directly – no file save required.  
+  - **WebGUI visualisation** as semi-transparent purple cubes.  
+ 
 - **1.9.7** (12.07.2026)  
 **First approach to direct re-morphing in Vehicle Kinematics mode (Parallel Vehicle Kinematics Morph 2)**  
   - **`parallel_vehicle_kinematics_2`** now supports `emptyArea` bounding boxes: surplus bots inside the emptyArea that are not at target positions are automatically detected and moved to cleanup targets outside the area during the same morph pass.  
