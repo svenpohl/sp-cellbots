@@ -224,6 +224,125 @@ function buildRequestFromCli() {
     return { cmd: "servicebay_list" };
   } // if
 
+  // VoxelEdit API
+  if (cmd == "ve_new") {
+    return { cmd: "ve_new" };
+  } // if
+  if (cmd == "ve_emptyarea") {
+    const val = process.argv[3];
+    if (val && val.toLowerCase() === "clear") {
+      return { cmd: "ve_emptyarea", x: "clear" };
+    }
+    return {
+      cmd: "ve_emptyarea",
+      x: Number(process.argv[3] ?? 0),
+      y: Number(process.argv[4] ?? 0),
+      z: Number(process.argv[5] ?? 0),
+      x2: Number(process.argv[6] ?? 0),
+      y2: Number(process.argv[7] ?? 0),
+      z2: Number(process.argv[8] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_import") {
+    return {
+      cmd: "ve_import",
+      x1: Number(process.argv[3] ?? 0),
+      y1: Number(process.argv[4] ?? 0),
+      z1: Number(process.argv[5] ?? 0),
+      x2: Number(process.argv[6] ?? 0),
+      y2: Number(process.argv[7] ?? 0),
+      z2: Number(process.argv[8] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_create_box") {
+    return {
+      cmd: "ve_create_box",
+      setId: Number(process.argv[3] ?? 0),
+      x1: Number(process.argv[4] ?? 0),
+      y1: Number(process.argv[5] ?? 0),
+      z1: Number(process.argv[6] ?? 0),
+      x2: Number(process.argv[7] ?? 0),
+      y2: Number(process.argv[8] ?? 0),
+      z2: Number(process.argv[9] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_get_status") {
+    return { cmd: "ve_get_status" };
+  } // if
+  if (cmd == "ve_set_voxel") {
+    return {
+      cmd: "ve_set_voxel",
+      setId: Number(process.argv[3] ?? 0),
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0),
+      vx: process.argv[7] !== undefined ? Number(process.argv[7]) : undefined,
+      vy: process.argv[8] !== undefined ? Number(process.argv[8]) : undefined,
+      vz: process.argv[9] !== undefined ? Number(process.argv[9]) : undefined
+    };
+  } // if
+  if (cmd == "ve_clear_voxel") {
+    return {
+      cmd: "ve_clear_voxel",
+      setId: Number(process.argv[3] ?? 0),
+      x: Number(process.argv[4] ?? 0),
+      y: Number(process.argv[5] ?? 0),
+      z: Number(process.argv[6] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_get_voxels") {
+    return {
+      cmd: "ve_get_voxels",
+      setId: process.argv[3] !== undefined ? Number(process.argv[3]) : undefined
+    };
+  } // if
+  if (cmd == "ve_save") {
+    return {
+      cmd: "ve_save",
+      name: process.argv[3] ?? "struct"
+    };
+  } // if
+  if (cmd == "ve_load") {
+    return {
+      cmd: "ve_load",
+      name: process.argv[3] ?? ""
+    };
+  } // if
+  if (cmd == "ve_gravity") {
+    return { cmd: "ve_gravity" };
+  } // if
+  if (cmd == "ve_is_connected") {
+    return { cmd: "ve_is_connected" };
+  } // if
+  if (cmd == "ve_clear_set") {
+    return {
+      cmd: "ve_clear_set",
+      setId: Number(process.argv[3] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_translate") {
+    return {
+      cmd: "ve_translate",
+      setId: Number(process.argv[3] ?? 0),
+      dx: Number(process.argv[4] ?? 0),
+      dy: Number(process.argv[5] ?? 0),
+      dz: Number(process.argv[6] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_duplicate") {
+    return {
+      cmd: "ve_duplicate",
+      srcId: Number(process.argv[3] ?? 0),
+      dstId: Number(process.argv[4] ?? 0)
+    };
+  } // if
+  if (cmd == "ve_show") {
+    return { cmd: "ve_show" };
+  } // if
+  if (cmd == "ve_hide") {
+    return { cmd: "ve_hide" };
+  } // if
+
   if (cmd == "structurescan") {
     return { cmd: "structurescan" };
   } // if
@@ -1719,6 +1838,43 @@ function main() {
             active: responseObject.active ?? null,
             reassigned: responseObject.reassigned ?? null
           };
+        // VoxelEdit API response handlers
+        } else if (answer === "ve_create_box") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0, box: responseObject.box ?? {} };
+        } else if (answer === "ve_import") {
+          result = { ok: true, result: answer, count: responseObject.count ?? 0, region: responseObject.region ?? {} };
+        } else if (answer === "ve_emptyarea") {
+          result = { ok: true, result: answer, emptyArea: responseObject.emptyArea ?? null };
+        } else if (answer === "ve_new") {
+          result = { ok: true, result: answer, count: responseObject.count ?? 0, sets: responseObject.sets ?? {} };
+        } else if (answer === "ve_get_status") {
+          result = { ok: true, result: answer, count: responseObject.count ?? 0, sets: responseObject.sets ?? {} };
+          if (responseObject.bounding_box) result.bounding_box = responseObject.bounding_box;
+        } else if (answer === "ve_get_voxels") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0 };
+          if (responseObject.voxels) result.voxels = responseObject.voxels;
+        } else if (answer === "ve_set_voxel") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, position: responseObject.position ?? {}, count: responseObject.count ?? 0 };
+        } else if (answer === "ve_clear_voxel") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, position: responseObject.position ?? {}, removed: responseObject.removed ?? false, count: responseObject.count ?? 0 };
+        } else if (answer === "ve_clear_set") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0 };
+        } else if (answer === "ve_translate") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, delta: responseObject.delta ?? {}, count: responseObject.count ?? 0 };
+        } else if (answer === "ve_duplicate") {
+          result = { ok: true, result: answer, src: responseObject.src, dst: responseObject.dst, count: responseObject.count ?? 0 };
+        } else if (answer === "ve_save") {
+          result = { ok: true, result: answer, name: responseObject.name ?? "", file: responseObject.file ?? "", count: responseObject.count ?? 0 };
+        } else if (answer === "ve_load") {
+          result = { ok: true, result: answer, name: responseObject.name ?? "", count: responseObject.count ?? 0, emptyArea: responseObject.emptyArea ?? null };
+        } else if (answer === "ve_gravity") {
+          result = { ok: true, result: answer, total_voxels: responseObject.total_voxels ?? 0, min_y: responseObject.min_y, max_y: responseObject.max_y, levels: responseObject.levels ?? [] };
+        } else if (answer === "ve_is_connected") {
+          result = { ok: true, result: answer, connected: responseObject.connected ?? false, cluster_contact: responseObject.cluster_contact ?? false, count: responseObject.count ?? 0, details: responseObject.details ?? {} };
+        } else if (answer === "ve_show") {
+          result = { ok: true, result: answer, count: responseObject.count ?? 0, frontend_attached: responseObject.frontend_attached ?? false };
+        } else if (answer === "ve_hide") {
+          result = { ok: true, result: answer };
         } else {
           result = { ok: true, result: answer };
         }
