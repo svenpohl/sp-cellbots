@@ -149,7 +149,7 @@ class AccessDomainController {
             bot.setvalues(h.id, "", h.pos.x, h.pos.y, h.pos.z, h.orientation.x, h.orientation.y, h.orientation.z, "ff8800", "");
             bot.role = h.role; // "primary" or "helper"
             bot.masterbot = (h.role === "primary") ? 1 : 2;
-            bot.mobility = false; // hMBs sind immobil
+            bot.mobility = false; // hMBs are immobile
             this.controller.register_bot(bot);
             Logger.log("[ADC] Registered bot " + h.id + " at " + h.pos.x + "," + h.pos.y + "," + h.pos.z + " role=" + h.role);
             count++;

@@ -29,7 +29,6 @@ class VoxelEditController {
         const seen = new Set();
         const result = [];
         for (const id of Object.keys(this.sets)) {
-            if (Number(id) === 0) continue; // skip 0 (would cause recursion)
             for (const v of this.sets[id]) {
                 const key = `${v.x},${v.y},${v.z}`;
                 if (!seen.has(key)) {
@@ -88,9 +87,9 @@ class VoxelEditController {
         }
         this.sets[id].push({
             x, y, z,
-            vx: vx !== undefined ? Number(vx) : 0,
+            vx: vx !== undefined ? Number(vx) : 1,
             vy: vy !== undefined ? Number(vy) : 0,
-            vz: vz !== undefined ? Number(vz) : 1
+            vz: vz !== undefined ? Number(vz) : 0
         });
         return { ok: true, answer: "ve_set_voxel", set: id, position: { x, y, z }, count: this._count() };
     }
@@ -166,7 +165,7 @@ class VoxelEditController {
         for (let x = minX; x <= maxX; x++) {
             for (let y = minY; y <= maxY; y++) {
                 for (let z = minZ; z <= maxZ; z++) {
-                    this.sets[id].push({ x, y, z, vx: 0, vy: 0, vz: 1 });
+                    this.sets[id].push({ x, y, z, vx: 1, vy: 0, vz: 0 });
                 }
             }
         }
@@ -219,7 +218,7 @@ class VoxelEditController {
                     x: bx, y: by, z: bz,
                     vx: Number(bot.vector_x ?? 0),
                     vy: Number(bot.vector_y ?? 0),
-                    vz: Number(bot.vector_z ?? 1)
+                    vz: Number(bot.vector_z ?? 0)
                 });
             }
         }
@@ -247,13 +246,28 @@ class VoxelEditController {
             if (entry.x !== undefined && entry.y !== undefined && entry.z !== undefined) {
                 this.sets[0].push({
                     x: Number(entry.x), y: Number(entry.y), z: Number(entry.z),
-                    vx: Number(entry.vx ?? 0),
+                    vx: Number(entry.vx ?? 1),
                     vy: Number(entry.vy ?? 0),
-                    vz: Number(entry.vz ?? 1)
+                    vz: Number(entry.vz ?? 0)
                 });
             }
         }
         return { ok: true, answer: "ve_load", name, count: this.sets[0].length, emptyArea: this.emptyArea };
+    }
+
+    // Sets the emptyArea bounding box.
+    setEmptyArea(x, y, z, x2, y2, z2) {
+        this.emptyArea = {
+            x: Number(x), y: Number(y), z: Number(z),
+            x2: Number(x2), y2: Number(y2), z2: Number(z2)
+        };
+        return { ok: true, answer: "ve_emptyarea", emptyArea: this.emptyArea };
+    }
+
+    // Clears the emptyArea.
+    clearEmptyArea() {
+        this.emptyArea = null;
+        return { ok: true, answer: "ve_emptyarea", emptyArea: null };
     }
 
     // Checks connectivity of the structure and cluster contact.
@@ -384,7 +398,10 @@ class VoxelEditController {
 
     // Used by morph_start :voxeledit
     getVoxelsAsArray() {
-        return this._allVoxels().map(v => ({ x: v.x, y: v.y, z: v.z }));
+        return this._allVoxels().map(v => ({
+            x: v.x, y: v.y, z: v.z,
+            vx: v.vx ?? 1, vy: v.vy ?? 0, vz: v.vz ?? 0
+        }));
     }
 }
 
