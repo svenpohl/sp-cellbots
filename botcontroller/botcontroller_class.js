@@ -8237,9 +8237,13 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
                   bot_obj.setvalues(
                       msgarray.botid, stl_id, p_x, p_y, p_z,
                       ovx, ovy, ovz,
-                      "888888"
+                      "888888",
+                      "", // adress (wird direkt danach gesetzt)
+                      Number(msgarray.type ?? 0)
                   );
                   bot_obj.adress = p_addr;
+                  // type=1 → platform bot (intrinsically immobile)
+                  if (Number(msgarray.type ?? 0) === 1) { bot_obj.mobility = false; }
                   this.register_bot(bot_obj);
                   // ADC-Connector zuweisen (nächstes hMB per Distanz)
                   if (this.accessDomainController && this.accessDomainController.helper_masterbots) {
@@ -8410,13 +8414,17 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
          existing.vector_x = target_vectorx; existing.vector_y = target_vectory; existing.vector_z = target_vectorz;
          existing.adress = target_addr;
          if (existing.color === undefined || existing.color === null || existing.color === "") existing.color = target_color;
+         // type=1 → platform bot (intrinsically immobile)
+         if (Number(msgarray.type ?? 0) === 1) { existing.mobility = false; }
          }
       // Reset scan watchdog even for duplicates, so the scan does not time out prematurely
       this.scanwaitingcounter = 0;
       } else
         {
         // will register
-        bot_class_mini_obj.setvalues( msgarray.botid, (msgarray.rid ?? ""), target_x,target_y,target_z,  target_vectorx,target_vectory,target_vectorz,  target_color, target_addr); 
+        bot_class_mini_obj.setvalues( msgarray.botid, (msgarray.rid ?? ""), target_x,target_y,target_z,  target_vectorx,target_vectory,target_vectorz,  target_color, target_addr, Number(msgarray.type ?? 0)); 
+        // type=1 → platform bot (intrinsically immobile)
+        if (Number(msgarray.type ?? 0) === 1) { bot_class_mini_obj.mobility = false; }
 
         // ADC-Scan: store origin MB for auto-assign in adc_scan_step()
         if (this.scan_waiting_info[bottmpid]?.scan_origin_mb) {
@@ -8445,13 +8453,18 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
               }
            }
 
+        // Bot color: immobile → aaaaaa (gray), default otherwise
+        let notify_color = target_color || "eeeeee";
+        if (bot_class_mini_obj.mobility === false || bot_class_mini_obj.mobility === 'false' || bot_class_mini_obj.mobility == 0) {
+            notify_color = "aaaaaa";
+        }
         let notify_msg =
             {
             event: "addbot",
             botid: msgarray.botid ,
             position: { x: Number(target_x), y: Number(target_y), z: Number(target_z) },
             orientation: { x: Number(target_vectorx), y: Number(target_vectory), z: Number(target_vectorz) },
-            color: undefined,
+            color: notify_color,
             adress: undefined,
             connector: notify_connector,
             hmb_id: notify_hmb
@@ -9410,6 +9423,8 @@ if (this.scanwaitingcounter > this.max_scanwaitingcounter)
    this.adc_scan_status = 0;
    this.scanwaitingcounter = 0;
    this.bots_jsonexport("logs/botexport.json");
+   // Trigger gui_refresh so immobile bots get correct color
+   this.apicall_gui_refresh();
    }
 } // adc_scan_step()
 
@@ -10131,9 +10146,12 @@ handleGUIMessage(message) {
                     .filter(f => f.endsWith('.json'))
                     .map(f => f.replace(/\.json$/i, ''));
 
+            let structureList = getStructurePrefixes();
+            // Add :voxeledit as a virtual structure (always available)
+            structureList.push(':voxeledit');
             answer = JSON.stringify({
                 answer: "answer_requestsequences",
-                list: getStructurePrefixes()
+                list: structureList
             });
 
             this.ws_gui.send(answer);

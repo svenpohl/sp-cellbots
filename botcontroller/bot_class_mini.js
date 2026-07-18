@@ -56,7 +56,7 @@ constructor()
   
   
 
-setvalues( id, rid = "", x,y,z, vx,vy,vz, color, adress)
+setvalues( id, rid = "", x,y,z, vx,vy,vz, color, adress, type = 0)
 {
 this.id       = id;
 this.rid      = Array.isArray(rid) ? String(rid[0] ?? "") : String(rid ?? "");
@@ -72,6 +72,7 @@ this.vector_z = vz;
 this.color    = color;
 this.adress   = adress;
 if (this.adress_first === "") { this.adress_first = adress; }
+this.type     = type;
 } // setvalues()
 
   

@@ -1570,6 +1570,7 @@ function main() {
             masterbot: responseObject.masterbot,
             connector: responseObject.connector,
             inactive: responseObject.inactive ?? false,
+            type: responseObject.type ?? 0,
             mobility: responseObject.mobility ?? true,
             resilience_scores: responseObject.resilience_scores ?? {}
           };
