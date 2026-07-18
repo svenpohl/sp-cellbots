@@ -405,6 +405,7 @@ return({
                  (Array.isArray(controller.detected_inactive_bots) ? controller.detected_inactive_bots.some(d =>
                      Number(d.x) === Number(bot.x) && Number(d.y) === Number(bot.y) && Number(d.z) === Number(bot.z)
                  ) : false),
+       type: Number(bot.type ?? 0),
        mobility: (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true,
        resilience_scores: controller.resilienceController
            ? controller.resilienceController.get_bot_scores(bot.id)
