@@ -2,7 +2,7 @@
 
 # CellBots – Installation
 
-Current version: **1.7.4**  
+Current version: **2.0**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
@@ -19,8 +19,38 @@ Please run 'npm install' root folder:
 
 npm install
 
-
 ```
+
+## Quick Demo Start
+
+After `npm install`, you can launch both components with a single command:
+
+```sh
+npm start
+```
+
+This starts **ClusterSim** (simulation backend) and **BotController** (control backend) simultaneously.
+
+Once both are running, open these two URLs in your browser:
+
+| URL | What you see |
+|-----|-------------|
+| [http://localhost:3010](http://localhost:3010) | **BotController WebGUI** – cluster overview, scans, and morph controls |
+| [http://localhost:3020](http://localhost:3020) | **ClusterSim WebGUI** – animated 3D view of moving bots |
+
+### Run Your First Morph
+
+1. Open **http://localhost:3010** (BotController WebGUI)
+2. Click **Start Scan** to discover the current bot cluster
+3. In the **Structure** dropdown, select `25_arch` (or any structure starting with `25_`)
+4. Click **Start Morph** – the bots will rearrange into the target shape
+   - Watch the animated movement in the ClusterSim WebGUI at **http://localhost:3020**
+5. To morph back, select `base_72` (or `base_25` for the small cluster) and click **Start Morph** again
+
+That's it — you have just witnessed a fully autonomous cluster transformation!
+
+---
+
 
 
 To start the system, launch both components in their own terminal windows  
