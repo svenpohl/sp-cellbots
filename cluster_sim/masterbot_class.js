@@ -387,6 +387,16 @@ const xml2js = require('xml2js');
           let mobStr = String(cell.mobility[0] ?? "").trim().toLowerCase();
           bot_class_obj.mobility = (mobStr !== "false" && mobStr !== "0");
       }
+
+      // type aus XML setzen (optional, Default 0)
+      if (cell.type !== undefined) {
+          bot_class_obj.type = Number(cell.type[0] ?? 0);
+      }
+
+      // type=1: platform bot (immobile, routing-capable)
+      if (bot_class_obj.type === 1) {
+          bot_class_obj.mobility = false;
+      }
                            
                            /*
                            # Sigining
@@ -425,8 +435,9 @@ private_key_or_secret = c25f5d256a3a0104c9eabab81f6d87abc2f9f75179101de2f527de53
                 this.config.enable_signing,
                 this.config.signature_type,
                 this.config.public_key_or_secret,
-                false,
-                role
+                0,      // type (hMB = Standard-Typ 0)
+                false,  // mobility (hMBs are immobile)
+                role    // masterbot_role (MB_PRIMARY oder MB_HELPER)
             );
             this.bots.push(bot);
             Logger.log("[ADS] Registered " + mb_cfg.role + " masterbot " + mb_id + " at " + mb_cfg.pos.x + "," + mb_cfg.pos.y + "," + mb_cfg.pos.z);

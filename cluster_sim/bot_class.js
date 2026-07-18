@@ -102,6 +102,7 @@ setvalues( id, rid = "", x,y,z, vx,vy,vz, inactive = 0, servicebay = 0, color, p
            enable_signing,
            signature_type,
            public_key_or_secret,
+           type = 0,
            mobility = true,
            masterbot_role = 0
 )
@@ -148,6 +149,8 @@ if (this.servicebay === true)
    } // if
 
 this.color = color;
+
+this.type   = type;
 
 this.physical_bot_move_delay = physical_bot_move_delay;
 
