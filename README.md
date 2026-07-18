@@ -74,11 +74,17 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.0**  
+Current version: **2.0.1**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.0.1** (18.07.2026)  
+**Bot type `1` – immobile platform bot \& VoxelEdit API fixes**  
+  - **New bot type system**: `type=0` (default, mobile) and `type=1` (immobile platform bot, routing-capable, since v2.0.1). Configured via `<type>` tag in ClusterSim XML constructs. The `type` field is transmitted through the entire chain: XML → bot_class → RINFO → BotController → API (`get_bot_info` now returns `"type": 1` for immobile bots).  
+  - **`type=1` implicitly sets `mobility=false`** in both ClusterSim (XML loading) and BotController (RINFO handler). Separately, any bot can be set `mobility=false` without changing its type (e.g. temporarily immobilised after a fault) – the two axes are independent.  
+  - **WebGUI: `:voxeledit` in structure dropdown**: The `requestsequences` handler now appends `:voxeledit` to the structure list, making it selectable in the WebGUI.  
 
 - **2.0** (16.07.2026)  
 **VoxelEdit API – LLM-driven structure generation and analysis**  
