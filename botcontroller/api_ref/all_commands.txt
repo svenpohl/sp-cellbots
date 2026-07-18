@@ -321,7 +321,7 @@ Available commands:
     - bots: list
     - region: object
 - get_bot_info
-  Returns detailed information about one bot: position, orientation, adress, carried payload and all slot neighbors.
+  Returns detailed information about one bot: position, orientation, adress, type, carried payload and all slot neighbors.
   params:
     - bot_id: string
   returns:
@@ -330,6 +330,7 @@ Available commands:
     - position: object
     - orientation: object
     - adress: string
+    - type: number
     - carried_payload_bot_id: string|null
     - neighbors: object
 - get_inactive_bots
