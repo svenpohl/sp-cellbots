@@ -68,9 +68,13 @@ Response to an INFO command with the key bot data.
 - `RINFO`: Response command
 - `B01`: Real bot ID
 - `001`: Temporary ID (as sent by the MasterBot)
-- `0`: Type (e.g., 0 = standard CellBot)
+- `0`: Type (e.g., 0 = standard CellBot, 1 = immobile CellBot)
 - `B`: Incoming slot of the original command
 - `-1,0,0`: Relative vector to the next (addressed) neighbor bot
+
+**Convention — Type values:**
+- **Type `0`** = standard mobile CellBot (default)
+- **Type `1`** = immobile CellBot (platform bot, routing-capable, since v2.0.1)
 
 ---
 
