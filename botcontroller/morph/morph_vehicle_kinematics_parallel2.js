@@ -126,7 +126,7 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
            }));
 
         // Default value:
-        this.MAX_PATHS_IN_WAVE = 14;
+        this.MAX_PATHS_IN_WAVE = 1;
         if (params.max_paths_in_wave !== undefined)
            {
            this.MAX_PATHS_IN_WAVE = params.max_paths_in_wave;
@@ -708,7 +708,28 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
             c.hasFreeYMinus = !below;
         }
 
-        // 4b. Sort: Reserve-Bots (R*) first, then surplus candidates
+        // 4b. Heuristic: detect blocked bots (forward or vertical dependency).
+        //     Forward-blocked: the bot's forward neighbor (based on vx,vy,vz) is
+        //     an unhappy bot that blocks horizontal movement.
+        //     Down-blocked: the bot stands ON another unhappy bot (y-1). The
+        //     carrier/below bot must move first so this bot can descend.
+        //     Such bots get LOWER priority so the blocker is moved first.
+        for (const c of botCandidates) {
+            const fwdX = c.bot.x + Number(c.bot.vx ?? 0);
+            const fwdY = c.bot.y + Number(c.bot.vy ?? 0);
+            const fwdZ = c.bot.z + Number(c.bot.vz ?? 0);
+            const downX = c.bot.x;
+            const downY = c.bot.y - 1;
+            const downZ = c.bot.z;
+            c.isForwardBlocked = unhappyBots.some(b =>
+                Number(b.x) === fwdX && Number(b.y) === fwdY && Number(b.z) === fwdZ
+            );
+            c.isDownBlocked = unhappyBots.some(b =>
+                Number(b.x) === downX && Number(b.y) === downY && Number(b.z) === downZ
+            );
+        }
+
+        // 4c. Sort: Reserve-Bots (R*) first, then surplus candidates
         //     (inside emptyArea, NOT at target), then by free Y+ AND Y-,
         //     then by free Y+, then by greatest distance
         botCandidates.sort((a, b) => {
@@ -723,12 +744,21 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
             const bIsSurplus = this.isSurplusCandidate(b.bot);
             if (aIsSurplus && !bIsSurplus) return -1;
             if (!aIsSurplus && bIsSurplus) return 1;
+            // Exposed bots (Y+ AND Y- free) get highest priority – they can
+            // rotate and maneuver freely even if forward is temporarily blocked.
             const aExposed = a.hasFreeYPlus && a.hasFreeYMinus;
             const bExposed = b.hasFreeYPlus && b.hasFreeYMinus;
             if (aExposed && !bExposed) return -1;
             if (!aExposed && bExposed) return 1;
+            // Y+ free (= no bot above) before blocked check – top-layer bots
+            // can climb out first even if their forward/down is blocked.
             if (a.hasFreeYPlus && !b.hasFreeYPlus) return -1;
             if (!a.hasFreeYPlus && b.hasFreeYPlus) return 1;
+            // Forward-blocked or down-blocked bots get lower priority (blocker must move first)
+            const aBlocked = a.isForwardBlocked || a.isDownBlocked;
+            const bBlocked = b.isForwardBlocked || b.isDownBlocked;
+            if (aBlocked && !bBlocked) return 1;
+            if (!aBlocked && bBlocked) return -1;
             return b.minDist - a.minDist;
         });
 
@@ -794,13 +824,29 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
                 if (rawTarget) {
                     this.debugLog("[DEBUG choosePair] rawTarget.vx=" + rawTarget.vx + " rawTarget.vy=" + rawTarget.vy + " rawTarget.vz=" + rawTarget.vz + " rawTarget keys=" + Object.keys(rawTarget).join(","));
                 }
-                const vkResult = this._buildWorldAndPlanPath(
-                    { x: bot.x, y: bot.y, z: bot.z ,  vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1)},
-                    { x: target.x, y: target.y, z: target.z  , vx: Number(target.vx ?? 0), vy: Number(target.vy ?? 0), vz: Number(target.vz ?? 0) },
-                    collectionCopy,
-                    bot,
-                    forbiddenCells
-                );
+                // Try all cardinal orientations, accept the first valid path
+                const orientCandidates = [
+                    { vx: Number(target.vx ?? 0), vy: Number(target.vy ?? 0), vz: Number(target.vz ?? 0) },
+                    { vx: 1, vy: 0, vz: 0 }, { vx: -1, vy: 0, vz: 0 },
+                    { vx: 0, vy: 0, vz: 1 }, { vx: 0, vy: 0, vz: -1 }
+                ];
+                const seen = new Set();
+                const uniqueOrientations = orientCandidates.filter(o => {
+                    const k = o.vx+','+o.vy+','+o.vz; if (seen.has(k)) return false; seen.add(k); return true;
+                });
+                let vkResult = null;
+                let usedOrientation = null;
+                for (const orient of uniqueOrientations) {
+                    vkResult = this._buildWorldAndPlanPath(
+                        { x: bot.x, y: bot.y, z: bot.z, vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1) },
+                        { x: target.x, y: target.y, z: target.z, vx: orient.vx, vy: orient.vy, vz: orient.vz },
+                        collectionCopy, bot, forbiddenCells
+                    );
+                    if (vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2) {
+                        usedOrientation = orient;
+                        break;
+                    }
+                }
 
                 if (vkResult && vkResult.ok && vkResult.states && vkResult.states.length >= 2) {
                     const dist = Math.sqrt(
@@ -808,13 +854,19 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
                         (bot.y - target.y) ** 2 +
                         (bot.z - target.z) ** 2
                     );
+                    // Store the successful orientation back to target so bot_target uses it
+                    if (usedOrientation) {
+                        target.vx = usedOrientation.vx;
+                        target.vy = usedOrientation.vy;
+                        target.vz = usedOrientation.vz;
+                    }
                     selectedPair = { bot, target, dist };
                     // Store the computed path in pathResult for reuse by caller
                     if (pathResult) {
                         pathResult.vkResult = vkResult;
                     }
                     this.debugLogValidPath(bot.id, { x: bot.x, y: bot.y, z: bot.z, vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1) }, { x: target.x, y: target.y, z: target.z }, dist, vkResult);
-                    this.debugLog(`choosePair: PATH FOUND bot=${bot.id} -> (${target.x},${target.y},${target.z}) dist=${dist.toFixed(2)} states=${vkResult?.states?.length ?? 0} (path planner OK, checked ${candidatesChecked} candidates)`);
+                    this.debugLog(`choosePair: PATH FOUND bot=${bot.id} -> (${target.x},${target.y},${target.z}) orientation=(${target.vx},${target.vy},${target.vz}) dist=${dist.toFixed(2)} states=${vkResult?.states?.length ?? 0} (checked ${candidatesChecked} candidates)`);
                 } else {
                     let rejectReason = vkResult ? (vkResult.error || 'NO_ERROR') : 'NO_RESULT';
                     if (vkResult && vkResult.states && vkResult.states.length < 2) rejectReason = 'TOO_FEW_STATES(' + vkResult.states.length + ')';
@@ -1352,7 +1404,31 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
             include_start: true
         };
 
-        return this._calcVehicleKinematicsPath(start, goal, world, options);
+        const pathResult = this._calcVehicleKinematicsPath(start, goal, world, options);
+
+        // Debug: wenn pathResult keine validen States hat, logge detaillierte Infos
+        if (!pathResult || !pathResult.ok || !pathResult.states || pathResult.states.length < 2) {
+            const worldBotCount = Array.from(bots_s_clean.keys ? bots_s_clean.keys() : []).length;
+            this.debugLog(
+                `[_buildWorldAndPlanPath FAIL] ` +
+                `bot=${botToMove?.id ?? "?"} ` +
+                `start=(${start.x},${start.y},${start.z}) orient=(${start.vx},${start.vy},${start.vz}) ` +
+                `goal=(${goal.x},${goal.y},${goal.z}) orient=(${goal.vx},${goal.vy},${goal.vz}) ` +
+                `worldBots=${worldBotCount} ` +
+                `forbidden=${Array.isArray(forbiddenCells) ? forbiddenCells.length : 0} ` +
+                `states=${pathResult?.states?.length ?? 0} ` +
+                `error=${pathResult?.error || "NO_RESULT"}`
+            );
+            // Prüfe ob Startposition im World Model besetzt ist
+            const startOccupied = world.isOccupied(Number(start.x), Number(start.y), Number(start.z));
+            const goalOccupied = world.isOccupied(Number(goal.x), Number(goal.y), Number(goal.z));
+            this.debugLog(
+                `[_buildWorldAndPlanPath FAIL] worldCheck: startOccupied=${startOccupied} goalOccupied=${goalOccupied} ` +
+                `startVx=${startVx} startVy=${startVy} startVz=${startVz}`
+            );
+        }
+
+        return pathResult;
     } // _buildWorldAndPlanPath()
 
 
@@ -2689,7 +2765,7 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
         this.bot_id = null;
 
         // --- Configuration ---
-        const maxBotsPerWave = 10;
+        const maxBotsPerWave = this.MAX_PATHS_IN_WAVE;
         const securityShell = true;  // When true, each forbidden cell expands to its 6 orthogonal
                                      // neighbors, preventing parallel paths from running adjacent.
 
