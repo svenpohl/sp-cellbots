@@ -1204,6 +1204,10 @@ start_failure_api() {
                     let param = Number(decoded.param ?? 0);
                     if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
                     else { answer = this.failureInjector.setMoveInterruption(botId, enabled, mode, param); }
+                } else if (decoded.cmd === "save_snapshot") {
+                    answer = this.saveSnapshotXML();
+                } else if (decoded.cmd === "load_snapshot") {
+                    answer = this.loadSnapshotXML();
                 } else if (decoded.cmd === "get_bot_info") {
                     let botId = String(decoded.bot_id ?? "").trim();
                     if (!botId) { answer = { ok: false, error: "MISSING_BOT_ID" }; }
@@ -1325,6 +1329,164 @@ fs.writeFileSync(filePath, buffer, 'utf8');
 } // export_bot_snapshot()
 
 
+//
+// saveSnapshotXML()
+// Saves current bot positions to constructs/_snapshot.xml
+//
+saveSnapshotXML()
+{
+const filePath = path.join(__dirname, 'constructs', '_snapshot.xml');
+let buffer = '';
+
+buffer += '<xml>\n\n';
+
+// MasterBot
+buffer += '<masterbot>\n';
+buffer += '  <id>' + this.id + '</id>\n';
+buffer += '  <rid>' + (this.rid || '') + '</rid>\n';
+buffer += '  <pos>\n';
+buffer += '    <x>' + this.x + '</x>\n';
+buffer += '    <y>' + this.y + '</y>\n';
+buffer += '    <z>' + this.z + '</z>\n';
+buffer += '    <vx>' + this.vx + '</vx>\n';
+buffer += '    <vy>' + this.vy + '</vy>\n';
+buffer += '    <vz>' + this.vz + '</vz>\n';
+buffer += '  </pos>\n';
+buffer += '  <mbconnection>' + (this.mbconnection_slot || 'f') + '</mbconnection>\n';
+buffer += '</masterbot>\n\n';
+
+// Bots
+for (let i = 0; i < this.bots.length; i++) {
+    const b = this.bots[i];
+    // Skip masterbots (masterbot_role > 0) – they are re-initialized from config_mb.xml
+    if ((b.masterbot ?? 0) > 0) continue;
+    buffer += '<cell>\n';
+    buffer += '  <id>' + b.id + '</id>\n';
+    buffer += '  <col>' + (b.color || 'eeeeee') + '</col>\n';
+    buffer += '  <type>' + (b.type ?? 0) + '</type>\n';
+    buffer += '  <pos>\n';
+    buffer += '    <x>' + b.x + '</x>\n';
+    buffer += '    <y>' + b.y + '</y>\n';
+    buffer += '    <z>' + b.z + '</z>\n';
+    buffer += '    <vx>' + (b.vector_x ?? 0) + '</vx>\n';
+    buffer += '    <vy>' + (b.vector_y ?? 0) + '</vy>\n';
+    buffer += '    <vz>' + (b.vector_z ?? 0) + '</vz>\n';
+    buffer += '  </pos>\n';
+    if (b.mobility === false || b.mobility === 'false' || b.mobility == 0) {
+        buffer += '  <mobility>false</mobility>\n';
+    }
+    if (b.masterbot > 0) {
+        buffer += '  <masterbot_role>' + b.masterbot + '</masterbot_role>\n';
+    }
+    buffer += '</cell>\n';
+}
+
+buffer += '</xml>\n';
+
+fs.writeFileSync(filePath, buffer, 'utf8');
+console.log('[SNAPSHOT] Saved ' + this.bots.length + ' bots to ' + filePath);
+return { ok: true, file: filePath, bot_count: this.bots.length };
+} // saveSnapshotXML()
+
+
+//
+// loadSnapshotXML()
+// Reloads bot positions from constructs/_snapshot.xml
+//
+loadSnapshotXML()
+{
+const filePath = path.join(__dirname, 'constructs', '_snapshot.xml');
+if (!fs.existsSync(filePath)) {
+    console.error('[SNAPSHOT] File not found: ' + filePath);
+    return { ok: false, error: 'SNAPSHOT_NOT_FOUND' };
+}
+
+const xml2js = require('xml2js');
+const data = fs.readFileSync(filePath, 'utf-8');
+
+let loadResult = null;
+xml2js.parseString(data, (err, result) => {
+    if (err) {
+        console.error('[SNAPSHOT] XML parse error:', err);
+        loadResult = { ok: false, error: 'XML_PARSE_ERROR', details: err.message };
+        return;
+    }
+
+    // MasterBot
+    const mbcell = result.xml.masterbot;
+    if (mbcell && mbcell.length > 0) {
+        const mc = mbcell[0];
+        this.x = parseFloat(mc.pos[0].x[0]);
+        this.y = parseFloat(mc.pos[0].y[0]);
+        this.z = parseFloat(mc.pos[0].z[0]);
+        this.vx = parseFloat(mc.pos[0].vx[0]);
+        this.vy = parseFloat(mc.pos[0].vy[0]);
+        this.vz = parseFloat(mc.pos[0].vz[0]);
+        this.mbconnection_slot = mc.mbconnection ? mc.mbconnection[0] : 'f';
+        this.id = mc.id ? mc.id[0] : 'MASTERBOT';
+        this.rid = mc.rid ? String(mc.rid[0] ?? '') : '';
+    }
+
+    // Keep existing masterbots, remove all other bots
+    const keptBots = [];
+    for (let i = 0; i < this.bots.length; i++) {
+        if ((this.bots[i].masterbot ?? 0) > 0) {
+            keptBots.push(this.bots[i]);
+        }
+    }
+    this.bots = keptBots;
+    const cells = result.xml.cell;
+    if (cells) {
+        const bot_class = require('./bot_class');
+        for (let i = 0; i < cells.length; i++) {
+            const cell = cells[i];
+            const bot = new bot_class();
+            const id = cell.id[0];
+            const x = parseFloat(cell.pos[0].x[0]);
+            const y = parseFloat(cell.pos[0].y[0]);
+            const z = parseFloat(cell.pos[0].z[0]);
+            const vx = parseFloat(cell.pos[0].vx[0]);
+            const vy = parseFloat(cell.pos[0].vy[0]);
+            const vz = parseFloat(cell.pos[0].vz[0]);
+            const color = cell.col ? cell.col[0] : 'eeeeee';
+            const type = cell.type ? parseInt(cell.type[0]) : 0;
+            const mobility = cell.mobility ? String(cell.mobility[0]).toLowerCase() !== 'false' : true;
+            const mbRole = cell.masterbot_role ? parseInt(cell.masterbot_role[0]) : 0;
+
+            bot.setvalues(id, '', x, y, z, vx, vy, vz, 0, 0, color,
+                this.config.physical_bot_move_delay || 300,
+                this.config.enable_signing,
+                this.config.signature_type,
+                this.config.public_key_or_secret,
+                type, mobility, mbRole
+            );
+
+            // Re-index neighbours
+            this.bots.push(bot);
+            this.update_bot_index_neighbors(this.bots.length - 1);
+        }
+    }
+
+    // Rebuild botindex
+    // Update index_neighbors for all bots (kept MBs + new snapshot bots)
+    for (let i = 0; i < this.bots.length; i++) {
+        this.update_bot_index_neighbors(i);
+    }
+    this.botindex = {};
+    for (let i = 0; i < this.bots.length; i++) {
+        const key = this.getKey_3d(this.bots[i].x, this.bots[i].y, this.bots[i].z);
+        this.botindex[key] = i;
+    }
+
+    // Send refresh to WebGUI
+    this.send_webgui(JSON.stringify({ event: "refreshworld" }));
+
+    console.log('[SNAPSHOT] Loaded ' + this.bots.length + ' bots from ' + filePath);
+    loadResult = { ok: true, file: filePath, bot_count: this.bots.length };
+});
+
+return loadResult;
+} // loadSnapshotXML()
 
 
 //

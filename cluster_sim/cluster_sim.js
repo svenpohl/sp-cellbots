@@ -179,6 +179,22 @@ const server = net.createServer((socket) => {
         break;
      
                 
+      case 'save_snapshot':
+        {
+        const snapResult = masterbot_class_obj.saveSnapshotXML();
+        jsonmsg = JSON.stringify({ cmd: "msg", info: "save_snapshot", ok: snapResult.ok, bot_count: snapResult.bot_count, file: snapResult.file }) + '\n';
+        socket.write(jsonmsg);
+        }
+        break;
+
+      case 'load_snapshot':
+        {
+        const snapResult = masterbot_class_obj.loadSnapshotXML();
+        jsonmsg = JSON.stringify({ cmd: "msg", info: "load_snapshot", ok: snapResult.ok, bot_count: snapResult.bot_count, file: snapResult.file, error: snapResult.error || "" }) + '\n';
+        socket.write(jsonmsg);
+        }
+        break;
+
       default:
         jsonmsg = '{ "cmd": "msg", "msg":"unknown command" }\n';
         socket.write(jsonmsg);
@@ -346,6 +362,20 @@ wss.on('connection', (ws) => {
            
                
            } else
+        if (decodedobject.cmd === 'save_snapshot')
+           {
+           const result = masterbot_class_obj.saveSnapshotXML();
+           answer = JSON.stringify({ answer: "answer_save_snapshot", ok: result.ok, bot_count: result.bot_count, file: result.file });
+           ws.send(answer);
+           } else
+
+        if (decodedobject.cmd === 'load_snapshot')
+           {
+           const result = masterbot_class_obj.loadSnapshotXML();
+           answer = JSON.stringify({ answer: "answer_load_snapshot", ok: result.ok, bot_count: result.bot_count, file: result.file, error: result.error || "" });
+           ws.send(answer);
+           } else
+
         if (decodedobject.cmd === 'api_cli')
            {
            let args = String(decodedobject.args ?? "").trim();
@@ -491,6 +521,12 @@ wss.on('connection', (ws) => {
                if (mode === "bots" || mode === "all") {
                    result.bots = masterbot_class_obj.bots.map(b => ({ id: b.id, x: b.x, y: b.y, z: b.z }));
                }
+           } else if (args === "save_snapshot") {
+               const sr = masterbot_class_obj.saveSnapshotXML();
+               result = { ok: sr.ok, answer: "api_save_snapshot", bot_count: sr.bot_count, file: sr.file };
+           } else if (args === "load_snapshot") {
+               const sr = masterbot_class_obj.loadSnapshotXML();
+               result = { ok: sr.ok, answer: "api_load_snapshot", bot_count: sr.bot_count, file: sr.file, error: sr.error || "" };
            } else if (args === "describe") {
                let filePath = path.join(__dirname, "api_ref", "core_commands.txt");
                let text = "";

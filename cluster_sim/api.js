@@ -167,6 +167,10 @@ if (cmd === "disable_bot" || cmd === "enable_bot") {
     let mode = process.argv[3] ?? "";
     requestObject = { cmd: "get_status" };
     if (mode) requestObject.mode = mode;
+} else if (cmd === "save_snapshot") {
+    requestObject = { cmd: "save_snapshot" };
+} else if (cmd === "load_snapshot") {
+    requestObject = { cmd: "load_snapshot" };
 } else if (cmd === "describe") {
     requestObject = { cmd: "describe" };
 } else {
@@ -191,6 +195,8 @@ if (cmd === "disable_bot" || cmd === "enable_bot") {
     console.log("  node api.js remove_bot <id>                                       – Completely remove a bot from the simulation");
     console.log("  node api.js add_bot_to <id> <x> <y> <z> [vx] [vy] [vz]             – Add a NEW bot (unknown to BotController)");
     console.log("  node api.js teleport_bot_to <id> <x> <y> <z> [vx] [vy] [vz]            – Teleport bot to position (no mesh movement)");
+    console.log("  node api.js save_snapshot                                              – Save current cluster as _snapshot.xml");
+    console.log("  node api.js load_snapshot                                              – Load cluster from _snapshot.xml");
     process.exit(0);
 }
 
