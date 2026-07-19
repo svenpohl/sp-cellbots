@@ -74,11 +74,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.0.1**  
+Current version: **2.0.2**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.0.2** (19.07.2026)
+**ClusterSim Snapshot feature & VK2 single-morph fallback**
+  - **Snapshot Save/Load** in ClusterSim: current bot positions can be saved to `constructs/_snapshot.xml` and restored later via WebGUI buttons or CLI (`node api.js save_snapshot` / `load_snapshot`). MasterBots (hMB1, hMB2) are preserved during load – only cluster bots are replaced.
+  - **`parallel_vehicle_kinematics_2` fallback**: if the morph planner gets stuck with parallel waves (`max_paths_in_wave=14`), it automatically retries with single-bot waves (`max_paths_in_wave=1`). This resolves complex reverse-morph scenarios (e.g. table → base_72) where parallel path planning fails due to collision density.
 
 - **2.0.1** (18.07.2026)  
 **Bot type `1` – immobile platform bot \& VoxelEdit API fixes**  
