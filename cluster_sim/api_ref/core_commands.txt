@@ -3,7 +3,7 @@ ClusterSim Failure-Injection API
 Injects simulated faults into the cluster simulation at runtime.
 Useful for testing the BotController's resilience and recovery logic.
 
-1a. Slot Configuration (Fehlertyp 11/12 – Disable/Sporadic slot)
+1a. Slot Configuration (Errortype 11/12 – Disable/Sporadic slot)
 
 node api.js config_slot <bot_id> "<slot>:<prob>;<slot>:<prob>;..."
 -> Configure slot reliability for a bot. Each slot (F,R,B,L,T,D) gets
@@ -48,7 +48,7 @@ node api.js set_mobility <bot_id> <true|false>
    The bot resumes normal operation and responds to messages again.
    The WebGUI restores the bot's original colour.
 
-2. Move Interruption (Fehlertyp 02 - Bot stop during move)
+2. Move Interruption (Errortype 02 - Bot stop during move)
 
 node api.js set_move_interruption <bot_id> <true|false> [mode] [param]
 -> Inject a move interruption into a bot. When enabled, the bot will
@@ -68,7 +68,7 @@ node api.js set_move_interruption <bot_id> <true|false> [mode] [param]
      node api.js set_move_interruption SB1 true after 5         # after 5 submoves
      node api.js set_move_interruption SB1 false                # disable
 
-3. Obstacles (Fehlertyp 07 - Place obstacle)
+3. Obstacles (Errortype 07 - Place obstacle)
 
 node api.js set_obstacle <true|false> <x> <y> <z>
 -> Add or remove an obstacle at a specific coordinate.
@@ -82,7 +82,7 @@ node api.js set_obstacle <true|false> <x> <y> <z>
      node api.js set_obstacle true 2 1 0          # place obstacle at (2,1,0)
      node api.js set_obstacle false 2 1 0         # remove obstacle at (2,1,0)
 
-4. Add Bot (Fehlertyp 17 - Add unknown bot)
+4. Add Bot (Errortype 17 - Add unknown bot)
 
 node api.js add_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
 -> Create a new bot in the simulation that the BotController has never
@@ -95,7 +95,7 @@ node api.js add_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
      node api.js add_bot_to SB3 2 1 0
      node api.js add_bot_to SB3 2 1 0 1 0 0
 
-4. Teleport (Fehlertyp 03 - Bot displace / Bot swap / Bot remove)
+4. Teleport (Errortype 03 - Bot displace / Bot swap / Bot remove)
 
 node api.js teleport_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
 -> Teleport a bot to an absolute position without moving it through
@@ -107,5 +107,22 @@ node api.js teleport_bot_to <bot_id> <x> <y> <z> [vx] [vy] [vz]
    Examples:
      node api.js teleport_bot_to SB1 4 1 1                  # teleport, keep orientation
      node api.js teleport_bot_to SB1 4 1 1 1 0 0            # teleport + set orientation
+
+5. Snapshot (Save / Load cluster state)
+
+node api.js save_snapshot
+-> Save current bot positions to constructs/_snapshot.xml.
+   MasterBots (hMBs) are excluded – only cluster bots are saved.
+   Returns bot_count and file path.
+
+node api.js load_snapshot
+-> Load bot positions from constructs/_snapshot.xml.
+   Existing MasterBots are preserved, only cluster bots are replaced.
+   The WebGUI is refreshed automatically after loading.
+   Returns bot_count or an error if the snapshot file is not found.
+
+   Examples:
+     node api.js save_snapshot
+     node api.js load_snapshot
 
 --- EOF /cluster_sim/api_ref/core_commands.txt ---
