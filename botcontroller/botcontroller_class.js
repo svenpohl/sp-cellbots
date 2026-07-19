@@ -465,6 +465,7 @@ constructor()
         }
     ];
     this.morphAlgorithmSelected = "parallel_vehicle_kinematics_2";
+    this.morph_fallback_active = false;
 
 
 
@@ -3367,11 +3368,13 @@ if (structure === ':voxeledit') {
         return { name: ':voxeledit', meta: {}, structure: [], emptyArea: null, carrier: [], reserve: [], x: [], forbidden: [], inactive: [], raw: [] };
     }
     const voxels = this.voxeledit.getVoxelsAsArray();
-    console.log("[MORPH] Using :voxeledit – " + voxels.length + " voxels");
+    // Strip orientation so the VK planner uses auto-orientation (neighbor-based)
+    const stripped = voxels.map(v => ({ x: v.x, y: v.y, z: v.z }));
+    console.log("[MORPH] Using :voxeledit – " + voxels.length + " voxels (orientations stripped for auto-orientation)");
     return {
         name: ':voxeledit',
         meta: {},
-        structure: voxels,
+        structure: stripped,
         emptyArea: this.voxeledit.emptyArea || null,
         carrier: [],
         reserve: [],
@@ -3450,6 +3453,7 @@ this.apicall_update_morph_status(
         
 // Set to global space
 this.morphAlgorithmSelected = algo_selected;
+this.morph_last_structure = String(structure ?? "").trim();
 
 let startBots = [];
 let size      = this.bots.length;
@@ -3635,7 +3639,7 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" )
             anchors: morph_anchors,
             forbiddenCells: forbiddenCells,
             emptyArea: targetDefinition.emptyArea || null,
-            max_paths_in_wave: 14,
+            max_paths_in_wave: this.morph_fallback_active ? 1 : 14,
             max_attempts_to_find_pair: 50
             };
 
@@ -3874,6 +3878,17 @@ this.notify_frontend_console("Morphing calculation complete!");
 
 if (success === false)
    {
+   // Fallback: try again with single-bot waves if not already in fallback mode
+   if (!this.morph_fallback_active && this.morphAlgorithmSelected === "parallel_vehicle_kinematics_2") {
+       console.log("Morph stuck – retrying with single-bot waves (fallback)...");
+       this.morph_fallback_active = true;
+       this.notify_frontend_console("Morph stuck – retrying with single-bot waves...");
+       // Re-run prepare_morph with the same structure and algo – fallback flag causes max_paths_in_wave=1
+       this.prepare_morph(this.morph_last_structure ?? "", this.morphAlgorithmSelected);
+       return;
+   }
+   // Reset fallback flag for next morph
+   this.morph_fallback_active = false;
    console.log("Morphing stuck! No more moves possible, but not all bots are happy!");
    this.notify_frontend_console("Morphing stuck! No more moves possible, but not all bots are happy!");
    this.apicall_update_morph_status(
@@ -3889,6 +3904,7 @@ if (success === false)
    return;
    } else
      {
+     this.morph_fallback_active = false;
      console.log("Morphing calculation success!");
      this.notify_frontend_console("Morphing calculation success!");
      this.apicall_update_morph_status(
