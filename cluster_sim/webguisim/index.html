@@ -179,6 +179,8 @@
     
     <button id="requestquitbotcontroller">QUIT</button>
     <button id="requestsystemdump">SYSTEM DUMP</button>
+    <button id="requestsavesnapshot">SAVE SNAPSHOT</button>
+    <button id="requestloadsnapshot">LOAD SNAPSHOT</button>
 
 </div>
 
@@ -222,6 +224,11 @@
             
            
           
+         if (decodedobject.event == "refreshworld") {
+            cmd = "{ \"cmd\":\"getclusterdata\" }";
+            socket.send(cmd);
+         }
+
          if (decodedobject.answer == "answer_getclusterdata")
             {
           
@@ -389,6 +396,28 @@
             cmd = "{ \"cmd\":\"quit\" }";; 
             socket.send(cmd);
             document.getElementById('debug').innerHTML = "Disconnected";
+        });
+
+        document.getElementById('requestsavesnapshot').addEventListener('click', function() {
+        if (connected == 0)
+           {
+           alert('No Connection');
+           return;
+           }
+        cmd = "{ \"cmd\":\"save_snapshot\" }";
+        socket.send(cmd);
+        document.getElementById('debug').innerHTML = "Snapshot saved...";
+        });
+
+        document.getElementById('requestloadsnapshot').addEventListener('click', function() {
+        if (connected == 0)
+           {
+           alert('No Connection');
+           return;
+           }
+        cmd = "{ \"cmd\":\"load_snapshot\" }";
+        socket.send(cmd);
+        document.getElementById('debug').innerHTML = "Snapshot loaded...";
         });
 
         document.getElementById('requestsystemdump').addEventListener('click', function() {
