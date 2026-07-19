@@ -6,6 +6,11 @@
 
 ---
 
+- **2.0.2** (19.07.2026)
+**ClusterSim Snapshot feature & VK2 single-morph fallback**
+  - **Snapshot Save/Load** in ClusterSim: current bot positions can be saved to `constructs/_snapshot.xml` and restored later via WebGUI buttons or CLI (`node api.js save_snapshot` / `load_snapshot`). MasterBots (hMB1, hMB2) are preserved during load – only cluster bots are replaced.
+  - **`parallel_vehicle_kinematics_2` fallback**: if the morph planner gets stuck with parallel waves (`max_paths_in_wave=14`), it automatically retries with single-bot waves (`max_paths_in_wave=1`). This resolves complex reverse-morph scenarios (e.g. table → base_72) where parallel path planning fails due to collision density.
+
 - **2.0.1** (18.07.2026)  
 **Bot type `1` – immobile platform bot \& VoxelEdit API fixes**  
   - **New bot type system**: `type=0` (default, mobile) and `type=1` (immobile platform bot, routing-capable, since v2.0.1). Configured via `<type>` tag in ClusterSim XML constructs. The `type` field is transmitted through the entire chain: XML → bot_class → RINFO → BotController → API (`get_bot_info` now returns `"type": 1` for immobile bots).  
