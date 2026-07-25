@@ -330,12 +330,13 @@
            {
            handleMoveEvent( decodedobject.msg[0] );                             
            } // move
-               
-               
+              
+              
         if ( decodedobject.msg[1] != undefined && decodedobject.msg[1].event == 'move') 
            {
            handleMoveEvent( decodedobject.msg[1] );
            }
+
                   
                   
         if (decodedobject.msg[0].event == 'spin')
@@ -682,21 +683,25 @@ function animateMove(group, from, to, durationMs, onDone) {
  
  
  
-function handleMoveEvent(event) {
+function handleMoveEvent(event, onDone = null) {
 
 console.log(event);
     const botid = event.botid;
     const from = event.from;
     const to = event.to;
     const group = botGroupMap[botid];
-    if (!group) return;
+    if (!group) {
+        if (onDone) onDone();
+        return;
+    }
 
 
     // animate from log to log position
     animateMove(group, 
         {x: from.x, y: from.y, z: -from.z}, 
         {x: to.x, y: to.y, z: -to.z}, 
-        Number(event.duration)
+        Number(event.duration),
+        onDone
     );
     
 }
@@ -1312,6 +1317,7 @@ window.addEventListener('resize', () => {
     <option value="set_move_interruption SB1 false">set_move_interruption SB1 false</option>
     <option value="teleport_bot_to SB1 5 1 1 1 0 0">teleport_bot_to SB1 5 1 1 ...</option>
     <option value="add_bot_to SB3 2 1 0 1 0 0">add_bot_to SB3 2 1 0</option>
+    <option value="remove_bot SB3">remove_bot SB3</option>
   </select>
   <div id="api_cli_output" style="display:none; margin-top:4px; background:#111; border:1px solid #333; border-radius:4px; padding:6px 10px; font-family:monospace; font-size:12px; color:#fba8a8; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
 </div>
