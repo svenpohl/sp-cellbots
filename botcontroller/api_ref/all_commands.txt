@@ -1232,6 +1232,48 @@ Sets allow independent editing of sub-structures: create, copy, translate, delet
     - count: number
     - region: object
 
+- ve_capture setId x1 y1 z1 x2 y2 z2
+  Captures bots from the cluster into a named set (id > 0). MasterBots are skipped.
+  Preserves other sets. Useful together with ve_duplicate + ve_translate for
+  copy-morph workflows.
+  params:
+    - setId: number (must be > 0)
+    - x1, y1, z1, x2, y2, z2: region corners
+  returns:
+    - answer: ve_capture
+    - set: number
+    - count: number
+    - region: object
+
+- ve_copy_set_to_donors setId
+  Copies bot IDs from a set's current positions into the donor restriction list.
+  When donorIds are set, the morph algorithm ONLY uses these bots as donors.
+  Non-donor bots are preserved in the world model for path planning but are not
+  selectable for movement. Use ve_clear_donors to remove the restriction.
+  params:
+    - setId: number (must be > 0)
+  returns:
+    - answer: ve_copy_set_to_donors
+    - set: number
+    - count: number
+    - donor_ids: array of bot IDs
+
+- ve_clear_donors
+  Clears the donor restriction list.
+
+- ve_strict_orientation [on|off]
+  Enables or disables strict orientation mode. When enabled, the morph algorithm
+  ONLY uses the captured orientation from ve_capture and does NOT try alternative
+  orientations during path planning. Disabled by default (multi-orientation active).
+  params:
+    - mode: "on" or "off" (default: "on")
+  returns:
+    - answer: ve_strict_orientation
+    - strict: boolean After this, all bots can be used as donors
+  again in the next morph. Safe to call even if no donor restriction is active.
+  returns:
+    - answer: ve_clear_donors
+
 - ve_show
   Sends the structure to the WebGUI as semi-transparent purple cubes.
   returns:
