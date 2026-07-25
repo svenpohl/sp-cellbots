@@ -6,6 +6,10 @@
 
 ---
 
+- **2.0.3** (25.07.2026)
+**Carrier-Payload-RALIFE-Fix & I-Bot Transport**
+  - RALIFE blocking with payload, I-Bot transport, Path-Planner payload compatibility, Payload slot correction, VK slot guard, Scan LvL2 recalibration, I-Bot sync, Double-exec fix, Pathplanning debug log
+
 - **2.0.2** (19.07.2026)
 **ClusterSim Snapshot feature & VK2 single-morph fallback**
   - **Snapshot Save/Load** in ClusterSim: current bot positions can be saved to `constructs/_snapshot.xml` and restored later via WebGUI buttons or CLI (`node api.js save_snapshot` / `load_snapshot`). MasterBots (hMB1, hMB2) are preserved during load – only cluster bots are replaced.
