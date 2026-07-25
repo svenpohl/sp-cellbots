@@ -131,7 +131,10 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
            {
            this.MAX_PATHS_IN_WAVE = params.max_paths_in_wave;
            }
+        this.debugLog("[CONFIG] MAX_PATHS_IN_WAVE=" + this.MAX_PATHS_IN_WAVE);
+        this.debugLog("[CONFIG] strictOrientation=" + (params.strict_orientation === true));
 
+        this.strictOrientation = (params.strict_orientation === true);
         this.MAX_ATTEMPTS_TO_FIND_PAIR = 50;
         if (params.max_attempts_to_find_pair !== undefined)
            {
@@ -834,9 +837,11 @@ class MorphVehicleKinematicsParallel2 extends MorphBase
                 const uniqueOrientations = orientCandidates.filter(o => {
                     const k = o.vx+','+o.vy+','+o.vz; if (seen.has(k)) return false; seen.add(k); return true;
                 });
+                // When strictOrientation is active (donor restriction), only use the captured orientation
+                const searchOrientations = this.strictOrientation ? [uniqueOrientations[0]] : uniqueOrientations;
                 let vkResult = null;
                 let usedOrientation = null;
-                for (const orient of uniqueOrientations) {
+                for (const orient of searchOrientations) {
                     vkResult = this._buildWorldAndPlanPath(
                         { x: bot.x, y: bot.y, z: bot.z, vx: Number(bot.vx ?? 0), vy: Number(bot.vy ?? 0), vz: Number(bot.vz ?? 1) },
                         { x: target.x, y: target.y, z: target.z, vx: orient.vx, vy: orient.vy, vz: orient.vz },
