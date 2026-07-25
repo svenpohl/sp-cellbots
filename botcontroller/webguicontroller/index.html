@@ -2365,7 +2365,7 @@ window.addEventListener('mouseup', function(e) {
                              // Update API CLI input with clicked bot
                              const currentInput = document.getElementById('api_cli_input');
                              const currentVal = currentInput.value;
-                             currentInput.value = currentVal.replace(/B\d+/g, botid);
+                             currentInput.value = currentVal.replace(/[A-Z]+\d+/g, botid);
                              }
                     }
                 }
@@ -2457,8 +2457,38 @@ window.addEventListener('touchend', function(e) {
 
 // API CLI: Send button + Enter key
 document.getElementById('api_cli_send').addEventListener('click', sendApiCli);
+// Command history for the API CLI input (up/down arrow navigation)
+let commandHistory = [];
+let historyIndex = -1;
+
 document.getElementById('api_cli_input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') sendApiCli();
+    if (e.key === 'Enter') {
+        const val = this.value.trim();
+        if (val) {
+            // Push to history (avoid consecutive duplicates)
+            if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== val) {
+                commandHistory.push(val);
+            }
+            historyIndex = commandHistory.length; // reset index to end
+        }
+        sendApiCli();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (commandHistory.length > 0) {
+            historyIndex = Math.max(0, historyIndex - 1);
+            this.value = commandHistory[historyIndex];
+        }
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (historyIndex < commandHistory.length - 1) {
+            historyIndex++;
+            this.value = commandHistory[historyIndex];
+        } else {
+            // At the end of history → clear to empty line
+            historyIndex = commandHistory.length;
+            this.value = '';
+        }
+    }
 });
 document.getElementById('api_cli_examples').addEventListener('change', function() {
     const cmd = this.value;
