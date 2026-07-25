@@ -74,11 +74,15 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.0.2**  
+Current version: **2.0.3**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.0.3** (25.07.2026)
+**Carrier-Payload-RALIFE-Fix & I-Bot Transport**
+  - RALIFE blocking with payload, I-Bot transport, Path-Planner payload compatibility, Payload slot correction, VK slot guard, Scan LvL2 recalibration, I-Bot sync, Double-exec fix, Pathplanning debug log
 
 - **2.0.2** (19.07.2026)
 **ClusterSim Snapshot feature & VK2 single-morph fallback**
@@ -174,16 +178,10 @@ Latest changes:
 
 - **1.7.9** (05.06.2026)  
 **ping_position / ping_status API – BotController world model improvements**  
-  - `ping_position x y z`: Ping a coordinate via INFO opcode, returns tmpid  
-  - `ping_status tmpid`: Check if a bot responded (bot_found, bot_id, position)
 
 - **1.7.8** (31.05.2026)  
 **Shepherd experiments, get_bot_info API, test structures**  
-  - New: `get_bot_info <id>` – position, orientation, adress, payload, neighbors in one call  
-  - New: shepherd experiment prompts (exp03–exp09) in botcontroller/  
-  - New: test structures (target1–4, pins.json)  
-  - `grab_bot` uses B-slot (back) in VK mode
-
+ 
 - **1.7.7** (23.05.2026) — **get_bots_in_region API, would_split_cluster in diagnose, CLI fixes**
 
 - **1.7.6** (23.05.2026)  
@@ -263,7 +261,7 @@ If you enjoy this project and want to support ongoing development, feel free to 
 
 ---
 
-📬 **Feedback welcome**  
+📬 **Feedback & Bug Reports**  
 If you're experimenting with CellBots or building something on top of it, I'd love to hear from you.  
 Even a short message helps with motivation and future planning.
 
