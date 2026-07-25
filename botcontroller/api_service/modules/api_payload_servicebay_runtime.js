@@ -55,6 +55,23 @@ for (let i = 0; i < controller.bots.length; i++)
        } // if
     } // for
 
+// Also check detected_inactive_bots (I-Bots that are not in controller.bots[])
+if (Array.isArray(controller.detected_inactive_bots))
+   {
+   for (let i = 0; i < controller.detected_inactive_bots.length; i++)
+       {
+       let ib = controller.detected_inactive_bots[i];
+       if (ib &&
+           Number(ib.x) === Number(target_x) &&
+           Number(ib.y) === Number(target_y) &&
+           Number(ib.z) === Number(target_z)
+          )
+          {
+          return(String(ib.id));
+          } // if
+       } // for
+   } // if
+
 return(null);
 } // apicall_get_front_neighbor_bot_id()
 
@@ -282,8 +299,24 @@ if (!payload_target)
    } // if
 
 let payload_index = controller.get_bot_by_id(payload_bot_id, controller.bots);
+let payload_ib_index = null;
+let is_inactive_payload = false;
 
-if (payload_index == null)
+// If not found in controller.bots[], check detected_inactive_bots[] (I-Bots)
+if (payload_index == null && Array.isArray(controller.detected_inactive_bots))
+   {
+   for (let di = 0; di < controller.detected_inactive_bots.length; di++)
+       {
+       if (String(controller.detected_inactive_bots[di]?.id ?? "") === String(payload_bot_id))
+          {
+          payload_ib_index = di;
+          is_inactive_payload = true;
+          break;
+          } // if
+       } // for
+   } // if
+
+if (payload_index == null && !is_inactive_payload)
    {
    controller.append_api_bot_history(
                                      carrier_bot_id,
@@ -302,12 +335,26 @@ if (payload_index == null)
    return(false);
    } // if
 
-let oldx = Number(controller.bots[payload_index].x);
-let oldy = Number(controller.bots[payload_index].y);
-let oldz = Number(controller.bots[payload_index].z);
-let old_vx = Number(controller.bots[payload_index].vector_x);
-let old_vy = Number(controller.bots[payload_index].vector_y);
-let old_vz = Number(controller.bots[payload_index].vector_z);
+// Read old position/orientation – from detected_inactive_bots[] for I-Bots
+let oldx, oldy, oldz, old_vx, old_vy, old_vz;
+if (is_inactive_payload)
+   {
+   let ib = controller.detected_inactive_bots[payload_ib_index];
+   oldx = Number(ib.x);
+   oldy = Number(ib.y);
+   oldz = Number(ib.z);
+   old_vx = Number(ib.vx ?? 0);
+   old_vy = Number(ib.vy ?? 0);
+   old_vz = Number(ib.vz ?? 0);
+   } else
+     {
+     oldx = Number(controller.bots[payload_index].x);
+     oldy = Number(controller.bots[payload_index].y);
+     oldz = Number(controller.bots[payload_index].z);
+     old_vx = Number(controller.bots[payload_index].vector_x);
+     old_vy = Number(controller.bots[payload_index].vector_y);
+     old_vz = Number(controller.bots[payload_index].vector_z);
+     } // else
 let normalized_rotation_plan = Array.isArray(payload_rotation_plan) ? payload_rotation_plan : [];
 let payload_orientation_target = {
                                  x: old_vx,
@@ -425,19 +472,32 @@ if (
       } // else
    } // if
 
-controller.update_keyindex(oldx, oldy, oldz, payload_target.x, payload_target.y, payload_target.z);
-controller.bots[payload_index].x = Number(payload_target.x);
-controller.bots[payload_index].y = Number(payload_target.y);
-controller.bots[payload_index].z = Number(payload_target.z);
-controller.bots[payload_index].vector_x = Number(payload_orientation_target.x);
-controller.bots[payload_index].vector_y = Number(payload_orientation_target.y);
-controller.bots[payload_index].vector_z = Number(payload_orientation_target.z);
-controller.bots[payload_index].adress = controller.get_mb_returnaddr(
-                                                               {x:controller.mb.x, y:controller.mb.y, z:controller.mb.z },
-                                                               {x:payload_target.x, y:payload_target.y, z:payload_target.z },
-                                                               controller.bots, [],
-                                                               { exclude_masterbots: true }
-                                                               );
+if (is_inactive_payload)
+   {
+   // I-Bot: update position in detected_inactive_bots[] – no keyindex or address needed
+   controller.detected_inactive_bots[payload_ib_index].x = Number(payload_target.x);
+   controller.detected_inactive_bots[payload_ib_index].y = Number(payload_target.y);
+   controller.detected_inactive_bots[payload_ib_index].z = Number(payload_target.z);
+   controller.detected_inactive_bots[payload_ib_index].vx = Number(payload_orientation_target.x);
+   controller.detected_inactive_bots[payload_ib_index].vy = Number(payload_orientation_target.y);
+   controller.detected_inactive_bots[payload_ib_index].vz = Number(payload_orientation_target.z);
+   } else
+     {
+     // Active bot: update position in controller.bots[] with full spatial indexing
+     controller.update_keyindex(oldx, oldy, oldz, payload_target.x, payload_target.y, payload_target.z);
+     controller.bots[payload_index].x = Number(payload_target.x);
+     controller.bots[payload_index].y = Number(payload_target.y);
+     controller.bots[payload_index].z = Number(payload_target.z);
+     controller.bots[payload_index].vector_x = Number(payload_orientation_target.x);
+     controller.bots[payload_index].vector_y = Number(payload_orientation_target.y);
+     controller.bots[payload_index].vector_z = Number(payload_orientation_target.z);
+     controller.bots[payload_index].adress = controller.get_mb_returnaddr(
+                                                                   {x:controller.mb.x, y:controller.mb.y, z:controller.mb.z },
+                                                                   {x:payload_target.x, y:payload_target.y, z:payload_target.z },
+                                                                   controller.bots, [],
+                                                                   { exclude_masterbots: true }
+                                                                   );
+     } // else
 
 const events = [];
 events.push(

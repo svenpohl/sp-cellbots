@@ -398,6 +398,9 @@ return({
        adress_short: String(bot.adress_short ?? ""),
        adress_detour: String(bot.adress_detour ?? ""),
        carried_payload_bot_id: carried_payload,
+       is_payload: controller && controller.api_payload_links && Object.values(controller.api_payload_links).some(
+           function(l) { return String(l.payload_bot_id ?? "") === String(bot.id).trim(); }
+       ) ? true : false,
        neighbors: neighbors,
        masterbot: masterbotStr,
        connector: connectorId,

@@ -1197,16 +1197,16 @@ let world = {
             isOccupied: (x, y, z) => (
                                      bots_s.get(Number(x), Number(y), Number(z)) !== null
                                      ),
+            // isFree: a cell is available if not occupied by a structure bot AND
+            // not in the forbidden set. However, the forbidden set contains the
+            // carried payload bot – the payload always moves with the carrier and
+            // never blocks its path. We therefore allow cells that are forbidden
+            // (the payload position) to still be treated as free.
             isFree: (x, y, z) => {
               let occupied = (bots_s.get(Number(x), Number(y), Number(z)) !== null);
-              let forbidden = false;
-
-              if (bots_f)
-                 {
-                 forbidden = (bots_f.get(Number(x), Number(y), Number(z)) !== null);
-                 } // if
-
-              return(!occupied && !forbidden);
+              if (occupied) return false;
+              if (bots_f && bots_f.get(Number(x), Number(y), Number(z)) !== null) return true;
+              return true;
             },
             forbidden: bots_f
             };
@@ -1245,14 +1245,10 @@ let world = {
                                      ),
             isFree: (x, y, z) => {
               let occupied = (bots_s.get(Number(x), Number(y), Number(z)) !== null);
-              let forbidden = false;
-
-              if (bots_f)
-                 {
-                 forbidden = (bots_f.get(Number(x), Number(y), Number(z)) !== null);
-                 } // if
-
-              return(!occupied && !forbidden);
+              // Forbidden cells (z.B. getragene I-Bots) sind für den Carrier passierbar
+              if (occupied) return false;
+              if (bots_f && bots_f.get(Number(x), Number(y), Number(z)) !== null) return true;
+              return true;
             },
             forbidden: bots_f
             };
@@ -1275,7 +1271,8 @@ let goal = {
 let options = {
               max_search_steps: Number(vehicle_options?.max_search_steps ?? 100000),
                max_debug_rejections: Number(vehicle_options?.max_debug_rejections ?? 5000),
-              include_start: vehicle_options?.include_start !== false
+              include_start: vehicle_options?.include_start !== false,
+              pathplanning_log: vehicle_options?.pathplanning_log === true || vehicle_options?.pathplanning_log === "true"
               };
 
 return(calc_vehicle_kinematics_payload_path(start, goal, world, options));

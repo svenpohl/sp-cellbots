@@ -8,6 +8,27 @@
 // options: Additional options such as max_search_steps, max_debug_rejections, Debug flags
 function calc_vehicle_kinematics_payload_path(start, goal, world, options = {})
 {
+// Pathplanning-Logging (Debug-Flag) – auf true setzen für Diagnose
+const PATHPLANNING_LOG = false;
+let plog = () => {}; // Default: stumm
+let pstep = 0;
+
+if (PATHPLANNING_LOG)
+   {
+   const fs = require('fs');
+   const path = require('path');
+   const logDir = path.join(__dirname, '..', '..', 'logs');
+   const logFile = path.join(logDir, 'api_vehicle_kinematics_payload_path_runtime_pathplanning.txt');
+   try { if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true }); } catch(e) {}
+   const stream = fs.createWriteStream(logFile, { flags: 'a' });
+   stream.write("=== VK Path Planning Log ===\n");
+   stream.write("start: (" + (start?.x ?? "?") + "," + (start?.y ?? "?") + "," + (start?.z ?? "?") + ") v=(" + (start?.vx ?? "?") + "," + (start?.vy ?? "?") + "," + (start?.vz ?? "?") + ")\n");
+   stream.write("goal: (" + (goal?.x ?? "?") + "," + (goal?.y ?? "?") + "," + (goal?.z ?? "?") + ") v=(" + (goal?.vx ?? "?") + "," + (goal?.vy ?? "?") + "," + (goal?.vz ?? "?") + ")\n");
+   stream.write("max_search_steps: " + (options?.max_search_steps ?? "?") + "\n\n");
+   plog = (msg) => { pstep++; stream.write("[" + pstep + "] " + msg + "\n"); };
+   plog("Logging gestartet");
+   }
+
 if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_kinematics_payload_path AUFGERUFEN");
 // if (!(typeof globalThis !== "undefined" && globalThis.randomScenarioBatchQuiet)) {
    console.log("Start VK-Payload-pathplaner");
@@ -400,9 +421,15 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
     return false;
   }; // isForbidden()
 
+  // isFree checks whether a cell is available for the vehicle to occupy.
+  // IMPORTANT: The payload bot (carried in B-slot) is stored in the forbidden
+  // set so it is not treated as a regular obstacle. When a precondition fails
+  // because the payload occupies that cell, we allow it – the payload always
+  // moves with the carrier and never blocks its path.
+  // This applies to ALL primitive types (rotation, translation, step-down, ...).
   const canCheckTerrain = Boolean(world && typeof world.isFree === "function");
   const isFree = canCheckTerrain
-    ? (x, y, z) => world.isFree(x, y, z) && !isForbidden(x, y, z)
+    ? (x, y, z) => world.isFree(x, y, z)
     : (x, y, z) => !isForbidden(x, y, z);
 
   function normalizeVehicleHeading(input) {
@@ -615,7 +642,11 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
     const targetX = Number(currentState.x) + Number(deltas[0] ?? 0);
     const targetY = Number(currentState.y) + Number(deltas[1] ?? 0);
     const targetZ = Number(currentState.z) + Number(deltas[2] ?? 0);
-    const targetFree = isFree(targetX, targetY, targetZ);
+    // Also allow target cell if it is the payload position (carried bot).
+    const isFreeResult = isFree(targetX, targetY, targetZ);
+    const isForbiddenResult = isForbidden(targetX, targetY, targetZ);
+    const targetFree = isFreeResult || isForbiddenResult;
+    if (PATHPLANNING_LOG) plog("applyPrimitive: " + primitiveName + " state=(" + currentState.x + "," + currentState.y + "," + currentState.z + ") target=(" + targetX + "," + targetY + "," + targetZ + ") isFree=" + isFreeResult + " isForbidden=" + isForbiddenResult + " targetFree=" + targetFree);
     const orthogonalOffsets = [
       { x: 1, y: 0, z: 0 },
       { x: -1, y: 0, z: 0 },
@@ -640,6 +671,12 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
     })();
     const hasTargetContact = !canCheckTerrain || targetOrthogonalContacts.length > 0;
 
+    // The payload bot (carried in B-slot) is stored in the forbidden set so it
+    // is excluded from regular path planning. When a precondition cell coincides
+    // with the payload position, that cell must be treated as reachable – the
+    // payload always moves with the carrier and never blocks its own carrier.
+    const isPayloadCell = (x, y, z) => isForbidden(x, y, z);
+
     for (let i = 0; i < (primitive.pre ?? []).length; i++) {
       const pre = primitive.pre[i];
       const rel = Array.isArray(pre?.cell) ? pre.cell : [0, 0, 0];
@@ -647,8 +684,9 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
       const checkY = Number(currentState.y) + Number(rel[1] ?? 0);
       const checkZ = Number(currentState.z) + Number(rel[2] ?? 0);
       const shouldBeFree = String(pre?.is ?? "free") === "free";
-      const free = isFree(checkX, checkY, checkZ);
+      const free = isFree(checkX, checkY, checkZ) || isPayloadCell(checkX, checkY, checkZ);
       const occupied = isTerrainOccupied(checkX, checkY, checkZ);
+      if (PATHPLANNING_LOG) plog("  pre[" + i + "] cell=(" + checkX + "," + checkY + "," + checkZ + ") expect=" + (shouldBeFree?"free":"occupied") + " isFree=" + isFree(checkX,checkY,checkZ) + " isPayload=" + isPayloadCell(checkX,checkY,checkZ) + " free=" + free + " occupied=" + occupied);
       if (shouldBeFree && !free) {
         return {
           ok: false,
@@ -696,6 +734,7 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
 
 
      if (!hasTargetContact) {
+       if (PATHPLANNING_LOG) plog("  => NO_CONTACT: target=(" + targetX + "," + targetY + "," + targetZ + ") free=" + targetFree + " contacts=" + targetOrthogonalContacts.length);
        return {
          ok: false,
          error: "ERR_NO_CONTACT",
@@ -722,6 +761,7 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
       ? normalizeVehicleHeading({ vx: primitive.effect.dir[0], vy: primitive.effect.dir[1], vz: primitive.effect.dir[2] })
       : currentHeading;
 
+    if (PATHPLANNING_LOG) plog("  => OK: target=(" + targetX + "," + targetY + "," + targetZ + ") heading=(" + nextHeading.x + "," + nextHeading.y + "," + nextHeading.z + ")");
     return {
       ok: true,
       state: makeVehicleState({
@@ -747,6 +787,7 @@ if (typeof Logger !== "undefined") Logger.log("[DEBUG VK-Payload] calc_vehicle_k
       generatedNodes++;
 
       const transition = applyPrimitive(currentState, primitiveName);
+      if (PATHPLANNING_LOG) plog("expandState[" + generatedNodes + "] state=(" + currentState.x + "," + currentState.y + "," + currentState.z + ") v=(" + currentState.vx + "," + currentState.vy + "," + currentState.vz + ") primitive=" + primitiveName + " ok=" + transition.ok + (transition.ok?"":" error=" + (transition.error??"")));
       if (!transition.ok) {
         recordRejection(currentState, primitiveName, transition);
         continue;

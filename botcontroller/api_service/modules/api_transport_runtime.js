@@ -564,7 +564,11 @@ if (
           });
    } // if
 
-move_ret = controller.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+move_ret = controller.apicall_move_bot_to(
+    normalized_carrier_bot_id, target_x, target_y, target_z,
+    true,
+    { x: target_vx, y: target_vy, z: target_vz }
+);
 move_ret = await controller.apicall_attach_ack_wait_and_recovery(move_ret);
 let move_ack_ok = ((move_ret?.ack_received ?? false) === true) || apicall_is_no_ack_direct_success(move_ret);
 steps.push({
@@ -580,7 +584,6 @@ if (
    move_ret?.ok !== true ||
    move_ret?.path_found !== true ||
    move_ret?.executable !== true ||
-   move_ret?.executed !== true ||
    move_ack_ok !== true
    )
    {
@@ -759,7 +762,11 @@ if (!orientation_any)
       } // if
    } // if
 
-move_ret = controller.apicall_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+move_ret = controller.apicall_move_bot_to(
+    normalized_carrier_bot_id, target_x, target_y, target_z,
+    true,
+    { x: target_vx, y: target_vy, z: target_vz }
+);
 move_ret = await controller.apicall_attach_ack_wait_and_recovery(move_ret);
 let move_ack_ok = ((move_ret?.ack_received ?? false) === true) || apicall_is_no_ack_direct_success(move_ret);
 steps.push({
@@ -775,7 +782,6 @@ if (
    move_ret?.ok !== true ||
    move_ret?.path_found !== true ||
    move_ret?.executable !== true ||
-   move_ret?.executed !== true ||
    move_ack_ok !== true
    )
    {
@@ -1029,7 +1035,10 @@ if (!orientation_any)
       } // if
    } // if
 
-move_ret = controller.apicall_diagnose_move_bot_to(normalized_carrier_bot_id, target_x, target_y, target_z);
+move_ret = controller.apicall_diagnose_move_bot_to(
+    normalized_carrier_bot_id, target_x, target_y, target_z,
+    { x: target_vx, y: target_vy, z: target_vz }
+);
 steps.push({
            step: "move_bot_to",
            ok: move_ret?.ok === true,

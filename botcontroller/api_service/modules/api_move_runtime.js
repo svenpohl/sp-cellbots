@@ -153,6 +153,18 @@ let target_z = Number(z);
 let show_path = (show === true || show === "true" || show === "show" || show === 1 || show === "1");
 let excluded_bot_ids = Array.isArray(planning_options?.excluded_bot_ids) ? planning_options.excluded_bot_ids : [];
 
+// Auch den getragenen Payload aus der Structure-Grid ausschliessen,
+// damit der Pfadplaner nicht die Position des I-Bots als Hindernis sieht.
+let carried_payload_id = controller.apicall_get_carried_payload_bot_id(bot_id);
+if (carried_payload_id)
+   {
+   let pid = String(carried_payload_id).trim();
+   if (pid != "" && !excluded_bot_ids.includes(pid))
+      {
+      excluded_bot_ids.push(pid);
+      }
+   }
+
 if (botindex == null)
    {
    return({
@@ -177,6 +189,12 @@ let bot = controller.bots[botindex];
 let bots_s = controller.apicall_build_structure_grid_without_bot(bot_id, excluded_bot_ids);
 let bots_f = controller.apicall_build_forbidden_grid();
 let carried_payload_bot_id = String(planning_options?.carried_payload_bot_id ?? "").trim();
+// Fallback: Payload-ID aus der API-Grab-State-Map lesen
+if (!carried_payload_bot_id)
+   {
+   let api_payload = controller.apicall_get_carried_payload_bot_id(bot_id);
+   if (api_payload) carried_payload_bot_id = String(api_payload).trim();
+   }
 if (typeof Logger !== "undefined") Logger.log("[DEBUG find_path_for_bot] bot_id=" + bot_id + " carried_payload_bot_id='" + carried_payload_bot_id + "' mobility_mode=" + String(controller?.config?.mobility_mode ?? "?").trim().toLowerCase() + " target=" + x + "," + y + "," + z);
 let goal_orientation = planning_options?.goal_orientation ?? null;
 let bot_snapshot = controller.apicall_get_bot_snapshot(bot_id);
@@ -196,6 +214,20 @@ let path_debug_rejections = [];
 let path_vehicle_dry_run = null;
 let src_is_forbidden = controller.apicall_is_forbidden_cell(src.x, src.y, src.z, bots_f);
 let dest_is_forbidden = controller.apicall_is_forbidden_cell(dest.x, dest.y, dest.z, bots_f);
+
+// Wenn der Carrier einen Payload trägt, darf die Position des Payloads
+// nicht als "forbidden" gelten – der Carrier muss dorthin fahren können.
+let carried_id_for_forbidden = controller.apicall_get_carried_payload_bot_id(bot_id);
+if (dest_is_forbidden === true && carried_id_for_forbidden != "")
+   {
+   // Check ob die forbidden-Zelle der getragene I-Bot ist
+   let forbidden_bot_id = bots_f ? bots_f.get(Number(dest.x), Number(dest.y), Number(dest.z)) : null;
+   if (String(forbidden_bot_id ?? "") === String(carried_id_for_forbidden))
+      {
+      dest_is_forbidden = false;
+      }
+   }
+
 let mobility_mode = String(controller?.config?.mobility_mode ?? "full_edge").trim().toLowerCase();
 
 if (src_is_forbidden === true)
@@ -232,9 +264,13 @@ if (dest_is_forbidden === true)
 
 if (carried_payload_bot_id != "")
    {
+   // Payload-Slot aus dem Link holen (Default "B" für VK, da der I-Bot im B-Slot getragen wird)
+   let payload_link = controller.apicall_get_payload_link_for_carrier(bot_id);
+   let payload_slot = (payload_link && payload_link.relative_slot) ? payload_link.relative_slot : "B";
    let payload_target = controller.apicall_get_payload_target_from_carrier_state(
                                                                               dest,
-                                                                              bot_snapshot?.orientation ?? null
+                                                                              bot_snapshot?.orientation ?? null,
+                                                                              payload_slot
                                                                               );
 
    if (payload_target && controller.apicall_is_forbidden_cell(payload_target.x, payload_target.y, payload_target.z, bots_f))
@@ -273,7 +309,8 @@ if (carried_payload_bot_id != "")
                                                                                goal_orientation: goal_orientation,
                                                                                include_start: true,
                                                                                carrier_bot_id: bot_id,
-                                                                               payload_bot_id: carried_payload_bot_id
+                                                                               payload_bot_id: carried_payload_bot_id,
+                                                                               pathplanning_log: planning_options?.pathplanning_log === true
                                                                                }
                                                                                );
       path_result = path_vehicle_dry_run;
@@ -582,7 +619,7 @@ return({
 } // apicall_suggest_simple_move()
 
 
-function apicall_move_bot_to(controller, bot_id, x, y, z, execute_move = true, goal_orientation = null)
+function apicall_move_bot_to(controller, bot_id, x, y, z, execute_move = true, goal_orientation = null, planning_options = {})
 {
 let target_x = Number(x);
 let target_y = Number(y);

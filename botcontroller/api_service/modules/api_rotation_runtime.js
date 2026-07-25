@@ -633,9 +633,19 @@ if (
    Number(rotate_right_once.z) === matched_target.z
    )
    {
-   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["R"], matched_target);
-   execRet.answer = "api_rotate_bot_to";
-   return(execRet);
+   // Return plan WITHOUT executing – the handler (api_motion_command_handler)
+   // will call apicall_execute_rotation_plan once with the returned rotation_plan.
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["R"],
+          reason: "ROTATION_PLAN_READY"
+          });
    } // if
 
 if (
@@ -645,9 +655,17 @@ if (
    Number(rotate_left_once.z) === matched_target.z
    )
    {
-   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["L"], matched_target);
-   execRet.answer = "api_rotate_bot_to";
-   return(execRet);
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["L"],
+          reason: "ROTATION_PLAN_READY"
+          });
    } // if
 
 if (
@@ -657,9 +675,17 @@ if (
    Number(rotate_right_twice.z) === matched_target.z
    )
    {
-   let execRet = apicall_execute_rotation_plan(controller, bot_id, ["R", "R"], matched_target);
-   execRet.answer = "api_rotate_bot_to";
-   return(execRet);
+   return({
+          ok: true,
+          answer: "api_rotate_bot_to",
+          bot_id: bot_id,
+          executable: true,
+          executed: false,
+          current_state: bot_snapshot,
+          target_orientation: matched_target,
+          rotation_plan: ["R", "R"],
+          reason: "ROTATION_PLAN_READY"
+          });
    } // if
 
 return({

@@ -64,7 +64,8 @@ if (cmd === "can_reach_position")
 
 if (cmd === "find_path_for_bot")
    {
-   let ret = controller.apicall_find_path_for_bot(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show);
+   let planningOpts = (typeof decodedobject.planning_options === "object" && decodedobject.planning_options !== null) ? decodedobject.planning_options : {};
+   let ret = controller.apicall_find_path_for_bot(decodedobject.bot_id, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.show, planningOpts);
    controller.append_api_action_log("find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0, path_visualized: ret.path_visualized ?? false });
    controller.append_api_bot_history(decodedobject.bot_id, "find_path_for_bot", { bot_id: decodedobject.bot_id, x: decodedobject.x, y: decodedobject.y, z: decodedobject.z, show: decodedobject.show ?? false }, { ok: ret.ok, answer: ret.answer, path_found: ret.path_found ?? false, path_length: ret.path_length ?? 0 });
    await write_and_close(socket, ret);
