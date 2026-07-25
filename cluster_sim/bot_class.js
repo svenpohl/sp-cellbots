@@ -37,6 +37,7 @@ constructor()
   this.inactive = 0;
   this.servicebay = 0;
   this.mobility   = true;      // false = immobile (pseudo-bot, hMB, fixed anchor)
+  this.is_payload = false;     // true when this bot is carried as payload by another bot
   this.masterbot  = bot_class.MB_NONE;  // MB_NONE | MB_PRIMARY | MB_HELPER
 
   //
@@ -328,6 +329,13 @@ if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
    return(0);
    }
 
+// Payload bots (carried by another bot) must not participate in mesh routing.
+// They are passive cargo and any message they forward would corrupt the mesh.
+if (this.is_payload === true)
+   {
+   return(0);
+   }
+
 // Forwarding disabled check (Fehlertyp 08):
 // Block messages that have a non-empty address (need further forwarding).
 // Allow: messages with empty address (for self) and self-generated responses (no @).
@@ -420,6 +428,12 @@ if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
    return("");
    }
 
+// Payload bots do not process messages.
+if (this.is_payload === true)
+   {
+   return("");
+   }
+
 let size = this.msgqueue.length;
 
 if (size == 0) 
@@ -428,8 +442,9 @@ if (size == 0)
    }
 
 let message = this.msgqueue.pop();
+
 return(message);
-} // push_msg
+} // pop_msg
 
 
 //
@@ -440,6 +455,12 @@ return(message);
 push_botcontroller_queue( msg )
 {
 if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
+   {
+   return;
+   }
+
+// Payload bots do not send messages to the BotController.
+if (this.is_payload === true)
    {
    return;
    }
@@ -497,6 +518,11 @@ if (this.inactive == 'true' || this.inactive === true || this.inactive == 1)
    return(false);
    }
 
+// Payload bots (carried by another bot) do not execute commands.
+if (this.is_payload === true)
+   {
+   return(false);
+   }
 
 // -> Reject all from locked slots
 let tmp_sourceslot  = cmdarray.sourceslot.toUpperCase();
@@ -998,6 +1024,11 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           if (previous_grabbed_cellbot !== null)
              {
              caller.unregister_payload_bot_int_id(previous_grabbed_cellbot);
+             // Clear the payload flag on the previously grabbed bot
+             if (caller.bots[previous_grabbed_cellbot] !== undefined)
+                {
+                caller.bots[previous_grabbed_cellbot].is_payload = false;
+                }
              } // if
 
           if (size == 0 || targetslot != 'F')
@@ -1015,6 +1046,8 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
               if (this.grabbed_cellbot !== null && this.grabbed_cellbot >= 0)
                  {
                  caller.register_payload_bot_int_id(this.grabbed_cellbot);
+                 // Mark the grabbed bot so it knows it is being carried
+                 caller.bots[this.grabbed_cellbot].is_payload = true;
                  } // if
        
               } // if (valid slot)
@@ -1442,6 +1475,9 @@ events.push( notify_msg );
 
 caller.notify_frontend( events );
 
+// // WEBGUI_REFRESH: commented out – breaks smooth morph animation
+// caller.send_webgui( JSON.stringify({ event: "refreshworld" }) );
+
  
 
 
@@ -1465,6 +1501,13 @@ if ( update_carrier_bot )
    this.y = target_y;
    this.z = target_z;
    Logger.log("[MOTORIC] MOVED bot=" + this.id + " from=(" + carrier_x_old + "," + carrier_y_old + "," + carrier_z_old + ") to=(" + this.x + "," + this.y + "," + this.z + ") dir=" + direction_slot);
+
+   // Update index_neighbors nach Bewegung (Orientierung kann sich geändert haben)
+   let moved_idx = caller.get_3d(this.x, this.y, this.z);
+   if (moved_idx !== null && moved_idx !== undefined)
+      {
+      caller.update_bot_index_neighbors(moved_idx);
+      }
    }
    
 if ( update_grabbed_bot )
@@ -2068,6 +2111,9 @@ events.push( notify_msg );
  
 
 caller.notify_frontend( events );
+
+// // WEBGUI_REFRESH: commented out – breaks smooth morph animation
+// caller.send_webgui( JSON.stringify({ event: "refreshworld" }) );
 
  
 

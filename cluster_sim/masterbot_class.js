@@ -447,6 +447,18 @@ private_key_or_secret = c25f5d256a3a0104c9eabab81f6d87abc2f9f75179101de2f527de53
     // Find neighbors          
     this.init_cells_xml_neighbors();
     
+    // Check for duplicate bot IDs – warn if any are found
+    let seen_ids = {};
+    for (let bi = 0; bi < this.bots.length; bi++) {
+        let bid = String(this.bots[bi]?.id ?? "").trim();
+        if (bid == "") continue;
+        if (seen_ids[bid] === true) {
+            console.log("WARNING: Duplicate bot ID detected: \"" + bid + "\". The simulation may behave inconsistently.");
+        } else {
+            seen_ids[bid] = true;
+        }
+    }
+    
 
     
   let target_x = this.x + parseFloat( this.index_neighbors[ this.mbconnection_slot ][0]); 
@@ -737,6 +749,46 @@ let vector_z =  this.bots[i].vector_z;
  
 
 } // update_bot_index_neighbors   
+
+
+//
+// get_slot_delta() - berechnet Slot-Richtung live aus Orientierung (ohne get_3d)
+// Wird im Bot-Routing verwendet, um stale index_neighbors zu umgehen.
+//
+get_slot_delta( bot, slot )
+{
+const rotations = [
+  { F: [1, 0, 0], R: [0, 0, -1], B: [-1,0,0], L: [0,0,1], T: [0,1,0], D: [0,-1,0] },
+  { F: [0, 0, -1], R: [-1, 0, 0], B: [0,0,1], L: [1,0,0], T: [0,1,0], D: [0,-1,0] },
+  { F: [-1, 0,0], R: [0, 0, 1], B: [1,0,0], L: [0,0,-1], T: [0,1,0], D: [0,-1,0] },
+  { F: [0, 0,1], R: [1, 0, 0], B: [0,0,-1], L: [-1,0,0], T: [0,1,0], D: [0,-1,0] }
+];
+
+let vx = Number(bot.vector_x);
+let vy = Number(bot.vector_y);
+let vz = Number(bot.vector_z);
+
+let rotIdx = -1;
+if (vx === 1 && vy === 0 && vz === 0) rotIdx = 0;
+else if (vx === 0 && vy === 0 && vz === -1) rotIdx = 1;
+else if (vx === -1 && vy === 0 && vz === 0) rotIdx = 2;
+else if (vx === 0 && vy === 0 && vz === 1) rotIdx = 3;
+
+if (rotIdx === -1)
+   {
+   return(undefined);
+   }
+
+let slotKey = String(slot).toUpperCase();
+let delta = rotations[rotIdx][slotKey];
+
+if (delta === undefined)
+   {
+   return(undefined);
+   }
+
+return(delta);
+} // get_slot_delta()
 
 
 //
@@ -1995,7 +2047,8 @@ for (let i=0; i < this.bots.length; i++)
        // Routing message 
        if (destslot != "")
           {
-          let indexdestbot = this.bots[i].index_neighbors[destslot];
+          // Live-Berechnung aus Orientierung (immun gegen stale index_neighbors)
+          let indexdestbot = this.get_slot_delta(this.bots[i], destslot);
 
           if (indexdestbot == undefined)
              {
@@ -2016,7 +2069,7 @@ for (let i=0; i < this.bots.length; i++)
    
 
           let tmp_botindex = this.get_3d(koor_x,koor_y,koor_z);
-   
+
           if (tmp_botindex != null && this.bots[tmp_botindex] !== undefined)
           {
           
