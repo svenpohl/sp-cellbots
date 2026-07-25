@@ -13,6 +13,8 @@ class VoxelEditController {
     reset() {
         this.sets = { 0: [] }; // set 0 = union (always exists)
         this.emptyArea = null;
+        this.donorIds = null; // Set of bot IDs restricted as donors
+        this.strictOrientation = false; // When true, captured orientations are enforced
         return { ok: true, answer: "ve_new", count: 0, sets: { 0: 0 } };
     }
 
@@ -224,6 +226,83 @@ class VoxelEditController {
         }
         return { ok: true, answer: "ve_import", count: this.sets[0].length,
             region: { x1: minX, y1: minY, z1: minZ, x2: maxX, y2: maxY, z2: maxZ } };
+    }
+
+    // Captures bots from the controller's world model into a named set.
+    // Unlike importFromController (which writes to set 0 and clears all sets),
+    // captureFromController writes to a specific setId and preserves other sets.
+    // MasterBots (masterbot > 0) are skipped.
+    captureFromController(setId, x1, y1, z1, x2, y2, z2, controller) {
+        const id = Number(setId);
+        if (id === 0) {
+            return { ok: false, answer: "ve_capture", error: "SET_ZERO_IS_READONLY" };
+        }
+        x1 = Number(x1); y1 = Number(y1); z1 = Number(z1);
+        x2 = Number(x2); y2 = Number(y2); z2 = Number(z2);
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
+        const arr = this._ensureSet(id);
+        // Clear the set first (fresh capture)
+        this.sets[id] = [];
+        const bots = controller.bots || [];
+        for (const bot of bots) {
+            if ((bot.masterbot ?? 0) > 0) continue; // skip masterbots
+            const bx = Number(bot.x), by = Number(bot.y), bz = Number(bot.z);
+            if (bx >= minX && bx <= maxX && by >= minY && by <= maxY && bz >= minZ && bz <= maxZ) {
+                this.sets[id].push({
+                    x: bx, y: by, z: bz,
+                    vx: Number(bot.vector_x ?? 0),
+                    vy: Number(bot.vector_y ?? 0),
+                    vz: Number(bot.vector_z ?? 0)
+                });
+            }
+        }
+        return { ok: true, answer: "ve_capture", set: id, count: this.sets[id].length,
+            region: { x1: minX, y1: minY, z1: minZ, x2: maxX, y2: maxY, z2: maxZ } };
+    }
+
+    // Copies bot IDs from a set's current positions into donorIds.
+    // The morph algorithm will then ONLY use these bots as donors.
+    copySetToDonors(setId, controller) {
+        const id = Number(setId);
+        const arr = this.sets[id];
+        if (!arr || arr.length === 0) {
+            this.donorIds = new Set();
+            return { ok: true, answer: "ve_copy_set_to_donors", set: id, count: 0, donor_ids: [] };
+        }
+        const bots = controller.bots || [];
+        const ids = [];
+        const donorSet = new Set();
+        for (const voxel of arr) {
+            for (const bot of bots) {
+                if ((bot.masterbot ?? 0) > 0) continue;
+                if (Number(bot.x) === Number(voxel.x) &&
+                    Number(bot.y) === Number(voxel.y) &&
+                    Number(bot.z) === Number(voxel.z)) {
+                    donorSet.add(String(bot.id));
+                    ids.push(String(bot.id));
+                    break;
+                }
+            }
+        }
+        this.donorIds = donorSet;
+        return { ok: true, answer: "ve_copy_set_to_donors", set: id, count: ids.length, donor_ids: ids };
+    }
+
+    // Clears the donor restriction.
+    clearDonors() {
+        this.donorIds = null;
+        return { ok: true, answer: "ve_clear_donors" };
+    }
+
+    // Sets strict orientation mode.
+    // When enabled (true), the morph algorithm only uses the captured orientation
+    // and does NOT try alternative orientations during path planning.
+    // When disabled (false, default), multi-orientation fallback is active.
+    setStrictOrientation(enabled) {
+        this.strictOrientation = (enabled === true || enabled === 'true' || enabled === 1 || enabled === '1' || enabled === 'on');
+        return { ok: true, answer: "ve_strict_orientation", strict: this.strictOrientation };
     }
 
     // Load: loads into set 0
