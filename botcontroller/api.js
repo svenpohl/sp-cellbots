@@ -254,6 +254,18 @@ function buildRequestFromCli() {
       z2: Number(process.argv[8] ?? 0)
     };
   } // if
+  if (cmd == "ve_capture") {
+    return {
+      cmd: "ve_capture",
+      setId: Number(process.argv[3] ?? 0),
+      x1: Number(process.argv[4] ?? 0),
+      y1: Number(process.argv[5] ?? 0),
+      z1: Number(process.argv[6] ?? 0),
+      x2: Number(process.argv[7] ?? 0),
+      y2: Number(process.argv[8] ?? 0),
+      z2: Number(process.argv[9] ?? 0)
+    };
+  } // if
   if (cmd == "ve_create_box") {
     return {
       cmd: "ve_create_box",
@@ -341,6 +353,15 @@ function buildRequestFromCli() {
   } // if
   if (cmd == "ve_hide") {
     return { cmd: "ve_hide" };
+  } // if
+  if (cmd == "ve_copy_set_to_donors") {
+    return { cmd: "ve_copy_set_to_donors", setId: Number(process.argv[3] ?? 0) };
+  } // if
+  if (cmd == "ve_clear_donors") {
+    return { cmd: "ve_clear_donors" };
+  } // if
+  if (cmd == "ve_strict_orientation") {
+    return { cmd: "ve_strict_orientation", mode: process.argv[3] ?? "on" };
   } // if
 
   if (cmd == "structurescan") {
@@ -588,13 +609,20 @@ function buildRequestFromCli() {
   } // if
 
   if (cmd == "find_path_for_bot") {
+    let planningOpts = {};
+    let extra = String(process.argv[7] ?? "").toLowerCase();
+    if (extra === "show") { planningOpts.show_path = true; }
+    else if (extra === "pathplanning_log" || extra === "plog") { planningOpts.pathplanning_log = true; }
+    let extra2 = String(process.argv[8] ?? "").toLowerCase();
+    if (extra2 === "pathplanning_log" || extra2 === "plog") { planningOpts.pathplanning_log = true; }
     return {
       cmd: "find_path_for_bot",
       bot_id: process.argv[3] ?? "",
       x: Number(process.argv[4] ?? 0),
       y: Number(process.argv[5] ?? 0),
       z: Number(process.argv[6] ?? 0),
-      show: ((process.argv[7] ?? "") === "show")
+      show: (extra === "show"),
+      planning_options: planningOpts
     };
   } // if
 
@@ -1566,6 +1594,7 @@ function main() {
             adress_short: responseObject.adress_short ?? "",
             adress_detour: responseObject.adress_detour ?? "",
             carried_payload_bot_id: responseObject.carried_payload_bot_id,
+            is_payload: responseObject.is_payload ?? false,
             neighbors: responseObject.neighbors,
             masterbot: responseObject.masterbot,
             connector: responseObject.connector,
@@ -1581,12 +1610,25 @@ function main() {
             count: responseObject.count,
             list: responseObject.list
           };
+        } else if (answer === "api_calc_crater" || answer === "api_crater_start" || answer === "api_crater_fill" || answer === "api_crater_list") {
+          result = {
+            ok: responseObject.ok === true,
+            result: answer,
+            _raw: responseObject
+          };
         } else if (answer === "api_morph_get_structures") {
           result = {
             ok: true,
             result: "api_morph_get_structures",
             count: responseObject.count,
             list: responseObject.list
+          };
+        } else if (answer === "api_get_inactive_bots") {
+          result = {
+            ok: true,
+            result: "api_get_inactive_bots",
+            count: responseObject.count ?? 0,
+            bots: responseObject.bots ?? []
           };
         } else if (answer === "api_raw_cmd") {
           result = {
@@ -1844,6 +1886,8 @@ function main() {
           result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0, box: responseObject.box ?? {} };
         } else if (answer === "ve_import") {
           result = { ok: true, result: answer, count: responseObject.count ?? 0, region: responseObject.region ?? {} };
+        } else if (answer === "ve_capture") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0, region: responseObject.region ?? {} };
         } else if (answer === "ve_emptyarea") {
           result = { ok: true, result: answer, emptyArea: responseObject.emptyArea ?? null };
         } else if (answer === "ve_new") {
@@ -1876,6 +1920,12 @@ function main() {
           result = { ok: true, result: answer, count: responseObject.count ?? 0, frontend_attached: responseObject.frontend_attached ?? false };
         } else if (answer === "ve_hide") {
           result = { ok: true, result: answer };
+        } else if (answer === "ve_copy_set_to_donors") {
+          result = { ok: true, result: answer, set: responseObject.set ?? 0, count: responseObject.count ?? 0, donor_ids: responseObject.donor_ids ?? [] };
+        } else if (answer === "ve_clear_donors") {
+          result = { ok: true, result: answer };
+        } else if (answer === "ve_strict_orientation") {
+          result = { ok: true, result: answer, strict: responseObject.strict === true };
         } else {
           result = { ok: true, result: answer };
         }

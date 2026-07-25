@@ -106,6 +106,10 @@ const {
       apicall_ve_new: runtime_ve_new,
       apicall_ve_create_box: runtime_ve_create_box,
       apicall_ve_import: runtime_ve_import,
+      apicall_ve_capture: runtime_ve_capture,
+      apicall_ve_copy_set_to_donors: runtime_ve_copy_set_to_donors,
+      apicall_ve_clear_donors: runtime_ve_clear_donors,
+      apicall_ve_strict_orientation: runtime_ve_strict_orientation,
       apicall_ve_emptyarea: runtime_ve_emptyarea,
       apicall_ve_get_status: runtime_ve_get_status,
       apicall_ve_set_voxel: runtime_ve_set_voxel,
@@ -3120,6 +3124,9 @@ this.scan_targets_lvl2_index = 0;
 this.scanwaitingcounter_lvl2 = 0;
 this.detected_inactive_bots  = [];
 
+// Recalibrate all bot addresses first, so CHECK commands can reach their targets
+this.apicall_recalibrate_bot_addresses("standard");
+
 let size = this.bots.length;
 
 for (let i=1; i<size; i++)
@@ -3368,13 +3375,13 @@ if (structure === ':voxeledit') {
         return { name: ':voxeledit', meta: {}, structure: [], emptyArea: null, carrier: [], reserve: [], x: [], forbidden: [], inactive: [], raw: [] };
     }
     const voxels = this.voxeledit.getVoxelsAsArray();
-    // Strip orientation so the VK planner uses auto-orientation (neighbor-based)
-    const stripped = voxels.map(v => ({ x: v.x, y: v.y, z: v.z }));
-    console.log("[MORPH] Using :voxeledit – " + voxels.length + " voxels (orientations stripped for auto-orientation)");
+    // Preserve orientations from captured data (ve_capture) – the auto-orientation
+    // in _buildWorldAndPlanPath still kicks in for bots with (0,0,0) orientation.
+    console.log("[MORPH] Using :voxeledit – " + voxels.length + " voxels");
     return {
         name: ':voxeledit',
         meta: {},
-        structure: stripped,
+        structure: voxels,
         emptyArea: this.voxeledit.emptyArea || null,
         carrier: [],
         reserve: [],
@@ -3502,7 +3509,6 @@ for (let i=0; i<size; i++)
        }
     }
 
-
 const targetDefinition = this.load_structure_definition(structure);
 const targetBots = targetDefinition.structure;
 
@@ -3560,6 +3566,30 @@ if (Array.isArray(this.detected_inactive_bots)) {
         });
     }
 }
+
+    // Donor restriction: if voxeledit has donorIds set, only those bots may be moved.
+    // Non-donor bots stay in startBots for world model integrity (hasContact, neighbour checks,
+    // path planning obstacles). They are marked with inactive=true so choosePair skips them as
+    // donors – but the path planner still sees them and can navigate around them.
+    if (this.voxeledit && this.voxeledit.donorIds && this.voxeledit.donorIds.size > 0) {
+        const donorIds = this.voxeledit.donorIds;
+        let donorCount = 0;
+        for (const bot of startBots) {
+            if (!donorIds.has(String(bot.id))) {
+                bot.inactive = true;
+            } else {
+                donorCount++;
+            }
+        }
+        console.log("[MORPH] Donor restriction: " + donorCount + " donors, " +
+                    (startBots.length - donorCount) + " inactive (world model preserved).");
+        this.morph_strict_orientation = this.voxeledit.strictOrientation === true;
+    } else {
+        this.morph_strict_orientation = this.voxeledit.strictOrientation === true;
+    }
+    if (this.voxeledit.strictOrientation === true) {
+        console.log("[MORPH] strictOrientation active (no donor restriction).");
+    }
 
 let params = {};
 let algo = null;
@@ -3640,6 +3670,7 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" )
             forbiddenCells: forbiddenCells,
             emptyArea: targetDefinition.emptyArea || null,
             max_paths_in_wave: this.morph_fallback_active ? 1 : 14,
+            strict_orientation: this.morph_strict_orientation,
             max_attempts_to_find_pair: 50
             };
 
@@ -7257,6 +7288,30 @@ if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not
 return this.voxeledit.importFromController(this, x1, y1, z1, x2, y2, z2);
 } // apicall_ve_import()
 
+apicall_ve_capture(setId, x1, y1, z1, x2, y2, z2)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.captureFromController(setId, x1, y1, z1, x2, y2, z2, this);
+} // apicall_ve_capture()
+
+apicall_ve_copy_set_to_donors(setId)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.copySetToDonors(setId, this);
+} // apicall_ve_copy_set_to_donors()
+
+apicall_ve_clear_donors()
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.clearDonors();
+} // apicall_ve_clear_donors()
+
+apicall_ve_strict_orientation(mode)
+{
+if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
+return this.voxeledit.setStrictOrientation(mode);
+} // apicall_ve_strict_orientation()
+
 apicall_ve_emptyarea(x, y, z, x2, y2, z2)
 {
 if (!this.voxeledit) return { ok: false, result: "failed", error: "VoxelEdit not initialized" };
@@ -7848,6 +7903,22 @@ return(runtime_build_stationary_ack_returnaddr(this, bot_snapshot, target_orient
 
 apicall_grab_bot(bot_id, slot = null)
 {
+// Logger.log("[GRAB_DEBUG] apicall_grab_bot called: bot_id=" + bot_id + " slot=" + (slot ?? "null") + " mobility_mode=" + String(this.config?.mobility_mode ?? ""));
+// Vehicle Kinematics mode: only B-slot (back) is allowed for grabbing
+let vk_mode = String(this.config?.mobility_mode ?? "").trim();
+let eff_slot = (slot && String(slot).trim() != "") ? String(slot).trim().toUpperCase() : (vk_mode === "vehicle_kinematics" ? "B" : "F");
+if (vk_mode === "vehicle_kinematics" && eff_slot !== "B")
+   {
+   // Logger.log("[GRAB_DEBUG] VK GUARD BLOCKED: slot=" + eff_slot + " for bot_id=" + bot_id);
+   return({
+          ok: false,
+          answer: "api_grab_bot",
+          error: "INVALID_SLOT_FOR_VK_MODE",
+          bot_id: bot_id,
+          slot: eff_slot,
+          valid_slots: ["B"]
+          });
+   } // if
 return(runtime_grab_bot(this, bot_id, slot));
 } // apicall_grab_bot()
 
@@ -10342,6 +10413,10 @@ async handleAPIMessage_internal(message, socket) {
                     case 've_new':          obj = this.apicall_ve_new(); break;
                     case 've_create_box':   obj = this.apicall_ve_create_box(decodedobject.setId, decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
                     case 've_import':       obj = this.apicall_ve_import(decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
+                    case 've_capture':      obj = this.apicall_ve_capture(decodedobject.setId, decodedobject.x1, decodedobject.y1, decodedobject.z1, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
+                    case 've_copy_set_to_donors': obj = this.apicall_ve_copy_set_to_donors(decodedobject.setId); break;
+                    case 've_clear_donors':  obj = this.apicall_ve_clear_donors(); break;
+                    case 've_strict_orientation': obj = this.apicall_ve_strict_orientation(decodedobject.mode); break;
                     case 've_emptyarea':    obj = this.apicall_ve_emptyarea(decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.x2, decodedobject.y2, decodedobject.z2); break;
                     case 've_get_status':   obj = this.apicall_ve_get_status(); break;
                     case 've_set_voxel':    obj = this.apicall_ve_set_voxel(decodedobject.setId, decodedobject.x, decodedobject.y, decodedobject.z, decodedobject.vx, decodedobject.vy, decodedobject.vz); break;

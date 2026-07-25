@@ -25,6 +25,7 @@ constructor()
   
   this.masterbot = 0; // 0=normal, 1=primary MB, 2=helper MB
   this.mobility = true; // false = immobile (hMB, config bot)
+  this.is_payload = false; // true when carried as payload by another bot
 
   this.checked = 0;
   
