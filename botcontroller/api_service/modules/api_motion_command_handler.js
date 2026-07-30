@@ -288,6 +288,17 @@ if (cmd === "register_payload_link")
    return(true);
    } // if
 
+if (cmd === "set_latches")
+   {
+   let slots = Array.isArray(decodedobject.slots) ? decodedobject.slots : [];
+   let release = (String(decodedobject.release ?? "").trim().toLowerCase() === "true" || decodedobject.release === true);
+   let ret = controller.apicall_set_latches(decodedobject.bot_id, slots, release);
+   controller.append_api_action_log("set_latches", { bot_id: decodedobject.bot_id, slots: slots, release: release }, { ok: ret.ok, answer: ret.answer, latches: ret.latches ?? null });
+   controller.append_api_bot_history(decodedobject.bot_id, "set_latches", { bot_id: decodedobject.bot_id, slots: slots, release: release }, { ok: ret.ok, answer: ret.answer, latches: ret.latches ?? null });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 return(false);
 } // handle_motion_api_command()
 

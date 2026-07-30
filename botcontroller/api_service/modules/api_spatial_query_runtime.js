@@ -410,6 +410,15 @@ return({
                  ) : false),
        type: Number(bot.type ?? 0),
        mobility: (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true,
+       latches: bot.latches ? {
+                     F: bot.latches.F === true,
+                     R: bot.latches.R === true,
+                     B: bot.latches.B === true,
+                     L: bot.latches.L === true,
+                     T: bot.latches.T === true,
+                     D: bot.latches.D === true
+                 } : null,
+       latch_verified: bot.latch_verified === true,
        resilience_scores: controller.resilienceController
            ? controller.resilienceController.get_bot_scores(bot.id)
            : {}
