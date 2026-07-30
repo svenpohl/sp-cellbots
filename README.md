@@ -47,6 +47,7 @@ structures.
 
 - [Description](docs/description.md)  
 - [Installation & Quickstart](docs/install.md)  
+- [Videos & Animations](docs/videos.md)  
 - [CellBot Protocol and OP-Codes](docs/protocol.md)  
 - [CellBot Hardware Blueprint (Virtual)](docs/hardware_blueprint.md)  
 - [Direct Radio](docs/direct_radio.md)  
@@ -74,11 +75,18 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.0.3**  
+Current version: **2.0.4**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.0.4** (30.07.2026)
+**Latch-API & Batch-Testing-Framework**
+  - Latches API commands: `set_latches <bot_id> <slot> [slot...]` – set/release mechanical clamps via C-Opcode with ALIFE/RALIFE confirmation; `get_bot_info` now returns `latches` and `latch_verified` status
+  - Batch-Logging: `clearbatchlog`, `batchlog`, `log` CLI commands
+  - Test batches: `base72_carrier_test.batch` (76 blocks) & `base72_nanotest01.batch` (23 blocks)
+  - New `docs/videos.md` page – animated demonstrations (more coming)
 
 - **2.0.3** (25.07.2026)
 **Carrier-Payload-RALIFE-Fix & I-Bot Transport**
