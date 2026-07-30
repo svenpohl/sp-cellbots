@@ -588,4 +588,4 @@ A core principle of this project is that the **BotController never depends on si
 > The BotController does not care whether it talks to a virtual or physical MasterBot. This ensures modularity and future-proof design.
 
 [⬅️ Back to Overview](../README.md)
-**Previous:** [Installation & Quickstart](install.md) | **Next:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md)
+**Previous:** [Videos & Animations](videos.md) | **Next:** [CellBot Hardware Blueprint (Virtual)](hardware_blueprint.md)

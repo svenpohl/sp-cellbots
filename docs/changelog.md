@@ -6,6 +6,13 @@
 
 ---
 
+- **2.0.4** (30.07.2026)
+**Latch-API & Batch-Testing-Framework**
+  - Latches API commands: `set_latches <bot_id> <slot> [slot...]` – set/release mechanical clamps via C-Opcode with ALIFE/RALIFE confirmation; `get_bot_info` now returns `latches` and `latch_verified` status
+  - Batch-Logging: `clearbatchlog`, `batchlog`, `log` CLI commands
+  - Test batches: `base72_carrier_test.batch` (76 blocks) & `base72_nanotest01.batch` (23 blocks)
+  - New `docs/videos.md` page – animated demonstrations (more coming)
+
 - **2.0.3** (25.07.2026)
 **Carrier-Payload-RALIFE-Fix & I-Bot Transport**
   - RALIFE blocking with payload, I-Bot transport, Path-Planner payload compatibility, Payload slot correction, VK slot guard, Scan LvL2 recalibration, I-Bot sync, Double-exec fix, Pathplanning debug log
