@@ -38,6 +38,7 @@ constructor()
   this.servicebay = 0;
   this.mobility   = true;      // false = immobile (pseudo-bot, hMB, fixed anchor)
   this.is_payload = false;     // true when this bot is carried as payload by another bot
+  this.latches = { F: false, R: false, B: false, L: false, T: false, D: false };
   this.masterbot  = bot_class.MB_NONE;  // MB_NONE | MB_PRIMARY | MB_HELPER
 
   //
@@ -994,17 +995,22 @@ if ( cmdarray.cmd == this.cmd_parser_class_obj.CMD_MOVE )
           } // SPIN
           
 
-       // CONNECT
+       // CONNECT – setzt angegebene Slots, löscht alle anderen
        if ( sub == "CONNECT" )
           {
+          // Alle Latches erst zurücksetzen
+          this.latches = { F: false, R: false, B: false, L: false, T: false, D: false };
+          
+          // Angegebene Slots setzen
           let slots  = cmdarray.subcmd[i].slots;
-          
           let size = slots.length;
-          
-          let buffer = "";
           for (let i2=0; i2<size; i2++)
               {
-              buffer += "/" + slots[i2];
+              let slotName = String(slots[i2]).toUpperCase();
+              if (["F","R","B","L","T","D"].includes(slotName))
+                 {
+                 this.latches[slotName] = true;
+                 }
               }
           
           } // CONNECT

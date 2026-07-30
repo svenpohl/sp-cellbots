@@ -506,7 +506,15 @@ wss.on('connection', (ws) => {
                            position: { x: Number(bot.x), y: Number(bot.y), z: Number(bot.z) },
                            orientation: { x: Number(bot.vector_x), y: Number(bot.vector_y), z: Number(bot.vector_z) },
                            inactive: (bot.inactive == 'true' || bot.inactive === true || bot.inactive == 1) ? 1 : 0,
-                           failure_injection: fi
+                           failure_injection: fi,
+                           latches: bot.latches ? {
+                               F: bot.latches.F === true,
+                               R: bot.latches.R === true,
+                               B: bot.latches.B === true,
+                               L: bot.latches.L === true,
+                               T: bot.latches.T === true,
+                               D: bot.latches.D === true
+                           } : { F: false, R: false, B: false, L: false, T: false, D: false }
                        };
                    }
                }
