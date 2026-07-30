@@ -1,0 +1,366 @@
+[
+  {"id": "000", "cmd": "clearbatchlog"},
+  {
+    "id": "001",
+    "cmd": "get_bot_info SB1"
+  },
+  {
+    "condition": {
+      "001:position.x": 3,
+      "001:position.y": 1,
+      "001:position.z": 2,
+      "001:orientation.x": -1,
+      "001:orientation.y": 0,
+      "001:orientation.z": 0
+    },
+    "id": "002",
+    "cmd": "batchlog \"SB1 position OK (3,1,2,-1,0,0)\""
+  },
+  {
+    "id": "003",
+    "cmd": "is_occupied 4 1 2"
+  },
+  {
+    "condition": {
+      "003:occupied": true
+    },
+    "id": "004",
+    "cmd": "batchlog \"B-Slot position (4,1,2) occupied\""
+  },
+  {
+    "id": "005",
+    "cmd": "batchlog \"--- Phase 1: Grab SB3 ---\""
+  },
+  {
+    "condition": { "004:result": "api_batchlog" },
+    "id": "006",
+    "cmd": "grab_bot SB1 B"
+  },
+  {
+    "condition": { "006:result": "succeeded" },
+    "id": "007",
+    "cmd": "batchlog \"Grab SB3 succeeded\""
+  },
+  {
+    "id": "008",
+    "cmd": "batchlog \"--- Phase 2: Move to 2,1,2 ---\""
+  },
+  {
+    "condition": { "007:result": "api_batchlog" },
+    "id": "009",
+    "cmd": "move_bot_to SB1 2 1 2 -1 0 0"
+  },
+  {
+    "condition": { "009:result": "succeeded" },
+    "id": "010",
+    "cmd": "batchlog \"Move to 2,1,2 succeeded\""
+  },
+  {
+    "id": "011",
+    "cmd": "batchlog \"--- Phase 3: Move to 4,1,2 ---\""
+  },
+  {
+    "condition": { "010:result": "api_batchlog" },
+    "id": "012",
+    "cmd": "move_bot_to SB1 4 1 2 -1 0 0"
+  },
+  {
+    "condition": { "012:result": "succeeded" },
+    "id": "013",
+    "cmd": "batchlog \"Move to 4,1,2 succeeded\""
+  },
+  {
+    "id": "014",
+    "cmd": "batchlog \"--- Phase 4: Move back to 3,1,2 ---\""
+  },
+  {
+    "condition": { "013:result": "api_batchlog" },
+    "id": "015",
+    "cmd": "move_bot_to SB1 3 1 2 -1 0 0"
+  },
+  {
+    "condition": { "015:result": "succeeded" },
+    "id": "016",
+    "cmd": "batchlog \"Move back to 3,1,2 succeeded\""
+  },
+  {
+    "id": "017",
+    "cmd": "batchlog \"--- Phase 5: Rotate to 0,0,1 ---\""
+  },
+  {
+    "condition": { "016:result": "api_batchlog" },
+    "id": "018",
+    "cmd": "sleep 2000"
+  },
+  {
+    "condition": { "018:result": "slept" },
+    "id": "019",
+    "cmd": "rotate_bot SB1 R"
+  },
+  {
+    "condition": { "019:result": "succeeded" },
+    "id": "020",
+    "cmd": "batchlog \"Rotate to 0,0,1 succeeded (with payload)\""
+  },
+  {
+    "id": "021",
+    "cmd": "batchlog \"--- Phase 6: Move to 3,1,3 ---\""
+  },
+  {
+    "condition": { "020:result": "api_batchlog" },
+    "id": "022",
+    "cmd": "move_bot_to SB1 3 1 3 0 0 1"
+  },
+  {
+    "condition": { "022:result": "succeeded" },
+    "id": "023",
+    "cmd": "batchlog \"Move to 3,1,3 succeeded\""
+  },
+  {
+    "id": "024",
+    "cmd": "batchlog \"--- Phase 7: Move to 3,1,1 ---\""
+  },
+  {
+    "condition": { "023:result": "api_batchlog" },
+    "id": "025",
+    "cmd": "move_bot_to SB1 3 1 1 0 0 1"
+  },
+  {
+    "condition": { "025:result": "succeeded" },
+    "id": "026",
+    "cmd": "batchlog \"Move to 3,1,1 succeeded\""
+  },
+  {
+    "id": "027",
+    "cmd": "batchlog \"--- Phase 8: Back to 3,1,2 ---\""
+  },
+  {
+    "condition": { "026:result": "api_batchlog" },
+    "id": "028",
+    "cmd": "move_bot_to SB1 3 1 2 0 0 1"
+  },
+  {
+    "condition": { "028:result": "succeeded" },
+    "id": "029",
+    "cmd": "batchlog \"Back to 3,1,2 succeeded\""
+  },
+  {
+    "id": "030",
+    "cmd": "batchlog \"--- Phase 9: Rotate to 1,0,0 ---\""
+  },
+  {
+    "condition": { "029:result": "api_batchlog" },
+    "id": "031",
+    "cmd": "rotate_bot SB1 L"
+  },
+  {
+    "condition": { "031:result": "succeeded" },
+    "id": "032",
+    "cmd": "batchlog \"Rotate to 1,0,0 succeeded\""
+  },
+  {
+    "id": "033",
+    "cmd": "batchlog \"--- Phase 10: Move X+ (4,1,2) ---\""
+  },
+  {
+    "condition": { "032:result": "api_batchlog" },
+    "id": "034",
+    "cmd": "move_bot_to SB1 4 1 2 1 0 0"
+  },
+  {
+    "condition": { "034:result": "succeeded" },
+    "id": "035",
+    "cmd": "batchlog \"Move to 4,1,2 succeeded\""
+  },
+  {
+    "id": "036",
+    "cmd": "batchlog \"--- Phase 11: Move X- (2,1,2) ---\""
+  },
+  {
+    "condition": { "035:result": "api_batchlog" },
+    "id": "037",
+    "cmd": "move_bot_to SB1 2 1 2 1 0 0"
+  },
+  {
+    "condition": { "037:result": "succeeded" },
+    "id": "038",
+    "cmd": "batchlog \"Move to 2,1,2 succeeded\""
+  },
+  {
+    "id": "039",
+    "cmd": "batchlog \"--- Phase 12: Back to 3,1,2 ---\""
+  },
+  {
+    "condition": { "038:result": "api_batchlog" },
+    "id": "040",
+    "cmd": "move_bot_to SB1 3 1 2 1 0 0"
+  },
+  {
+    "condition": { "040:result": "succeeded" },
+    "id": "041",
+    "cmd": "batchlog \"Back to 3,1,2 succeeded\""
+  },
+  {
+    "id": "042",
+    "cmd": "batchlog \"--- Phase 13: Rotate to 0,0,-1 ---\""
+  },
+  {
+    "condition": { "041:result": "api_batchlog" },
+    "id": "043",
+    "cmd": "rotate_bot SB1 L"
+  },
+  {
+    "condition": { "043:result": "succeeded" },
+    "id": "044",
+    "cmd": "batchlog \"Rotate to 0,0,-1 succeeded\""
+  },
+  {
+    "id": "045",
+    "cmd": "batchlog \"--- Phase 14: Move Z- (3,1,1) ---\""
+  },
+  {
+    "condition": { "044:result": "api_batchlog" },
+    "id": "046",
+    "cmd": "move_bot_to SB1 3 1 1 0 0 -1"
+  },
+  {
+    "condition": { "046:result": "succeeded" },
+    "id": "047",
+    "cmd": "batchlog \"Move to 3,1,1 succeeded\""
+  },
+  {
+    "id": "048",
+    "cmd": "batchlog \"--- Phase 15: Move Z+ (3,1,3) ---\""
+  },
+  {
+    "condition": { "047:result": "api_batchlog" },
+    "id": "049",
+    "cmd": "move_bot_to SB1 3 1 3 0 0 -1"
+  },
+  {
+    "condition": { "049:result": "succeeded" },
+    "id": "050",
+    "cmd": "batchlog \"Move to 3,1,3 succeeded\""
+  },
+  {
+    "id": "051",
+    "cmd": "batchlog \"--- Phase 16: Back to 3,1,2 ---\""
+  },
+  {
+    "condition": { "050:result": "api_batchlog" },
+    "id": "052",
+    "cmd": "move_bot_to SB1 3 1 2 0 0 -1"
+  },
+  {
+    "condition": { "052:result": "succeeded" },
+    "id": "053",
+    "cmd": "batchlog \"Back to 3,1,2 succeeded\""
+  },
+  {
+    "id": "054",
+    "cmd": "batchlog \"--- Phase 17: Final rotate to -1,0,0 ---\""
+  },
+  {
+    "condition": { "053:result": "api_batchlog" },
+    "id": "055",
+    "cmd": "rotate_bot SB1 R"
+  },
+  {
+    "condition": { "055:result": "succeeded" },
+    "id": "056",
+    "cmd": "batchlog \"Final orientation -1,0,0 reached\""
+  },
+  {
+    "id": "057",
+    "cmd": "batchlog \"=== All Cycles done - Release Demo ===\""
+  },
+  {
+    "condition": { "056:result": "api_batchlog" },
+    "id": "058",
+    "cmd": "batchlog \"--- Phase 18: Move to 4,1,2 ---\""
+  },
+  {
+    "condition": { "058:result": "api_batchlog" },
+    "id": "059",
+    "cmd": "move_bot_to SB1 4 1 2 -1 0 0"
+  },
+  {
+    "condition": { "059:result": "succeeded" },
+    "id": "060",
+    "cmd": "batchlog \"Move to 4,1,2 succeeded\""
+  },
+  {
+    "condition": { "060:result": "api_batchlog" },
+    "id": "061",
+    "cmd": "batchlog \"--- Phase 19: Release SB2 ---\""
+  },
+  {
+    "condition": { "061:result": "api_batchlog" },
+    "id": "062",
+    "cmd": "release_bot SB1"
+  },
+  {
+    "condition": { "062:result": "succeeded" },
+    "id": "063",
+    "cmd": "batchlog \"Release succeeded\""
+  },
+  {
+    "condition": { "063:result": "api_batchlog" },
+    "id": "064",
+    "cmd": "batchlog \"--- Phase 20: Look back at SB2 ---\""
+  },
+  {
+    "condition": { "064:result": "api_batchlog" },
+    "id": "065",
+    "cmd": "move_bot_to SB1 3 1 2 1 0 0"
+  },
+  {
+    "condition": { "065:result": "succeeded" },
+    "id": "066",
+    "cmd": "batchlog \"Look back at SB2 done\""
+  },
+  {
+    "condition": { "066:result": "api_batchlog" },
+    "id": "067",
+    "cmd": "sleep 1000"
+  },
+  {
+    "condition": { "067:result": "slept" },
+    "id": "068",
+    "cmd": "batchlog \"--- Phase 21: Re-attach SB2 ---\""
+  },
+  {
+    "condition": { "068:result": "api_batchlog" },
+    "id": "069",
+    "cmd": "move_bot_to SB1 4 1 2 -1 0 0"
+  },
+  {
+    "condition": { "069:result": "succeeded" },
+    "id": "070",
+    "cmd": "batchlog \"Move back to SB2\""
+  },
+  {
+    "condition": { "070:result": "api_batchlog" },
+    "id": "071",
+    "cmd": "grab_bot SB1 B"
+  },
+  {
+    "condition": { "071:result": "succeeded" },
+    "id": "072",
+    "cmd": "batchlog \"Re-attach succeeded\""
+  },
+  {
+    "condition": { "072:result": "api_batchlog" },
+    "id": "073",
+    "cmd": "move_bot_to SB1 3 1 2 -1 0 0"
+  },
+  {
+    "condition": { "073:result": "succeeded" },
+    "id": "074",
+    "cmd": "batchlog \"Final position 3 1 2\""
+  },
+  {
+    "id": "075",
+    "cmd": "batchlog \"=== Carrier Test Extended completed ===\""
+  }
+]
