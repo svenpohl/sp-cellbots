@@ -1375,4 +1375,52 @@ CLI-only features (api.js wrapper):
     - logs progress to stdout
     - exits with code 1 on condition failure
 
+- set_latches <bot_id> <slot> [slot...] [release]
+  Sets or releases permanent latches on one or more slots of a bot.
+  Latches simulate a mechanical clamp (C-Opcode) that permanently connects
+  two bots. The command sends a RAW command with the C-Opcode to the
+  ClusterSim and waits for a RALIFE confirmation. The latch is marked
+  as verified only after the RALIFE is received.
+  params:
+    - bot_id: string
+    - slot: one or more of F, R, B, L, T, D
+    - release: optional flag to release instead of set
+  returns:
+    - answer: api_set_latches
+    - latches: object with all 6 slot states
+    - latch_verified: true after RALIFE confirmation from ClusterSim
+    - applied_slots: list of slots that were changed
+    - conflict_slots: list of conflicts found
+    - raw_cmd_sent: info about sent RAW command (null if none)
+  examples:
+    - node api.js set_latches SB1 F R        → set latches on F and R
+    - node api.js set_latches SB1 F release   → release latch on F
+    - node api.js set_latches SB1 release     → release all latches
+
+- clearbatchlog
+  Clears logs/batchlog.txt. CLI-only command (no BotController required).
+  usage: node api.js clearbatchlog
+  returns:
+    - answer: api_batchlog_cleared
+
+- batchlog <message>
+  Appends a timestamped message to logs/batchlog.txt. Useful for batch test
+  logging and debugging multi-step sequences.
+  usage: node api.js batchlog <message>
+  params:
+    - message: text to append (all remaining args joined with space)
+  returns:
+    - answer: api_batchlog
+    - message: string
+
+- log <message>
+  Appends a message to the standard BotController log file (logs/log.txt)
+  via Logger.log(), prefixed with [BATCH]. CLI-only command.
+  usage: node api.js log <message>
+  params:
+    - message: text to append (all remaining args joined with space)
+  returns:
+    - answer: api_log
+    - message: string
+
 --- EOF /botcontroller/api_ref/all_commands.txt ---
