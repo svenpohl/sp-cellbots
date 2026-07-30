@@ -106,6 +106,37 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "set_latches") {
+    let args = process.argv.slice(4);
+    let releaseIdx = args.indexOf("release");
+    let release = releaseIdx >= 0;
+    if (release) args.splice(releaseIdx, 1);
+    return {
+      cmd: "set_latches",
+      bot_id: process.argv[3] ?? "",
+      slots: args,
+      release: release
+    };
+  } // if
+
+  if (cmd == "clearbatchlog") {
+    return { cmd: "clearbatchlog" };
+  } // if
+
+  if (cmd == "batchlog") {
+    return {
+      cmd: "batchlog",
+      message: process.argv.slice(3).join(" ") ?? ""
+    };
+  } // if
+
+  if (cmd == "log") {
+    return {
+      cmd: "log",
+      message: process.argv.slice(3).join(" ") ?? ""
+    };
+  } // if
+
   if (cmd == "batch") {
     return {
       cmd: "batch",
@@ -1301,6 +1332,45 @@ function main() {
     return;
   } // if
 
+  // CLI-only log commands (no BotController needed)
+  if (requestObject.cmd === "clearbatchlog") {
+    client.destroy();
+    const fs = require("fs");
+    const path = require("path");
+    const logDir = path.join(__dirname, "logs");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    fs.writeFileSync(path.join(logDir, "batchlog.txt"), "");
+    console.log(JSON.stringify({ ok: true, result: "api_batchlog_cleared" }));
+    return;
+  } // if
+
+  if (requestObject.cmd === "batchlog") {
+    client.destroy();
+    const fs = require("fs");
+    const path = require("path");
+    const logDir = path.join(__dirname, "logs");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const msg = String(requestObject.message ?? requestObject.text ?? "").trim();
+    const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+    fs.appendFileSync(path.join(logDir, "batchlog.txt"), "[" + timestamp + "] " + msg + "\n");
+    console.log(JSON.stringify({ ok: true, result: "api_batchlog", message: msg }));
+    return;
+  } // if
+
+  if (requestObject.cmd === "log") {
+    client.destroy();
+    const fs = require("fs");
+    const path = require("path");
+    const msg = String(requestObject.message ?? requestObject.text ?? "").trim();
+    const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+    const logFile = path.join(__dirname, "log.txt");
+    const logDir = __dirname;
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    fs.appendFileSync(logFile, "[" + timestamp + "] [BATCH] " + msg + "\n");
+    console.log(JSON.stringify({ ok: true, result: "api_log", message: msg }));
+    return;
+  } // if
+
   client.connect(apiPort, "127.0.0.1", () => {
     // Normal single request (as before)
     client.write(JSON.stringify(requestObject) + "\n");
@@ -1601,6 +1671,8 @@ function main() {
             inactive: responseObject.inactive ?? false,
             type: responseObject.type ?? 0,
             mobility: responseObject.mobility ?? true,
+            latches: responseObject.latches ?? null,
+            latch_verified: responseObject.latch_verified ?? false,
             resilience_scores: responseObject.resilience_scores ?? {}
           };
         } else if (answer === "api_morph_get_algos") {

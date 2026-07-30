@@ -7618,6 +7618,147 @@ return(runtime_get_turn_positions(this, x, y, z, radius, excluded_bot_ids));
 
 
 //
+// apicall_set_latches() – setzt oder löst Klammern (Latches) an Slots
+//
+// slots: Array von Slot-Namen ["F","R","B","L","T","D"]
+// release: true = lösen, false = setzen
+//
+apicall_set_latches(bot_id, slots, release = false)
+{
+let botindex = this.get_bot_by_id(bot_id, this.bots);
+
+if (botindex == null)
+   {
+   return({
+          ok: false,
+          answer: "api_set_latches",
+          error: "BOT_NOT_FOUND",
+          bot_id: bot_id
+          });
+   } // if
+
+let bot = this.bots[botindex];
+
+if (!bot.latches)
+   {
+   bot.latches = { F: false, R: false, B: false, L: false, T: false, D: false };
+   } // if
+
+let slotList = Array.isArray(slots) ? slots : [];
+
+// Wenn release ohne Slots: alle löschen
+if (slotList.length === 0 && release)
+   {
+   slotList = ["F","R","B","L","T","D"];
+   }
+
+let appliedSlots = [];
+let conflictSlots = [];
+
+// Slot-Gegenüber für Konfliktprüfung
+const opposite = { F: "B", B: "F", R: "L", L: "R", T: "D", D: "T" };
+
+// Bei set-Operation: erst alle zurücksetzen (Vollzustands-Ersatz)
+// Aber nur wenn mindestens ein gültiger Slot in der Liste ist
+let hasValidSlot = slotList.some(s => ["F","R","B","L","T","D"].includes(String(s).trim().toUpperCase()));
+if (!release && hasValidSlot)
+   {
+   for (let k of Object.keys(bot.latches)) bot.latches[k] = false;
+   }
+
+for (let s of slotList)
+    {
+    let slot = String(s).trim().toUpperCase();
+    if (!["F","R","B","L","T","D"].includes(slot)) continue;
+
+    if (release)
+       {
+       bot.latches[slot] = false;
+       appliedSlots.push(slot);
+       } else
+         {
+         // Prüfe ob der Nachbar im gegenüberliegenden Slot schon gelatched ist
+         let neighborId = "";
+         let neighborInfo = this.apicall_get_neighbors(bot_id);
+         if (neighborInfo && neighborInfo[slot])
+            {
+            neighborId = String(neighborInfo[slot]?.id ?? "").trim();
+            }
+         if (neighborId && neighborId != "")
+            {
+            let opp = opposite[slot] || "";
+            if (opp)
+               {
+               let neighborBot = this.bots[this.get_bot_by_id(neighborId, this.bots)];
+               if (neighborBot && neighborBot.latches && neighborBot.latches[opp] === true)
+                  {
+                  conflictSlots.push(slot + ": " + neighborId + " already latched on " + opp);
+                  continue;
+                  } // if
+               } // if
+            } // if
+
+         bot.latches[slot] = true;
+         appliedSlots.push(slot);
+         } // else
+    } // for
+
+// RAW-Command mit C-Opcode + ALIFE an ClusterSim senden
+let rawCmdSent = null;
+bot.latch_verified = false;
+if (appliedSlots.length > 0 && bot && String(this?.config?.communication_mode ?? "mesh_opcode") !== "direct_radio")
+   {
+   try {
+      let allActive = Object.keys(bot.latches).filter(s => bot.latches[s] === true);
+      let latchOpcode = "C" + allActive.join("");
+      let targetAddr = this.apicall_get_safe_adress(bot);
+      if (targetAddr && targetAddr != "")
+         {
+         let conn = "";
+         if (this.accessDomainController) {
+             let as = this.accessDomainController.botMap[String(bot.id).trim()];
+             if (as && as.connector_id) conn = as.connector_id;
+             }
+         if (conn === "") conn = "C0";
+
+         // ALIFE + ack_id generieren
+         let ack_id = this.apicall_generate_ack_id(bot_id);
+         let botSnapshot = this.apicall_get_bot_snapshot(bot_id);
+         let ack_retaddr = "";
+         if (botSnapshot) ack_retaddr = this.apicall_build_stationary_ack_returnaddr(botSnapshot, null);
+         if (ack_retaddr == "") ack_retaddr = this.apicall_derive_ack_returnaddr_from_neighbours(bot_id, "B");
+         if (ack_retaddr == "") ack_retaddr = "F";
+         let rawVal = targetAddr + "#MOVE#" + latchOpcode + ";ALIFE;" + ack_id + "#" + ack_retaddr;
+
+         // ACK registrieren (vor dem Senden)
+         this.apicall_register_ack(ack_id, {
+             bot_id: bot_id,
+             mode: "latch",
+             slots: appliedSlots,
+             planned_raw_cmd: rawVal,
+             status: "pending"
+         });
+
+         let rawRet = this.apicall_raw_cmd(rawVal, conn);
+         if (rawRet) rawCmdSent = { accepted: rawRet.accepted === true, ack_id: ack_id };
+         }
+      } catch(e) { rawCmdSent = { error: e.message }; }
+   }
+
+return({
+       ok: true,
+       answer: "api_set_latches",
+       bot_id: bot_id,
+       latches: { ...bot.latches },
+       applied_slots: appliedSlots,
+       conflict_slots: conflictSlots,
+       action: release ? "release" : "set",
+       raw_cmd_sent: rawCmdSent
+       });
+} // apicall_set_latches()
+
+
+//
 // apicall_is_occupied()
 //
 apicall_is_occupied(x, y, z)
@@ -8797,6 +8938,16 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RALIFE )
                                              }
                                              );
                   } // if
+               else if (api_ack_entry.mode == "latch")
+                  {
+                  let latchBot = this.get_bot_by_id(api_ack_entry.bot_id, this.bots);
+                  if (latchBot != null && this.bots[latchBot])
+                     {
+                     this.bots[latchBot].latch_verified = true;
+                     }
+                  this.apicall_mark_ack_received(msgarray.bottmpid, "ack");
+                  ack_applied = true;
+                  } // if latch
                else if (api_ack_entry.mode == "move" && api_ack_entry.to)
                   {
                   let notify_msg =

@@ -27,6 +27,17 @@ constructor()
   this.mobility = true; // false = immobile (hMB, config bot)
   this.is_payload = false; // true when carried as payload by another bot
 
+  // Latch-Status: true wenn per C-Opcode permanent verbunden
+  this.latches = {
+      F: false,
+      R: false,
+      B: false,
+      L: false,
+      T: false,
+      D: false
+  };
+  this.latch_verified = false; // true nach RALIFE-Empfang für set_latches
+
   this.checked = 0;
   
   this.checked_neighbors = [];  
