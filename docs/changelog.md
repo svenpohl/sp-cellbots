@@ -6,6 +6,11 @@
 
 ---
 
+- **2.0.5** (02.08.2026)
+**Morph Replay & Voxel Converter**
+  - `convert <morphresult.json> <output.batch>` – converts a computed morph plan into a replayable batch file (`node api.js batch tests/dog.batch`) – once computed, playable any time without re-computation
+  - `tools/voxeledit/convert.js` – XML→JSON structure converter with validation and bounding-box stats
+
 - **2.0.4** (30.07.2026)
 **Latch-API & Batch-Testing-Framework**
   - Latches API commands: `set_latches <bot_id> <slot> [slot...]` – set/release mechanical clamps via C-Opcode with ALIFE/RALIFE confirmation; `get_bot_info` now returns `latches` and `latch_verified` status

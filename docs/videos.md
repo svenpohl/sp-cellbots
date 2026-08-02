@@ -22,4 +22,12 @@ A collection of animated demonstrations showing SP-CellBots in action.
 
 ---
 
+## 🐕 Dog Morph Demo
+
+![Dog Morph](img/dog.webp)
+
+*Complex structure morph – a 58-voxel dog assembled from the 400-bot platform. Replayed from a saved morph plan (morphresult → convert → batch) without re-computation.*
+
+---
+
 *More videos coming soon.*
