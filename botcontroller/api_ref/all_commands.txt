@@ -1375,6 +1375,21 @@ CLI-only features (api.js wrapper):
     - logs progress to stdout
     - exits with code 1 on condition failure
 
+- convert <morphresult.json> <output.batch>
+  Converts a morph log (morphresult.json with waves/moves) into a replayable
+  .batch file. Each wave/move becomes a "move_bot_to" block in wave order.
+  CLI-only command (no BotController required).
+  usage: node api.js convert <input.json> <output.batch>
+  params:
+    - input: path to morphresult.json (e.g. logs/morphresult.json)
+    - output: path to the generated .batch file
+  play back later with:
+    node api.js batch <output.batch>
+  returns:
+    - result: converted
+    - waves: number of waves
+    - moves: total number of move blocks
+
 - set_latches <bot_id> <slot> [slot...] [release]
   Sets or releases permanent latches on one or more slots of a bot.
   Latches simulate a mechanical clamp (C-Opcode) that permanently connects
