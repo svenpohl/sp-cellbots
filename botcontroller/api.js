@@ -696,6 +696,14 @@ function buildRequestFromCli() {
     };
   } // if
 
+  if (cmd == "convert" || cmd == "convert_to_batch") {
+    return {
+      cmd: "convert",
+      input: process.argv[3] ?? "",
+      output: process.argv[4] ?? ""
+    };
+  } // if
+
   if (cmd == "move_bot_to") {
     return {
       cmd: "move_bot_to",
@@ -1096,6 +1104,17 @@ function api_interface_description(responseObject) {
   output += "    - answer: api_batch_complete\n";
   output += "    - total: number of moves\n";
   output += "    - results: array of per-move {index, move, response}\n";
+  output += "- convert <morphresult.json> <output.batch>\n";
+  output += "  Converts a morph log (morphresult.json with waves/moves) into a\n";
+  output += "  replayable .batch file. Each wave/move becomes a move_bot_to block.\n";
+  output += "  Play back later with: node api.js batch <output.batch>\n";
+  output += "  params:\n";
+  output += "    - input: path to morphresult.json (e.g. logs/morphresult.json)\n";
+  output += "    - output: path to the generated .batch file\n";
+  output += "  returns:\n";
+  output += "    - result: converted\n";
+  output += "    - waves: number of waves\n";
+  output += "    - moves: total number of move blocks\n";
 
   return output.trim();
 } // api_interface_description()
@@ -1198,6 +1217,62 @@ function executeBatch(moves) {
 // 1. Calls find_path_for_bot to get path steps
 // 2. Sets a green marker (size 0.5) for each step
 // 3. Refreshes the GUI
+//
+// convertMorphresultToBatch()
+// Converts a morphresult.json (morph log) into a replayable .batch file.
+// Each wave/move becomes a "move_bot_to" block, in wave order.
+//
+function convertMorphresultToBatch(inputFile, outputFile) {
+  if (!inputFile || !outputFile) {
+    console.error("Usage: node api.js convert <morphresult.json> <output.batch>");
+    process.exit(1);
+  } // if
+
+  if (!fs.existsSync(inputFile)) {
+    console.error("Input file not found: " + inputFile);
+    process.exit(1);
+  } // if
+
+  let data = null;
+  try {
+    data = JSON.parse(fs.readFileSync(inputFile, "utf8"));
+  } catch (e) {
+    console.error("Invalid JSON in input file:", e.message);
+    process.exit(1);
+  } // try
+
+  const waves = Array.isArray(data.waves) ? data.waves : [];
+  if (waves.length === 0) {
+    console.error("No 'waves' array found in morphresult file.");
+    process.exit(1);
+  } // if
+
+  const blocks = [];
+  let totalMoves = 0;
+
+  for (const wave of waves) {
+    const step = Number(wave.step ?? 0);
+    const moves = Array.isArray(wave.moves) ? wave.moves : [];
+    for (let i = 0; i < moves.length; i++) {
+      const move = moves[i];
+      const botId = String(move.id ?? "?");
+      const to = move.to ?? {};
+      const hasOri = (to.vx !== undefined && to.vy !== undefined && to.vz !== undefined);
+      let cmd = "move_bot_to " + botId + " " + Number(to.x) + " " + Number(to.y) + " " + Number(to.z);
+      if (hasOri) {
+        cmd += " " + Number(to.vx) + " " + Number(to.vy) + " " + Number(to.vz);
+      } // if
+      const bid = "W" + String(step).padStart(2, "0") + "_M" + String(i + 1).padStart(2, "0");
+      blocks.push({ id: bid, cmd: cmd });
+      totalMoves++;
+    } // for
+  } // for
+
+  fs.writeFileSync(outputFile, JSON.stringify(blocks, null, 2) + "\n", "utf8");
+  return { waves: waves.length, moves: totalMoves, output: outputFile };
+} // convertMorphresultToBatch()
+
+
 function drawPathForBot(apiPort, botId, tx, ty, tz) {
   const net = require("net");
 
@@ -1314,6 +1389,24 @@ function main() {
       console.error("[BATCH] Error:", e.message);
       process.exit(1);
     }
+    return;
+  } // if
+
+  if (requestObject.cmd === "convert") {
+    client.destroy();
+    try {
+      const result = convertMorphresultToBatch(requestObject.input, requestObject.output);
+      console.log(JSON.stringify({
+        ok: true,
+        result: "converted",
+        waves: result.waves,
+        moves: result.moves,
+        output: result.output
+      }));
+    } catch (e) {
+      console.error("[CONVERT] Error:", e.message);
+      process.exit(1);
+    } // try
     return;
   } // if
 

@@ -10297,6 +10297,70 @@ handleGUIMessage(message) {
 
 
         //
+        // GET MORPH PREVIEW
+        //
+        if (decodedobject.cmd === 'getmorphpreview') {
+
+            console.log("getmorphpreview:", decodedobject.structure);
+
+            const morphplanPath = path.join(__dirname, 'morph', 'morph_vehicle_kinematics_parallel2_morphplan.txt');
+            const planned = [];
+            const missing = [];
+            const plannedSet = new Set();
+
+            try
+               {
+               const planText = fs.readFileSync(morphplanPath, 'utf8');
+               const targetRe = /→ \((\d+),(\d+),(\d+)\) \((-?\d+),(-?\d+),(-?\d+)\)/g;
+               let m = null;
+               while ((m = targetRe.exec(planText)) !== null)
+                   {
+                   const pos = { x: Number(m[1]), y: Number(m[2]), z: Number(m[3]) };
+                   planned.push(pos);
+                   plannedSet.add(m[1] + ',' + m[2] + ',' + m[3]);
+                   } // while
+               } // try
+            catch (error)
+               {
+               console.log("getmorphpreview: morphplan not found:", String(error?.message ?? error));
+               } // catch
+
+            const structureName = String(decodedobject.structure ?? "").trim();
+            if (structureName != "")
+               {
+               try
+                  {
+                  const targetDefinition = this.load_structure_definition(structureName);
+                  const targets = Array.isArray(targetDefinition.structure) ? targetDefinition.structure : [];
+                  for (const t of targets)
+                      {
+                      const key = Number(t?.x ?? 0) + ',' + Number(t?.y ?? 0) + ',' + Number(t?.z ?? 0);
+                      if (!plannedSet.has(key))
+                         {
+                         missing.push({ x: Number(t.x), y: Number(t.y), z: Number(t.z) });
+                         } // if
+                      } // for
+                  } // try
+               catch (error)
+                  {
+                  console.log("getmorphpreview: target structure load failed:", String(error?.message ?? error));
+                  } // catch
+               } // if
+
+            answer = JSON.stringify({
+                answer: "answer_getmorphpreview",
+                structure: structureName,
+                planned: planned,
+                missing: missing,
+                morphplan_file: "morph/morph_vehicle_kinematics_parallel2_morphplan.txt"
+            });
+
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
         // APPLY PREVIEW FORBIDDEN
         //
         if (decodedobject.cmd === 'applypreviewforbidden') {
