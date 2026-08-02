@@ -275,6 +275,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <div style="flex-basis:100%; height:0;"></div>
 
     <button id="targetpreview">Target Preview</button>
+    <button id="morphpreview">Morph Preview</button>
     <button id="applypreviewforbidden">Apply F-Bots to BotController</button>
 
     <button id="requestquitbotcontroller">QUIT</button>
@@ -857,6 +858,17 @@ addConsoleLine("Connected" );
            } // answer_getpreviewtarget
 
 
+        if ( decodedobject.answer == "answer_getmorphpreview" )
+           {
+           console.log("ANSWER answer_getmorphpreview");
+           const planned = Array.isArray(decodedobject.planned) ? decodedobject.planned : [];
+           const missing = Array.isArray(decodedobject.missing) ? decodedobject.missing : [];
+           showMorphPreview(scene, planned, missing);
+           morphPreviewVisible = true;
+
+           } // answer_getmorphpreview
+
+
         if ( decodedobject.answer == "answer_applypreviewforbidden" )
            {
            const applied_count = Number(decodedobject.applied_count ?? 0);
@@ -1155,6 +1167,43 @@ addConsoleLine("Connected" );
         socket.send(cmd);
                                
         });
+
+
+        document.getElementById('morphpreview').addEventListener('click', function() {
+        if (morphPreviewVisible) {
+           hideMorphPreview();
+           if (morphPreviewTimer) { clearInterval(morphPreviewTimer); morphPreviewTimer = null; }
+           return;
+        } // if
+
+        if (connected == 0) {
+           alert('No Connection');
+           return;
+        } // if
+
+        let structureM = document.getElementById("sequences_list").value;
+
+        if (!structureM) {
+           alert('No Structure selected');
+           return;
+        } // if
+
+        cmd = "{ \"cmd\":\"getmorphpreview\", \"structure\": \"" + structureM + "\" }";
+        socket.send(cmd);
+
+        // Auto-refresh while visible (re-scans morphplan file every 3s)
+        if (morphPreviewTimer) { clearInterval(morphPreviewTimer); }
+        morphPreviewTimer = setInterval(function() {
+           if (!morphPreviewVisible) {
+              clearInterval(morphPreviewTimer);
+              morphPreviewTimer = null;
+              return;
+           } // if
+           let structureR = document.getElementById("sequences_list").value;
+           cmd = "{ \"cmd\":\"getmorphpreview\", \"structure\": \"" + structureR + "\" }";
+           socket.send(cmd);
+        }, 3000);
+        }); // morphpreview
 
 
         document.getElementById('applypreviewforbidden').addEventListener('click', function() {
@@ -1556,6 +1605,9 @@ let targetGroup = null;
 let forbiddenGroup = null;
 let serviceBayGroup = null;
 let targetPreviewVisible = false;
+let morphPreviewVisible = false;
+let morphPreviewTimer = null;
+let morphGroup = null;
 
 //
 // showTargets()
@@ -1607,6 +1659,52 @@ function hideTargetPreview() {
   }
   targetPreviewVisible = false;
 } // hideTargetPreview()
+
+
+//
+// showMorphPreview()
+// Green overlay: planned targets from morphplan file.
+// Red overlay:   target structure voxels not yet planned (missing).
+//
+function showMorphPreview(scene, plannedArray, missingArray) {
+  // Remove old overlay
+  if (morphGroup) {
+    rotateGroup.remove(morphGroup);
+    morphGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+    morphGroup = null;
+  }
+
+  // Create new overlay group
+  morphGroup = new THREE.Group();
+  morphGroup.name = 'morphGroup';
+  if (Array.isArray(plannedArray) && plannedArray.length > 0) {
+    morphGroup.add(createTargetGroup(plannedArray, { color: 0x00ff00, opacity: 0.55 }));
+  }
+  if (Array.isArray(missingArray) && missingArray.length > 0) {
+    morphGroup.add(createTargetGroup(missingArray, { color: 0xff0000, opacity: 0.55 }));
+  }
+  rotateGroup.add(morphGroup);
+  morphPreviewVisible = true;
+} // showMorphPreview()
+
+
+//
+// hideMorphPreview()
+//
+function hideMorphPreview() {
+  if (morphGroup) {
+    rotateGroup.remove(morphGroup);
+    morphGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+    morphGroup = null;
+  }
+  morphPreviewVisible = false;
+} // hideMorphPreview()
 
 
 //
