@@ -1720,6 +1720,7 @@ for (let i=0; i < this.bots.length; i++)
        bot_color = "aaaaaa";
        }
     jsondata += "   \"col\": \""+bot_color+"\",  ";
+    jsondata += "   \"led\": \""+String(this.bots[i].state_led ?? "off")+"\",  ";
     jsondata += "   \"masterbot\": "+this.bots[i].masterbot +"  ";
     
     jsondata += "   }    ";
