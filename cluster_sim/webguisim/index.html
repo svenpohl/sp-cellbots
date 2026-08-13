@@ -193,6 +193,7 @@
     const servicebayGroups = [];
     const servicebayCubes  = [];
     let botGroupMap = [];
+    let ledMeshMap = {};   // botid -> LED-Ellipsen-Mesh (XLED)
        
     document.getElementById('debug').innerHTML = "...";
     
@@ -356,6 +357,11 @@
            handleSetColor( decodedobject.msg[0] );               
            } // move           
 
+        if (decodedobject.msg[0].event == 'setled')
+           {
+           handleSetLed( decodedobject.msg[0] );               
+           } // setled           
+
         if (decodedobject.msg[0].event == 'removebot')
            {
            handleRemoveBotEvent( decodedobject.msg[0] );
@@ -472,6 +478,7 @@ let cube_tmp = new THREE.Mesh(geometry, materials_chess2);
         group_tmp.add(rectangle2); 
         rotateGroup.add(group_tmp);
         botid = "hMB_" + botid;
+        createLedMesh(group_tmp, botid);
         botGroupMap[botid] = group_tmp;
         groups.push(group_tmp);
         cubes.push(cube_tmp);
@@ -523,6 +530,7 @@ let cube_tmp = new THREE.Mesh(geometry, materials_chess);
         // Legacy-Normalisierung entfernt (18.06.): primary MB (id="MB", masterbot==1)
         // behält jetzt seine originale ID im botGroupMap-Eintrag.
         // botid = "masterbot";
+        createLedMesh(group_tmp, botid);
         botGroupMap[botid] = group_tmp;
 
 } // if (masterbot == 1)
@@ -586,6 +594,7 @@ cube_tmp.material.color.set("#" + color); // color kann z.B. "ff0000" sein
         groups.push(group_tmp);
         cubes.push(cube_tmp);
          
+        createLedMesh(group_tmp, botid);
         botGroupMap[botid] = group_tmp;
         
 } // if (masterbot == 1)
@@ -797,6 +806,35 @@ if (group && group.children.length > 0) {
 } // handleSetColor
 
 
+//
+// createLedMesh()
+// Adds a small LED ellipse on top of the bot (T-Slot, above the direction arrow).
+// Dark blue = off (default), red (#ff5555) = on. XLED is write-only.
+//
+function createLedMesh(group, botid) {
+  const ledGeometry = new THREE.CircleGeometry(0.08, 16);
+  const ledMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // black (off)
+  const ledMesh = new THREE.Mesh(ledGeometry, ledMaterial);
+  ledMesh.rotation.x = -Math.PI / 2;   // flat on top
+  ledMesh.position.y = 0.5 + 0.03;     // close above the bot cube (arrow at 0.51)
+  group.add(ledMesh);
+  ledMeshMap[botid] = ledMesh;
+} // createLedMesh
+
+
+//
+// handleSetLed()
+// Updates the LED ellipse color: red (#ff5555) when on, dark blue when off.
+//
+function handleSetLed(event) {
+  const botid = event.botid;
+  const mesh = ledMeshMap[botid] || ledMeshMap["hMB_" + botid];
+  if (mesh) {
+    mesh.material.color.set(event.led === "on" ? "#ff5555" : "#000000");
+  }
+} // handleSetLed
+
+
 function handleRemoveBotEvent(event) {
 const botid = event.botid;
 const group = botGroupMap[botid];
@@ -805,6 +843,7 @@ if (!group) return;
 
 rotateGroup.remove(group);
 delete botGroupMap[botid];
+if (ledMeshMap[botid]) { delete ledMeshMap[botid]; }
 } // handleRemoveBotEvent
 
  
