@@ -30,7 +30,7 @@ constructor()
   this.vector_z = 0;
   
   this.color = "000000";
-
+  this.state_led = "off";   // XLED – write-only Status (an/aus), default aus
   this.mbconnection = 0;
   this.debug = "";
   this.active = 1;
@@ -1154,6 +1154,24 @@ if ( cmdarray.cmd[0] == 'X' )
       caller.notify_frontend( events );
 
       } // XSC
+
+   // LED – write-only (an/aus), Feedback nur im WebGUI
+   if ( cmdarray.cmd == "XLED" )
+      {
+      this.state_led = (String(raw).toLowerCase() === "on") ? "on" : "off";
+
+      const events = [];
+      let notify_msg =
+          {
+          event: "setled",
+          botid: this.id,
+          led: this.state_led
+          };
+
+      events.push( notify_msg );
+      caller.notify_frontend( events );
+
+      } // XLED
 
 
 

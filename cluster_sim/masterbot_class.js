@@ -1834,6 +1834,16 @@ if ( msgarray['cmd'] ==  "XRRC" )
    } // rcheck   
    
 
+// XMBPING – MasterBot antwortet mit seiner ID (Hardware-Verbindungstest)
+if ( msgarray['cmd'] ==  "XMBPING" )
+   {
+   let pingId   = String(msgarray['raw'] ?? "").trim();
+   let mbId     = String(this.id ?? "MB");
+   let response = "XRMBPING#" + pingId + ";" + mbId;
+   this.msgqueue_bc.push( response );
+   Logger.log("[XMBPING] " + mbId + " responds: " + response);
+   } // xmbping
+
 
 } // move_botcontroller_queue
   
@@ -1940,11 +1950,18 @@ if (communication_mode == "mesh_opcode")
 //
 let message = this.pop_msg();
 
- 
-
 if (message != "")
    {
-   let msgarray = cmd_parser_class_obj.parse(message);
+   let msgarray = null;
+   try
+      {
+      msgarray = cmd_parser_class_obj.parse(message);
+      }
+   catch (parseError)
+      {
+      Logger.log("[SBS-PARSE-ERROR] " + String(parseError?.message ?? parseError) + " stack=" + String(parseError?.stack ?? ""));
+      return;
+      } // catch
    
  
    
@@ -2177,6 +2194,24 @@ for (let i=0; i < this.bots.length; i++)
                 {
                 this.bots[i].push_botcontroller_queue(message);
                 }
+             // XMBPING – MasterBot antwortet mit seiner ID (Hardware-Verbindungstest)
+             else if (cmd == "XMBPING")
+                {
+                let pingId   = String(msgarray['raw'] ?? "").trim();
+                let mbId     = String(this.bots[i].id ?? "MB");
+                let response = "XRMBPING#" + pingId + ";" + mbId;
+                this.bots[i].push_botcontroller_queue(response);
+                Logger.log("[XMBPING] " + mbId + " responds: " + response);
+                } // xmbping
+             // XLED – MasterBot führt LED aus (write-only, Feedback im WebGUI)
+             else if (cmd == "XLED")
+                {
+                this.bots[i].state_led = (String(msgarray['raw'] ?? "").toLowerCase() === "on") ? "on" : "off";
+                const events = [];
+                events.push({ event: "setled", botid: String(this.bots[i].id ?? "MB"), led: this.bots[i].state_led });
+                this.notify_frontend(events);
+                Logger.log("[XLED] " + String(this.bots[i].id ?? "MB") + " led=" + this.bots[i].state_led);
+                } // xled
              } else
                {
                await this.bots[i].run_cmd( msgarray, this );
