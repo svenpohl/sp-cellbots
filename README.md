@@ -75,11 +75,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.0.5**  
+Current version: **2.0.6**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.0.6** (13.08.2026)
+**XMBPING & XLED – X-Opcode Hardware Features**
+  - `XMBPING` – MasterBot ping (`raw_cmd "#XMBPING#<id>" C0|C1|C2`), responds with `XRMBPING#<id>;<mb_id>`
+  - `XLED` – write-only LED control for bots & MasterBots (`raw_cmd "<addr>#XLED#on|off"`), visualized in the ClusterSim WebGUI
 
 - **2.0.5** (02.08.2026)
 **Morph Replay & Voxel Converter**
