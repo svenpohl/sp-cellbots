@@ -274,8 +274,9 @@
         thevy = decodedobject.jsondata.bots[i].vy;
         thevz = decodedobject.jsondata.bots[i].vz;
         let themb = decodedobject.jsondata.bots[i].masterbot ?? 0;
+        let theled = decodedobject.jsondata.bots[i].led ?? "off";
                         
-        addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), themb, col  );                     
+        addCube( theid,  new THREE.Vector3(thex, they, thez),    new THREE.Vector3(thevx, thevy, thevz), themb, col, theled  );                     
  
         } // let i...size
 
@@ -446,7 +447,7 @@
 //
 //
 //        
-function addCube(botid, position,vector,masterbot,color)        
+function addCube(botid, position,vector,masterbot,color,led)        
 {
 
 position.z = -position.z;
@@ -478,7 +479,7 @@ let cube_tmp = new THREE.Mesh(geometry, materials_chess2);
         group_tmp.add(rectangle2); 
         rotateGroup.add(group_tmp);
         botid = "hMB_" + botid;
-        createLedMesh(group_tmp, botid);
+        createLedMesh(group_tmp, botid, led);
         botGroupMap[botid] = group_tmp;
         groups.push(group_tmp);
         cubes.push(cube_tmp);
@@ -530,7 +531,7 @@ let cube_tmp = new THREE.Mesh(geometry, materials_chess);
         // Legacy-Normalisierung entfernt (18.06.): primary MB (id="MB", masterbot==1)
         // behält jetzt seine originale ID im botGroupMap-Eintrag.
         // botid = "masterbot";
-        createLedMesh(group_tmp, botid);
+        createLedMesh(group_tmp, botid, led);
         botGroupMap[botid] = group_tmp;
 
 } // if (masterbot == 1)
@@ -594,7 +595,7 @@ cube_tmp.material.color.set("#" + color); // color kann z.B. "ff0000" sein
         groups.push(group_tmp);
         cubes.push(cube_tmp);
          
-        createLedMesh(group_tmp, botid);
+        createLedMesh(group_tmp, botid, led);
         botGroupMap[botid] = group_tmp;
         
 } // if (masterbot == 1)
@@ -811,9 +812,9 @@ if (group && group.children.length > 0) {
 // Adds a small LED ellipse on top of the bot (T-Slot, above the direction arrow).
 // Dark blue = off (default), red (#ff5555) = on. XLED is write-only.
 //
-function createLedMesh(group, botid) {
+function createLedMesh(group, botid, ledState) {
   const ledGeometry = new THREE.CircleGeometry(0.08, 16);
-  const ledMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // black (off)
+  const ledMaterial = new THREE.MeshBasicMaterial({ color: ledState === "on" ? 0xff5555 : 0x000000 }); // red on, black off
   const ledMesh = new THREE.Mesh(ledGeometry, ledMaterial);
   ledMesh.rotation.x = -Math.PI / 2;   // flat on top
   ledMesh.position.y = 0.5 + 0.03;     // close above the bot cube (arrow at 0.51)
