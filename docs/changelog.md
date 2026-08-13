@@ -6,6 +6,11 @@
 
 ---
 
+- **2.0.6** (13.08.2026)
+**XMBPING & XLED – X-Opcode Hardware Features**
+  - `XMBPING` – MasterBot ping (`raw_cmd "#XMBPING#<id>" C0|C1|C2`), responds with `XRMBPING#<id>;<mb_id>`
+  - `XLED` – write-only LED control for bots & MasterBots (`raw_cmd "<addr>#XLED#on|off"`), visualized in the ClusterSim WebGUI
+
 - **2.0.5** (02.08.2026)
 **Morph Replay & Voxel Converter**
   - `convert <morphresult.json> <output.batch>` – converts a computed morph plan into a replayable batch file (`node api.js batch tests/dog.batch`) – once computed, playable any time without re-computation
