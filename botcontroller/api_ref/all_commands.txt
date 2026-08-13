@@ -713,6 +713,47 @@ Available commands:
     - node api.js raw_cmd "FFFT#MOVE" C0               → via connector C0
     - node api.js raw_cmd "FFFT#MOVE"                  → auto-route if target bot is assigned
 
+- XMBPING (MasterBot-Ping, via raw_cmd)
+  Sends a ping to a MasterBot (MB / hMB1 / hMB2) through its ADC connector.
+  This is the first MB-native response command: the MasterBot answers with
+  its own ID – no mesh bot is involved.
+  usage:
+    - node api.js raw_cmd "#XMBPING#<id>" C0     → ping MB
+    - node api.js raw_cmd "#XMBPING#<id>" C1     → ping hMB1
+    - node api.js raw_cmd "#XMBPING#<id>" C2     → ping hMB2
+  notes:
+    - <id> is a free request id (tmpid-like), echoed back unchanged in the response
+    - The leading '#' (empty address) is required so the parser reads the
+      opcode at the correct position
+    - The answer arrives in the BotController message queue – fetch it with
+      get_api_messages (optionally after reset_api_message_log)
+  response:
+    - XRMBPING#<id>;<mb_id>     e.g. "XRMBPING#007;MB"
+  full example:
+    - node api.js reset_api_message_log
+    - node api.js raw_cmd "#XMBPING#007#" C0
+    - node api.js get_api_messages              → XRMBPING#007;MB
+
+- XLED (LED an/aus, via raw_cmd)
+  Write-only LED control for normal bots AND MasterBots. The bot that
+  receives the command executes it. Feedback is visual only – the LED
+  state is shown as a small ellipse on top of each bot in the ClusterSim
+  WebGUI (black = off, red #ff5555 = on). No response message is sent.
+  usage:
+    - node api.js raw_cmd "F#XLED#on"           → normal bot (e.g. F-slot neighbor)
+    - node api.js raw_cmd "F#XLED#off"
+    - node api.js raw_cmd "#XLED#on" C0         → MasterBot MB
+    - node api.js raw_cmd "#XLED#on" C1         → hMB1
+    - node api.js raw_cmd "#XLED#on" C2         → hMB2
+  notes:
+    - states: "on" (red #ff5555) or "off" (black, default)
+    - write-only: no XRRC-style response, no color parameter
+    - the leading '#' (empty address) addresses the MasterBot itself
+    - normal bots are addressed via their mesh path (e.g. "F#" from the MB)
+  full example:
+    - node api.js raw_cmd "F#XLED#on"           → F-slot bot LED turns red in WebGUI
+    - node api.js raw_cmd "F#XLED#off"          → back to black
+
 - assign_bot_to_mb
   Assigns a normal bot to a helper MasterBot (hMB).
   The ADC stores the mapping for automatic connector routing.
