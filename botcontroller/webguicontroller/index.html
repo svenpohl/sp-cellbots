@@ -353,8 +353,14 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <option value="get_resilience_status">get_resilience_status</option>
     <option value="set_mobility SB1 false">set_mobility SB1 false</option>
     <option value="set_active SB1 false">set_active SB1 false</option>
+    <option value='raw_cmd "#XLED#on" C0'>raw_cmd "#XLED#on" C0</option>
     
   </select>
+  <div style="margin-top:6px; display:flex; gap:6px;">
+    <button id="xled_on_btn" disabled style="background:#3a2a2a; border:1px solid #5a3a3a; color:#d4d4d4; border-radius:4px; padding:3px 10px; cursor:not-allowed; font-size:12px; opacity:0.4;">XLED on</button>
+    <button id="xled_off_btn" disabled style="background:#2a2a3a; border:1px solid #3a3a5a; color:#d4d4d4; border-radius:4px; padding:3px 10px; cursor:not-allowed; font-size:12px; opacity:0.4;">XLED off</button>
+    <button id="xled_toggle_btn" disabled style="background:#2a3a2a; border:1px solid #3a5a3a; color:#d4d4d4; border-radius:4px; padding:3px 10px; cursor:not-allowed; font-size:12px; opacity:0.4;">XLED toggle</button>
+  </div>
   <div id="api_cli_output" style="display:none; margin-top:4px; background:#111; border:1px solid #333; border-radius:4px; padding:6px 10px; font-family:monospace; font-size:12px; color:#aefbaf; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
 </div>
 
@@ -1052,6 +1058,12 @@ addConsoleLine("Connected" );
                 outputDiv.textContent = 'Error: ' + (decodedobject.data?.error || decodedobject.error);
                 outputDiv.style.color = '#f55';
             }
+            return;
+        }
+
+        // XLED address response (from get_bot_address)
+        if (decodedobject.answer == "answer_get_bot_address") {
+            handleGetBotAddress(decodedobject);
             return;
         }
 
@@ -2378,6 +2390,7 @@ function setSelectedBot(botid) {
     } else {
         setAnchorWireframe(null);
     }
+    updateXledButtons();
 }
 
 window.addEventListener('mouseup', function(e) {
@@ -2608,6 +2621,94 @@ function sendApiCli() {
     outputDiv.style.display = 'block';
     socket.send(JSON.stringify({ cmd: 'api_cli', args: args }));
 }
+
+
+//
+// sendXled()
+// Requests the selected bot's mesh address, then sends raw_cmd "<addr>#XLED#<state>" C0.
+// For hardware LED tests on the selected bot (MB itself if address is empty).
+//
+let pendingXledState = null;
+let xledState = 'off';   // last applied XLED state (for toggle + highlight)
+
+function sendXled(state) {
+    if (connected == 0) { alert('No Connection'); return; }
+    if (!selectedBotId) { alert('No Bot selected'); return; }
+    xledState = state;
+    updateXledHighlight();
+    pendingXledState = state;
+    const outputDiv = document.getElementById('api_cli_output');
+    outputDiv.textContent = 'Fetching address for ' + selectedBotId + ' …';
+    outputDiv.style.color = '#888';
+    outputDiv.style.display = 'block';
+    socket.send(JSON.stringify({ cmd: 'get_bot_address', bot_id: selectedBotId }));
+}
+
+
+//
+// handleGetBotAddress()
+// Called on answer_get_bot_address – sends the XLED raw_cmd with the bot's address.
+//
+function handleGetBotAddress(data) {
+    const state = pendingXledState;
+    pendingXledState = null;
+    if (!state) return;
+    const addr = String(data.address ?? '');
+    const connector = String(data.connector ?? 'C0') || 'C0';
+    const target = addr ? addr + '#XLED#' + state : '#XLED#' + state;
+    const args = 'raw_cmd "' + target + '" ' + connector;
+    const outputDiv = document.getElementById('api_cli_output');
+    outputDiv.textContent = 'Running: node api.js raw_cmd "' + target + '" ' + connector + ' …';
+    outputDiv.style.color = '#888';
+    outputDiv.style.display = 'block';
+    addConsoleLine('[XLED] bot=' + (data.bot_id || selectedBotId) + ' addr="' + addr + '" conn=' + connector + ' → raw_cmd "' + target + '" ' + connector, 'botcontroller');
+    socket.send(JSON.stringify({ cmd: 'api_cli', args: args }));
+}
+
+
+//
+// updateXledButtons()
+// Enables/disables the XLED buttons depending on bot selection.
+//
+function updateXledButtons() {
+    const hasBot = (selectedBotId !== null && selectedBotId !== '');
+    const onBtn = document.getElementById('xled_on_btn');
+    const offBtn = document.getElementById('xled_off_btn');
+    const toggleBtn = document.getElementById('xled_toggle_btn');
+    const btns = [onBtn, offBtn, toggleBtn].filter(b => b);
+    for (const b of btns) {
+        b.disabled = !hasBot;
+        b.style.opacity = hasBot ? '1' : '0.4';
+        b.style.cursor = hasBot ? 'pointer' : 'not-allowed';
+    }
+    updateXledHighlight();
+}
+
+
+//
+// updateXledHighlight()
+// Highlights the button matching the last applied XLED state.
+//
+function updateXledHighlight() {
+    const onBtn = document.getElementById('xled_on_btn');
+    const offBtn = document.getElementById('xled_off_btn');
+    if (!onBtn || !offBtn) return;
+    if (xledState === 'on') {
+        onBtn.style.borderColor = '#ff5555';
+        onBtn.style.background = '#5a2a2a';
+        offBtn.style.borderColor = '#3a3a5a';
+        offBtn.style.background = '#2a2a3a';
+    } else {
+        offBtn.style.borderColor = '#6a6aff';
+        offBtn.style.background = '#2a2a5a';
+        onBtn.style.borderColor = '#5a3a3a';
+        onBtn.style.background = '#3a2a2a';
+    }
+}
+
+document.getElementById('xled_on_btn').addEventListener('click', function() { sendXled('on'); });
+document.getElementById('xled_off_btn').addEventListener('click', function() { sendXled('off'); });
+document.getElementById('xled_toggle_btn').addEventListener('click', function() { sendXled(xledState === 'on' ? 'off' : 'on'); });
 
 
 document.getElementById('exampleCommands').addEventListener('change', function() {
