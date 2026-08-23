@@ -268,7 +268,6 @@ constructor()
    this.nightwatch.start();
    this.voxeledit           = new VoxelEditController();
    this.accessDomainController = new AccessDomainController(this);
-   this.accessDomainController.loadConfig();
    // this.accessDomainController.init(config_hmb); // TODO: in v1.9/v2.0 aktivieren
    this.signature_class_obj = new signature_class( );
    
@@ -283,6 +282,10 @@ constructor()
    let configPath = path.join(__dirname, 'config.cfg');
    this.config = this.loadconfig(configPath);
    Logger.setTimezone(this.config.timezone);
+   // Load MB config from config.cfg (mb_config), fallback: config_mb.xml
+   let mbConfigName = String(this.config.mb_config ?? "config_mb.xml").trim();
+   if (mbConfigName == "") { mbConfigName = "config_mb.xml"; }
+   this.accessDomainController.loadConfig(path.join(__dirname, mbConfigName));
    this.resilienceController = new ResilienceController(this);
    
    this.bots           = [];
@@ -9971,6 +9974,19 @@ const slotnames = ['f','r','b','l','t','d'];
   setInterval(() => 
   {
 
+  // ADC: immer aktiv – auch ohne Legacy-Masterbot (z.B. Pi-MasterBot ohne ClusterSim)
+  if (this.accessDomainController && this.accessDomainController.active)
+     {
+     // ADC-Scan-Schritt (Structurescan über ADC)
+     if (this.adc_scan_status == 1)
+        {
+        this.adc_scan_step();
+        } /// if (adc_scan_status == 1)
+
+     // ADC-Queue poppen (Antworten von hMBs/MBs holen – unabhängig vom Legacy-Status)
+     this.accessDomainController.adc_popAll();
+     } // if ADC active
+
   
   if (this.MASTERBOT_CONNECTED)
      {
@@ -9996,13 +10012,6 @@ const slotnames = ['f','r','b','l','t','d'];
         // this.scan_step_radio();
         } /// if (scan_status_radio == 1)
 
-     if (this.adc_scan_status == 1)
-        {
-        // console.log("[SCAN-MARKER] thread: calling adc_scan_step(), adc_scan_status=" + this.adc_scan_status + " bots.length=" + (this.bots ? this.bots.length : 0) + " MASTERBOT_CONNECTED=" + this.MASTERBOT_CONNECTED);
-        this.adc_scan_step();
-        } /// if (adc_scan_status == 1)
-
-     
      if ( this.self_assembly_obj.assembly_status == 1 )
         {
         // console.log("[SELF-ASSEMBLY] Thread: assembly_status=1, calling pop_cmd()");
@@ -10076,14 +10085,8 @@ const slotnames = ['f','r','b','l','t','d'];
           {
           // No legacy pop during operation – ADC connector pops continue below
           }
-
-     // Auch auf allen ADC-Connector-Sockets (Port 3002, 3003) poppen, damit Antworten
-     // fetched from hMBs/MBs and processed via handle_answer()
-     if (this.accessDomainController && this.accessDomainController.active) {
-         this.accessDomainController.adc_popAll();
-     }
          
-     } // if (1) – ADC pop always active   
+     } // if (1)
          
      } // if (MASTERBOT_CONNECTED)
 
@@ -10291,6 +10294,40 @@ handleGUIMessage(message) {
                                   }
             });
 
+            this.ws_gui.send(answer);
+            return;
+        }
+
+
+        //
+        // GET BOT ADDRESS (primary mesh address for a selected bot)
+        //
+        if (decodedobject.cmd === 'get_bot_address') {
+            const botId = String(decodedobject.bot_id ?? "").trim();
+            let address = "";
+            let connector = "";
+            let found = false;
+            const botIndex = this.get_bot_by_id(botId, this.bots);
+            if (botIndex !== null && botIndex !== undefined && this.bots[botIndex]) {
+                found = true;
+                address = String(this.apicall_get_safe_adress(this.bots[botIndex]) ?? "");
+                // Connector des Bots ermitteln (ADC-Zuordnung, Fallback: bot.connector)
+                if (this.accessDomainController && typeof this.accessDomainController.adc_getConnectorForBot === "function") {
+                    try {
+                        const connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
+                        if (connInfo && connInfo.connector_id) connector = String(connInfo.connector_id);
+                    } catch (e) { /* ignore */ }
+                }
+                if (connector === "") connector = String(this.bots[botIndex].connector ?? "");
+            }
+            console.log("get_bot_address:", botId, "->", address, "connector:", connector);
+            answer = JSON.stringify({
+                answer: "answer_get_bot_address",
+                bot_id: botId,
+                found: found,
+                address: address,
+                connector: connector
+            });
             this.ws_gui.send(answer);
             return;
         }
