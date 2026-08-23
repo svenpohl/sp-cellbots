@@ -6,6 +6,11 @@
 
 ---
 
+- **2.0.7** (23.08.2026)
+**Legacy-Option & XLED Frontend – Hardware-Test-Support**
+  - Legacy-MasterBot can be disabled via config.cfg (`connect_masterbot = 0`, `mb_config = config_mb_rl.xml`) – pure ADC/hardware operation without ClusterSim (ADC pop/scan now run independently of the legacy status)
+  - XLED in the BotController WebGUI: on/off/toggle buttons + `get_bot_address` – uses the mesh address and connector of the selected bot
+
 - **2.0.6** (13.08.2026)
 **XMBPING & XLED – X-Opcode Hardware Features**
   - `XMBPING` – MasterBot ping (`raw_cmd "#XMBPING#<id>" C0|C1|C2`), responds with `XRMBPING#<id>;<mb_id>`
