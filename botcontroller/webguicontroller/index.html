@@ -257,6 +257,7 @@ const fontDataBase64 = "eyJnbHlwaHMiOnsizr8iOnsieF9taW4iOjAsInhfbWF4Ijo3MTIsImhh
     <button id="requestversionbotcontroller">Get Botcontroller Version</button>
 
     <button id="requeststructurescanbotcontroller">Start Scan</button>
+    <button id="requestscanresumebotcontroller">Scan Resume</button>
     <button id="requeststructurescanradiobotcontroller">Start Scan Radio</button>
 
     <button id="requeststructurescanlevel2botcontroller" class="button-pending">Scan Level 2</button>
@@ -1093,6 +1094,19 @@ addConsoleLine("Connected" );
 
             // Refresh cluster data so newly loaded forbidden cells can be visualized.
             cmd = "{ \"cmd\":\"getclusterdata\" }";; 
+            socket.send(cmd);
+        });
+
+        document.getElementById('requestscanresumebotcontroller').addEventListener('click', function() {
+        if (connected == 0) alert('No Connection');
+
+            // structurescan_resume: non-destructive scan – keeps existing bots,
+            // pings every free slot of every known bot (slot-based redundancy).
+            cmd = "{ \"cmd\":\"structurescan_resume\" }";
+            socket.send(cmd);
+            addConsoleLine("Botcontroller: Scan Resume started – existing bots kept, free slots pinged", type='botcontroller');
+
+            cmd = "{ \"cmd\":\"getclusterdata\" }";
             socket.send(cmd);
         });
 
