@@ -122,6 +122,23 @@ if (cmd === "structurescan_radio")
    return(true);
    } // if
 
+if (cmd === "structurescan_resume")
+   {
+   let passes = Math.max(1, Number(decodedobject.passes ?? 1) || 1);
+   let startResult = controller.start_scan_resume(passes);
+   let ret = {
+             ok: startResult.accepted === true,
+             answer: "answer_structurescan_resume",
+             accepted: startResult.accepted === true,
+             passes: passes,
+             status: startResult.status,
+             message: startResult.message
+             };
+   controller.append_api_action_log("structurescan_resume", { passes: passes }, { ok: ret.ok, answer: ret.answer, accepted: ret.accepted, status: ret.status });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "search_bot")
    {
    let ret = controller.apicall_search_bot(decodedobject.bot_id, decodedobject.level);

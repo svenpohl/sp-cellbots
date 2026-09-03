@@ -110,14 +110,51 @@ return({
                waiting_counter: Number(controller.scanwaitingcounter_radio ?? 0),
                max_waiting_counter: Number(controller.max_scanwaitingcounter)
                },
+       resume: {
+               running: (controller.scan_status_resume == 1),
+               status: Number(controller.scan_status_resume ?? 0),
+               waiting_counter: Number(controller.scan_resume_waitingcounter ?? 0),
+               max_waiting_counter: Number(controller.scan_resume_timeout ?? 120),
+               current_pass: Number(controller.scan_resume_pass_current ?? 0),
+               passes_max: Number(controller.scan_resume_passes_max ?? 1)
+               },
        loaded_bots: Number(controller.bots.length),
        detected_inactive_bots: Number(controller.detected_inactive_bots.length)
        });
 } // apicall_get_scan_state()
 
 
+function apicall_get_scan_resume_report(controller)
+{
+const report = controller.scan_resume_report;
+const resumeStatus = Number(controller.scan_status_resume ?? 0);
+let status_text = "idle";
+if (resumeStatus == 1) status_text = "waiting";
+if (resumeStatus == 2) status_text = "finished";
+if (resumeStatus == 3) status_text = "timeout";
+
+return({
+       ok: true,
+       answer: "answer_get_scan_resume_report",
+       running: (resumeStatus == 1),
+       status: resumeStatus,
+       status_text: status_text,
+       current_pass: Number(controller.scan_resume_pass_current ?? 0),
+       passes_max: Number(controller.scan_resume_passes_max ?? 1),
+       waiting_counter: Number(controller.scan_resume_waitingcounter ?? 0),
+       max_waiting_counter: Number(controller.scan_resume_timeout ?? 120),
+       bots_before: report ? Number(report.bots_before ?? 0) : null,
+       bots_after: report ? (report.bots_after ?? null) : null,
+       started_at: report ? (report.started_at ?? null) : null,
+       finished_at: report ? (report.finished_at ?? null) : null,
+       passes: report ? (report.passes ?? []) : []
+       });
+} // apicall_get_scan_resume_report()
+
+
 module.exports = {
                   apicall_get_status_extended,
                   apicall_get_masterbot,
-                  apicall_get_scan_state
+                  apicall_get_scan_state,
+                  apicall_get_scan_resume_report
                  };

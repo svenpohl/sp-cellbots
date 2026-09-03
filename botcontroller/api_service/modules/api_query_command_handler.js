@@ -37,6 +37,14 @@ if (cmd === "get_scan_state")
    return(true);
    } // if
 
+if (cmd === "get_scan_resume_report")
+   {
+   let ret = controller.apicall_get_scan_resume_report();
+   controller.append_api_action_log("get_scan_resume_report", {}, { ok: ret.ok, answer: ret.answer, status: ret.status_text });
+   await write_and_close(socket, ret);
+   return(true);
+   } // if
+
 if (cmd === "get_bot_by_id")
    {
    let ret = controller.apicall_get_bot_by_id(decodedobject.bot_id);
