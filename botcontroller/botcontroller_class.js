@@ -82,7 +82,8 @@ const {
 const {
       apicall_get_status_extended: runtime_get_status_extended,
       apicall_get_masterbot: runtime_get_masterbot,
-      apicall_get_scan_state: runtime_get_scan_state
+      apicall_get_scan_state: runtime_get_scan_state,
+      apicall_get_scan_resume_report: runtime_get_scan_resume_report
       } = require('./api_service/modules/api_scan_sync_runtime');
 const {
       apicall_gui_set_marker: runtime_gui_set_marker,
@@ -354,6 +355,18 @@ constructor()
    this.scanwaitingcounter_lvl2 = 0;
    this.scanwaitingcounter_radio = 0;
    this.max_scanwaitingcounter = 80;
+
+   // structurescan_resume – non-destructive scan (keeps existing bots)
+   this.scan_status_resume = 0;          // 0=idle, 1=waiting, 2=finished, 3=timeout
+   this.scan_resume_passes_max = 1;
+   this.scan_resume_pass_current = 0;
+   this.scan_resume_waitingcounter = 0;
+   this.scan_resume_timeout = Number(this.config?.structurescan_resume_timeout ?? 120) || 120;
+   this.scan_resume_queue = [];
+   this.scan_resume_pending = {};
+   this.scan_resume_report = null;
+   this.scan_resume_started_at = null;
+   this.scan_resume_finished_at = null;
 
    this.scan_radio_pending_ids = [];
    this.scan_radio_requested_ids = {};
@@ -1578,6 +1591,12 @@ apicall_get_scan_state()
 {
 return(runtime_get_scan_state(this));
 } // apicall_get_scan_state()
+
+
+apicall_get_scan_resume_report()
+{
+return(runtime_get_scan_resume_report(this));
+} // apicall_get_scan_resume_report()
 
 
 apicall_gui_set_marker(x, y, z, size, color)
@@ -8503,7 +8522,11 @@ if ( msgarray.cmd == cmd_parser_class_obj.CMD_RINFO )
             }
             // Refresh frontend after bot update/registration
             this.apicall_gui_refresh();
-         } else
+         } else if (this.scan_resume_pending && this.scan_resume_pending[bottmpid] !== undefined)
+           {
+           // structurescan_resume: Antwort auf einen freien-Slot-Ping (slot-based scan)
+           this.scan_resume_handle_rinfo(msgarray, bottmpid);
+           } else
            {
            if (logging) console.log("RINFO ignored: no waiting entry for " + bottmpid);
            }
@@ -9671,6 +9694,419 @@ if (this.scanwaitingcounter > this.max_scanwaitingcounter)
 
 
 //
+// =====================================================================
+// structurescan_resume – non-destructive, slot-based structure scan
+// =====================================================================
+// Keeps all existing bots, pings every FREE slot of every known bot
+// (slot-based: the same coordinate may be pinged via multiple bots),
+// records a per-pass report (new bots found, confirmed existing,
+// no-response slots, timeouts). Optional pass counter: resume 3.
+//
+
+start_scan_resume(passes)
+{
+// Conflict guard: only one scan at a time
+if (this.scan_status == 1 || this.scan_status_lvl2 == 1 || this.scan_status_radio == 1 || this.adc_scan_status == 1 || this.scan_status_resume == 1)
+   {
+   console.log("[RESUME-SCAN] rejected – another scan is already running");
+   return({ accepted: false, status: "busy", message: "scan already running" });
+   } // if
+
+this.scan_resume_passes_max = Math.max(1, Number(passes ?? 1) || 1);
+this.scan_resume_pass_current = 1;
+this.scan_resume_waitingcounter = 0;
+this.scan_resume_queue = [];
+this.scan_resume_pending = {};
+this.scan_resume_started_at = new Date().toISOString();
+this.scan_resume_finished_at = null;
+this.scan_resume_report = {
+                          bots_before: this.bots.length,
+                          bots_after: null,
+                          started_at: this.scan_resume_started_at,
+                          finished_at: null,
+                          passes: []
+                          };
+
+// Pass 1 report entry
+this.scan_resume_report.passes.push(this.scan_resume_new_pass_report(1));
+
+// Build slot-based queue (existing bots are kept untouched)
+this.scan_resume_queue = this.scan_resume_build_queue();
+
+console.log("[RESUME-SCAN] started – passes=" + this.scan_resume_passes_max
+            + " known_bots=" + this.bots.length
+            + " free_slots=" + this.scan_resume_queue.length);
+
+this.scan_status_resume = 1;
+return({ accepted: true, status: "waiting", message: "resume scan started" });
+} // start_scan_resume()
+
+
+scan_resume_new_pass_report(passNumber)
+{
+return({
+       pass: passNumber,
+       status: "waiting",
+       started_at: Date.now(),
+       new_bots_found: false,
+       new_bot_ids: [],
+       confirmed_existing: 0,
+       confirmed_existing_ids: [],
+       position_mismatches: [],
+       slots_queued_total: 0,
+       slots_pinged: 0,
+       slots_no_response: 0,
+       slots_not_sent: 0,
+       no_response_slots: [],
+       duration_ms: null
+       });
+} // scan_resume_new_pass_report()
+
+
+scan_resume_build_queue(onlyBotIndex = null)
+{
+const slotnames = ['f','r','b','l','t','d'];
+const queue = [];
+
+if (!this.accessDomainController) return queue;
+
+for (let i = 0; i < this.bots.length; i++)
+    {
+    if (this.bots[i] === undefined || this.bots[i] == null) continue;
+    if (onlyBotIndex !== null && i !== onlyBotIndex) continue;
+
+    let bot = this.bots[i];
+    let botId = String(bot.id ?? "").trim();
+
+    for (let s = 0; s < slotnames.length; s++)
+        {
+        let sl = slotnames[s];
+        let target_xyz = this.get_neighbor_by_slot(i, sl);
+        if (!target_xyz) continue;
+
+        // Skip occupied targets (known bot or MB/hMB position)
+        let target_bot_index = this.get_3d(target_xyz.x, target_xyz.y, target_xyz.z);
+        if (target_bot_index != null && target_bot_index !== undefined) continue;
+
+        if (Number(target_xyz.x) === Number(this.mb['x']) &&
+            Number(target_xyz.y) === Number(this.mb['y']) &&
+            Number(target_xyz.z) === Number(this.mb['z'])) continue;
+
+        let cmd_slot = sl.toUpperCase();
+        let new_addr = String(bot.adress ?? "") + cmd_slot;
+
+        // Connector for this bot (ADC assignment, fallback bot.connector / C0)
+        let connector_id = "C0";
+        if (bot.connector) connector_id = String(bot.connector);
+        if (this.accessDomainController && typeof this.accessDomainController.adc_getConnectorForBot === "function")
+           {
+           try {
+                let connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
+                if (connInfo && connInfo.connector_id) connector_id = String(connInfo.connector_id);
+                } catch (e) { /* ignore */ }
+           }
+
+        // Return address: from origin MB (scan_origin_mb or "MB") to target
+        let origin_mb_id = String(bot.scan_origin_mb ?? "").trim();
+        if (origin_mb_id == "") origin_mb_id = "MB";
+        let mb_idx = this.get_bot_by_id(origin_mb_id, this.bots);
+        let firstindex = "";
+        if (mb_idx != null && mb_idx !== undefined)
+           {
+           firstindex = this.getKey_3d(this.bots[mb_idx].x, this.bots[mb_idx].y, this.bots[mb_idx].z);
+           }
+        if (firstindex == "")
+           {
+           firstindex = this.getKey_3d(this.mb.x, this.mb.y, this.mb.z);
+           }
+        let retaddr = this.get_inverse_address(firstindex, new_addr);
+
+        queue.push({
+                   bot_index: i,
+                   bot_id: botId,
+                   slot: cmd_slot,
+                   addr: new_addr,
+                   x: Number(target_xyz.x),
+                   y: Number(target_xyz.y),
+                   z: Number(target_xyz.z),
+                   stl_id: this.getKey_3d(bot.x, bot.y, bot.z),
+                   retaddr: retaddr,
+                   connector: connector_id,
+                   tmpid: null,
+                   attempts: 0
+                   });
+        } // for slots
+    } // for bots
+
+return queue;
+} // scan_resume_build_queue()
+
+
+scan_resume_step()
+{
+if (!this.accessDomainController)
+   {
+   console.log("[RESUME-SCAN] ERROR: accessDomainController not available – aborting.");
+   this.scan_resume_finish_pass("timeout");
+   return;
+   } // if
+
+let passIndex = this.scan_resume_pass_current - 1;
+let passReport = this.scan_resume_report.passes[passIndex];
+if (!passReport) { this.scan_resume_finish_pass("timeout"); return; }
+
+// Send all not-yet-sent queue entries (like the full scan sends all unchecked slots)
+for (let q = 0; q < this.scan_resume_queue.length; q++)
+    {
+    let entry = this.scan_resume_queue[q];
+    if (entry.tmpid !== null) continue; // already sent
+
+    let tmpid = this.tmpid_cnt++;
+    entry.tmpid = tmpid;
+    entry.attempts++;
+    this.scan_resume_pending[tmpid] = entry;
+
+    let cmd = entry.addr + "#INFO#" + tmpid + "#" + entry.retaddr;
+    cmd = this.sign(cmd);
+    this.accessDomainController.adc_sendPush(entry.connector, cmd);
+
+    passReport.slots_pinged++;
+    } // for queue
+
+this.scan_resume_waitingcounter++;
+
+let allSent = true;
+for (let q = 0; q < this.scan_resume_queue.length; q++)
+    {
+    if (this.scan_resume_queue[q].tmpid === null) { allSent = false; break; }
+    } // for
+let pendingCount = 0;
+for (let t in this.scan_resume_pending) { pendingCount++; } // for
+
+// Pass finished: everything sent and answered
+if (allSent && pendingCount === 0)
+   {
+   this.scan_resume_finish_pass("finished");
+   return;
+   } // if
+
+// Pass timeout
+if (this.scan_resume_waitingcounter > this.scan_resume_timeout)
+   {
+   this.scan_resume_finish_pass("timeout");
+   return;
+   } // if
+} // scan_resume_step()
+
+
+scan_resume_handle_rinfo(msgarray, bottmpid)
+{
+let entry = this.scan_resume_pending[bottmpid];
+if (!entry) return;
+
+delete this.scan_resume_pending[bottmpid];
+this.scan_resume_waitingcounter = 0; // progress → reset watchdog
+
+let passIndex = this.scan_resume_pass_current - 1;
+let passReport = this.scan_resume_report.passes[passIndex];
+if (!passReport) return;
+
+let botId = String(msgarray.botid ?? "").trim();
+let p_x = Number(entry.x), p_y = Number(entry.y), p_z = Number(entry.z);
+
+// Orientation (same pattern as full scan: STL bot / MB + sourceslot)
+let ov = this.scan_resume_calc_orientation(entry, msgarray);
+let ovx = ov ? Number(ov.vx) : 0;
+let ovy = ov ? Number(ov.vy) : 0;
+let ovz = ov ? Number(ov.vz) : 0;
+
+// Already known by ID? (redundant slot ping – exactly the intended redundancy)
+let existing_by_id = this.get_bot_by_id(botId, this.bots);
+if (existing_by_id !== null && existing_by_id !== undefined)
+   {
+   let existing = this.bots[existing_by_id];
+   let alreadyAtTarget = (Number(existing.x) === p_x && Number(existing.y) === p_y && Number(existing.z) === p_z);
+
+   if (alreadyAtTarget)
+      {
+      // Bot sitzt bereits an der Zielkoordinate – nur Pose/Adresse auffrischen
+      existing.vector_x = ovx; existing.vector_y = ovy; existing.vector_z = ovz;
+      existing.adress = entry.addr;
+      if (existing.color === undefined || existing.color === null || existing.color === "") existing.color = "eeeeee";
+      } else
+        {
+        // Guard: bekannten Bot NICHT verschieben – Zielkoordinate passt nicht zur bekannten Position.
+        // (Veraltete Mesh-Adresse / falsches Routing → im Report als position_mismatch dokumentieren)
+        passReport.position_mismatches.push({
+                                            bot_id: botId,
+                                            expected: { x: Number(existing.x), y: Number(existing.y), z: Number(existing.z) },
+                                            received: { x: p_x, y: p_y, z: p_z },
+                                            addr: entry.addr
+                                            });
+        } // else
+
+   passReport.confirmed_existing++;
+   if (!passReport.confirmed_existing_ids.includes(botId)) passReport.confirmed_existing_ids.push(botId);
+   return;
+   } // if
+
+// Position occupied by another bot (ID mismatch) – do not overwrite
+let existing_at_pos = this.get_3d(p_x, p_y, p_z);
+if (existing_at_pos !== null && existing_at_pos !== undefined)
+   {
+   passReport.confirmed_existing++;
+   let existingId = String(this.bots[existing_at_pos].id ?? "");
+   if (existingId != "" && !passReport.confirmed_existing_ids.includes(existingId))
+      {
+      passReport.confirmed_existing_ids.push(existingId);
+      }
+   return;
+   } // if
+
+// New bot → register
+let bot_obj = new bot_class_mini();
+let stl_id = this.getKey_3d(p_x, p_y, p_z);
+bot_obj.setvalues(botId, stl_id, p_x, p_y, p_z, ovx, ovy, ovz, "eeeeee", entry.addr, Number(msgarray.type ?? 0));
+if (Number(msgarray.type ?? 0) === 1) { bot_obj.mobility = false; }
+this.register_bot(bot_obj);
+
+// ADC assignment: nearest hMB by distance (like ping_position)
+if (this.accessDomainController && this.accessDomainController.helper_masterbots)
+   {
+   let bestHmb = null, bestDist = Infinity;
+   for (let mid in this.accessDomainController.helper_masterbots)
+       {
+       let mb = this.accessDomainController.helper_masterbots[mid];
+       if (mb.type !== "masterbot" || mb.active === false) continue;
+       let dist = Math.abs(Number(mb.pos.x) - p_x) + Math.abs(Number(mb.pos.y) - p_y) + Math.abs(Number(mb.pos.z) - p_z);
+       if (dist < bestDist) { bestDist = dist; bestHmb = mb; }
+       } // for
+   if (bestHmb)
+      {
+      this.accessDomainController.adc_assignBot(bestHmb.id, botId);
+      }
+   } // if
+
+// Report
+passReport.new_bots_found = true;
+passReport.new_bot_ids.push(botId);
+
+// Frontend
+this.apicall_gui_refresh();
+
+// Recursive: enqueue free slots of the newly found bot into the CURRENT pass
+let newBotIndex = this.get_bot_by_id(botId, this.bots);
+if (newBotIndex !== null && newBotIndex !== undefined)
+   {
+   let newEntries = this.scan_resume_build_queue(newBotIndex);
+   let existingKeys = new Set();
+   for (let q = 0; q < this.scan_resume_queue.length; q++)
+       {
+       existingKeys.add(String(this.scan_resume_queue[q].bot_index) + "|" + this.scan_resume_queue[q].slot);
+       } // for
+   for (let ne = 0; ne < newEntries.length; ne++)
+       {
+       let key = String(newEntries[ne].bot_index) + "|" + newEntries[ne].slot;
+       if (!existingKeys.has(key))
+          {
+          this.scan_resume_queue.push(newEntries[ne]);
+          existingKeys.add(key);
+          } // if
+       } // for
+   } // if
+} // scan_resume_handle_rinfo()
+
+
+scan_resume_calc_orientation(entry, msgarray)
+{
+let stl_x = 0, stl_y = 0, stl_z = 0;
+let stl_vx = 0, stl_vy = 0, stl_vz = 0;
+
+let p_stl_id = String(entry.stl_id ?? "");
+if (p_stl_id === "MB")
+   {
+   stl_x = Number(this.mb['x']); stl_y = Number(this.mb['y']); stl_z = Number(this.mb['z']);
+   stl_vx = Number(this.mb['vx']); stl_vy = Number(this.mb['vy']); stl_vz = Number(this.mb['vz']);
+   } else
+     {
+     let bi = this.botindex[p_stl_id];
+     if (bi === undefined || this.bots[bi] === undefined) return null;
+     stl_x = Number(this.bots[bi].x); stl_y = Number(this.bots[bi].y); stl_z = Number(this.bots[bi].z);
+     stl_vx = Number(this.bots[bi].vector_x); stl_vy = Number(this.bots[bi].vector_y); stl_vz = Number(this.bots[bi].vector_z);
+     } // else
+
+let src_slot = String(msgarray.sourceslot ?? "").toUpperCase();
+if (src_slot !== "T" && src_slot !== "D")
+   {
+   return(this.calc_target_orientation_vector(stl_x, stl_y, stl_z, Number(entry.x), Number(entry.y), Number(entry.z), src_slot));
+   } else
+     {
+     return(this.calc_target_orientation_vector_relative(stl_vx, stl_vy, stl_vz, Number(msgarray.vx ?? 0), Number(msgarray.vy ?? 0), Number(msgarray.vz ?? 0)));
+     } // else
+} // scan_resume_calc_orientation()
+
+
+scan_resume_finish_pass(status)
+{
+let passIndex = this.scan_resume_pass_current - 1;
+let passReport = this.scan_resume_report.passes[passIndex];
+if (passReport)
+   {
+   passReport.status = status;
+   passReport.duration_ms = Date.now() - Number(passReport.started_at ?? Date.now());
+   passReport.slots_queued_total = this.scan_resume_queue.length;
+
+   // Entries never answered → no_response
+   for (let tmpid in this.scan_resume_pending)
+       {
+       let e = this.scan_resume_pending[tmpid];
+       passReport.slots_no_response++;
+       passReport.no_response_slots.push({ bot_id: e.bot_id, slot: e.slot, addr: e.addr, x: e.x, y: e.y, z: e.z });
+       } // for
+
+   // Entries never sent (timeout before all pings were sent)
+   for (let q = 0; q < this.scan_resume_queue.length; q++)
+       {
+       if (this.scan_resume_queue[q].tmpid === null) passReport.slots_not_sent++;
+       } // for
+   } // if
+
+// Cleanup pending for the next pass
+this.scan_resume_pending = {};
+
+if (this.scan_resume_pass_current >= this.scan_resume_passes_max)
+   {
+   this.scan_resume_finish(status);
+   return;
+   } // if
+
+// Next pass
+this.scan_resume_pass_current++;
+this.scan_resume_waitingcounter = 0;
+this.scan_resume_queue = this.scan_resume_build_queue();
+this.scan_resume_report.passes.push(this.scan_resume_new_pass_report(this.scan_resume_pass_current));
+
+console.log("[RESUME-SCAN] pass " + (this.scan_resume_pass_current - 1) + " " + status
+            + " – pass " + this.scan_resume_pass_current + " queue=" + this.scan_resume_queue.length + " slots");
+} // scan_resume_finish_pass()
+
+
+scan_resume_finish(status)
+{
+this.scan_status_resume = (status === "timeout") ? 3 : 2;
+this.scan_resume_finished_at = new Date().toISOString();
+this.scan_resume_report.bots_after = this.bots.length;
+this.scan_resume_report.finished_at = this.scan_resume_finished_at;
+this.bots_jsonexport("logs/botexport.json");
+this.apicall_gui_refresh();
+console.log("[RESUME-SCAN] finished – status=" + status
+            + " bots_before=" + this.scan_resume_report.bots_before
+            + " bots_after=" + this.scan_resume_report.bots_after
+            + " passes=" + this.scan_resume_passes_max);
+} // scan_resume_finish()
+
+
+//
 // scan_step_lvl2()
 //
 scan_step_lvl2()
@@ -9983,6 +10419,12 @@ const slotnames = ['f','r','b','l','t','d'];
         this.adc_scan_step();
         } /// if (adc_scan_status == 1)
 
+     // Structurescan-Resume (non-destructive, slot-based) – eigener Scan-Pfad
+     if (this.scan_status_resume == 1)
+        {
+        this.scan_resume_step();
+        } /// if (scan_status_resume == 1)
+
      // ADC-Queue poppen (Antworten von hMBs/MBs holen – unabhängig vom Legacy-Status)
      this.accessDomainController.adc_popAll();
      } // if ADC active
@@ -10259,6 +10701,33 @@ handleGUIMessage(message) {
         //
         if (decodedobject.cmd === 'structurescan_radio') {
             this.start_scan_radio(1);
+            return;
+        }
+
+
+        //
+        // STRUCTURESCAN RESUME (non-destructive, slot-based)
+        //
+        if (decodedobject.cmd === 'structurescan_resume') {
+            const passes = Math.max(1, Number(decodedobject.passes ?? 1) || 1);
+            const startResult = this.start_scan_resume(passes);
+            answer = JSON.stringify({
+                answer: "answer_structurescan_resume",
+                accepted: startResult.accepted === true,
+                passes: passes,
+                status: startResult.status,
+                message: startResult.message
+            });
+            this.ws_gui.send(answer);
+            return;
+        }
+
+        //
+        // GET SCAN RESUME REPORT
+        //
+        if (decodedobject.cmd === 'get_scan_resume_report') {
+            answer = JSON.stringify(this.apicall_get_scan_resume_report());
+            this.ws_gui.send(answer);
             return;
         }
 

@@ -407,6 +407,14 @@ function buildRequestFromCli() {
     return { cmd: "structurescan_radio" };
   } // if
 
+  if (cmd == "structurescan_resume") {
+    return { cmd: "structurescan_resume", passes: Number(process.argv[3] ?? 1) };
+  } // if
+
+  if (cmd == "get_scan_resume_report") {
+    return { cmd: "get_scan_resume_report" };
+  } // if
+
   if (cmd == "search_bot") {
     return {
       cmd: "search_bot",
@@ -1800,6 +1808,32 @@ function main() {
             ok: true,
             result: "api_raw_cmd",
             accepted: responseObject.accepted === true
+          };
+        } else if (answer === "answer_structurescan_resume") {
+          result = {
+            ok: responseObject.accepted === true,
+            result: "structurescan_resume",
+            accepted: responseObject.accepted === true,
+            passes: responseObject.passes ?? 1,
+            status: responseObject.status ?? "idle",
+            message: responseObject.message ?? ""
+          };
+        } else if (answer === "answer_get_scan_resume_report") {
+          result = {
+            ok: true,
+            result: "get_scan_resume_report",
+            running: responseObject.running === true,
+            status: responseObject.status ?? 0,
+            status_text: responseObject.status_text ?? "idle",
+            current_pass: responseObject.current_pass ?? 0,
+            passes_max: responseObject.passes_max ?? 1,
+            waiting_counter: responseObject.waiting_counter ?? 0,
+            max_waiting_counter: responseObject.max_waiting_counter ?? 120,
+            bots_before: responseObject.bots_before ?? null,
+            bots_after: responseObject.bots_after ?? null,
+            started_at: responseObject.started_at ?? null,
+            finished_at: responseObject.finished_at ?? null,
+            passes: responseObject.passes ?? []
           };
         } else if (answer === "api_poll_masterbot_queue") {
           result = {
