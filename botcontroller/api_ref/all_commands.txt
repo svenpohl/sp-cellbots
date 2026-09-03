@@ -240,6 +240,23 @@ Available commands:
   returns:
     - answer: api_structurescan_radio_started
     - accepted: boolean
+- structurescan_resume [passes]
+  Non-destructive scan: keeps all known bots, pings every free slot (slot-based redundancy),
+  registers newly found bots recursively. Optional pass count (default 1).
+  Per-pass report via get_scan_resume_report. Timeout: structurescan_resume_timeout (config.cfg).
+  params:
+    - passes: optional number, default 1
+  returns:
+    - answer: answer_structurescan_resume
+    - accepted: boolean
+- get_scan_resume_report
+  Report of the last/current resume scan: per-pass status (idle|waiting|finished|timeout),
+  new bots, confirmed existing, position mismatches, no-response slots.
+  returns:
+    - answer: answer_get_scan_resume_report
+    - running: boolean
+    - status_text: string
+    - passes: list of per-pass reports
 - search_bot
   Starts a targeted direct_radio NBH resync for one bot. Level 1 queries only the target bot, level 2 additionally queries its currently known neighbors for a more robust local relocalization.
   params:

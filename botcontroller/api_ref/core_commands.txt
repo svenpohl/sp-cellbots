@@ -100,6 +100,16 @@ node api.js morph_check_progress
 node api.js structurescan
 -> Start Scan Level 1 for active structure discovery
 
+node api.js structurescan_resume [passes]
+-> Non-destructive scan: keeps existing bots, pings every free slot of every known bot
+   (slot-based, multiple paths per coordinate). Optional pass counter, e.g. 'resume 3'.
+   Per-pass report via: node api.js get_scan_resume_report
+   Pass timeout in config.cfg: structurescan_resume_timeout (ticks, default 120)
+
+node api.js get_scan_resume_report
+-> Full report of the last/current resume scan (new bots, confirmed existing,
+   no-response slots, status waiting/finished/timeout)
+
 node api.js recalibrate_bot_addresses
 -> Recalculate bot addresses after structural changes
 
