@@ -6,6 +6,10 @@
 
 ---
 
+- **2.0.8** (03.09.2026)
+**Structurescan Resume – Non-Destructive Hardware Scan**
+  - `structurescan_resume [passes]` – non-destructive scan that keeps all known bots and pings every free slot (slot-based redundancy), recovering bots missed by a full scan; per-pass report via `get_scan_resume_report`, timeout via `structurescan_resume_timeout` (config.cfg)
+
 - **2.0.7** (23.08.2026)
 **Legacy-Option & XLED Frontend – Hardware-Test-Support**
   - Legacy-MasterBot can be disabled via config.cfg (`connect_masterbot = 0`, `mb_config = config_mb_rl.xml`) – pure ADC/hardware operation without ClusterSim (ADC pop/scan now run independently of the legacy status)
