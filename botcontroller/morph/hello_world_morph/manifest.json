@@ -1,0 +1,11 @@
+{
+  "id": "hello_world",
+  "name": "Hello World Morph (only interface Demo)",
+  "version": "1.0",
+  "description": "Minimal file-based example morpher",
+  "runner": "runner.js",
+  "runtime": "node",
+  "capabilities": {
+    "mode": "vehicle_kinematics"
+  } 
+}
