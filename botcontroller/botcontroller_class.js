@@ -26,7 +26,7 @@ const fs       = require('fs');
 const path     = require('path');
 const net      = require('net');
 const readline = require('readline');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 
 const WebSocket = require('ws');
@@ -486,6 +486,19 @@ constructor()
     ];
     this.morphAlgorithmSelected = "parallel_vehicle_kinematics_2";
     this.morph_fallback_active = false;
+
+    // Scan file-based morph modules (Morph Plugin API v1): morph/<plugin>/manifest.json
+    this.morph_modules = this.scan_morph_modules();
+    if (this.morph_modules.length > 0)
+       {
+       console.log(console_format_log("morph_modules", 30, this.morph_modules.map(m => m.id).join(", ")));
+       } // if
+
+    // External morph module runtime state (Morph Plugin API v1)
+    this.morph_module_active  = false;  // true while a module child process is running
+    this.morph_module         = null;   // manifest of the currently running module
+    this.morph_module_child   = null;   // child process handle
+    this.morph_module_context = null;   // { mode: "normal" | "headless", output_file, callback }
 
 
 
@@ -3368,6 +3381,420 @@ return({
 
 
 //
+// get_morph_algorithm_list()
+// Returns the combined morph algorithm list for the frontend:
+// the built-in algorithms, plus - if any - a separator entry followed by the
+// dynamically scanned morph modules (Morph Plugin API v1).
+// The built-in algorithms stay untouched and come first (backwards compatible).
+//
+get_morph_algorithm_list()
+{
+let list = Array.isArray(this.morphAlgorithms) ? this.morphAlgorithms.slice() : [];
+
+let modules = Array.isArray(this.morph_modules) ? this.morph_modules : [];
+if (modules.length > 0)
+   {
+   list.push({
+              id: "__dynamic_modules__",
+              name: "--- Dynamic Morph Modules ---",
+              separator: true
+              });
+
+   for (let i = 0; i < modules.length; i++)
+       {
+       list.push({
+                  id: modules[i].id,
+                  name: modules[i].name,
+                  description: modules[i].description,
+                  external: true
+                  });
+       } // for
+   } // if
+
+return(list);
+} // get_morph_algorithm_list()
+
+
+//
+// build_morph_input_payload()
+// Builds the morph_input.json payload handed to a file-based morph module
+// (Morph Plugin API v1): current world, target structure and generic params.
+//
+build_morph_input_payload(startBots, targetBots, params)
+{
+return({
+       startBots: Array.isArray(startBots) ? startBots : [],
+       targetBots: Array.isArray(targetBots) ? targetBots : [],
+       params: params ?? {}
+       });
+} // build_morph_input_payload()
+
+
+//
+// write_morph_input()
+// Writes morph_input.json into the module folder (atomic write: tmp + rename).
+//
+write_morph_input(module, payload)
+{
+if (!module || !module.dir || !payload)
+   {
+   return(null);
+   } // if
+
+let input_path = path.join(module.dir, 'morph_input.json');
+let tmp_path   = input_path + ".tmp";
+
+try
+   {
+   fs.writeFileSync(tmp_path, JSON.stringify(payload, null, 2));
+   fs.renameSync(tmp_path, input_path);
+   console.log("[MORPH-MODULE] morph_input.json written: " + input_path
+               + " (" + payload.startBots.length + " startBots, " + payload.targetBots.length + " targetBots)");
+   return(input_path);
+   } catch (e)
+     {
+     console.log("[MORPH-MODULE] cannot write morph_input.json: " + e.message);
+     return(null);
+     } // catch
+} // write_morph_input()
+
+
+//
+// find_morph_module()
+// Returns the manifest of a dynamically loaded morph module by id (or null).
+//
+find_morph_module(algo_id)
+{
+let wanted = String(algo_id ?? "").trim();
+if (wanted == "") return(null);
+
+let modules = Array.isArray(this.morph_modules) ? this.morph_modules : [];
+for (let i = 0; i < modules.length; i++)
+    {
+    if (modules[i].id === wanted) return(modules[i]);
+    } // for
+
+return(null);
+} // find_morph_module()
+
+
+//
+// start_morph_module()
+// Starts an external morph module (Morph Plugin API v1) as a child process and
+// wires up its stdout/stderr. Runs inside the module folder, so the runner can
+// write morph_output.json next to itself.
+// context: { mode: "normal" | "headless", output_file, callback }
+//
+start_morph_module(module, context = {})
+{
+if (!module || !module.dir)
+   {
+   console.log("[MORPH-MODULE] invalid module");
+   return;
+   } // if
+
+let runtime = String(module.runtime ?? "node").trim() || "node";
+let runner  = String(module.runner ?? "").trim();
+
+if (runner == "")
+   {
+   console.log("[MORPH-MODULE] manifest without runner: " + module.id);
+   return;
+   } // if
+
+this.morph_module_active  = true;
+this.morph_module         = module;
+this.morph_module_context = context;
+
+// Hand the input over to the module (morph_input.json) before it starts
+if (context && context.input_payload)
+   {
+   this.write_morph_input(module, context.input_payload);
+   } // if
+
+console.log("[MORPH-MODULE] starting '" + module.id + "' (" + runtime + " " + runner + ")");
+this.notify_frontend_console("[MORPH-MODULE] starting '" + module.id + "'");
+
+let child = spawn(runtime, [runner], { cwd: module.dir });
+this.morph_module_child = child;
+
+// One protocol line per stdout line
+readline.createInterface({ input: child.stdout }).on('line', (line) => {
+                                                          this.handle_morph_module_line(line);
+                                                          });
+
+// stderr is diagnostics only
+readline.createInterface({ input: child.stderr }).on('line', (line) => {
+                                                          console.log("[MORPH-MODULE stderr] " + line);
+                                                          });
+
+// Process ended without MORPH_RESULT_READY / MORPH_ERROR?
+child.on('close', (code) => {
+                          this.handle_morph_module_close(code);
+                          });
+} // start_morph_module()
+
+
+//
+// handle_morph_module_line()
+// Parses one protocol line received on the module's stdout:
+//   MORPH_STATUS {...}            progress report
+//   MORPH_RESULT_READY <file>     output file ready -> finish
+//   MORPH_ERROR {...}             module reported an error
+//   anything else                 diagnostic passthrough
+//
+handle_morph_module_line(line)
+{
+let text = String(line ?? "").trim();
+if (text == "") return;
+
+if (text.startsWith("MORPH_STATUS"))
+   {
+   let payload = null;
+   try
+      {
+      payload = JSON.parse(text.slice("MORPH_STATUS".length).trim());
+      } catch (e)
+        {
+        console.log("[MORPH-MODULE] invalid status line: " + text);
+        return;
+        } // catch
+
+   // Build a readable status message (placed/targets are optional)
+   let message = "module: " + String(payload.phase ?? "");
+   if (payload.placed !== undefined || payload.targets !== undefined)
+      {
+      message += " " + String(payload.placed ?? "?") + "/" + String(payload.targets ?? "?");
+      } // if
+
+   this.apicall_update_morph_status(
+                                    {
+                                    running: true,
+                                    phase: String(payload.phase ?? "calculating"),
+                                    progress: Number(payload.progress ?? 0) * 100,   // 0..1 -> 0..100
+                                    message: message
+                                    }
+                                    );
+   this.notify_frontend_console("[MORPH-MODULE] " + message);
+   return;
+   } // if
+
+if (text.startsWith("MORPH_RESULT_READY"))
+   {
+   this.finish_morph_module(text.slice("MORPH_RESULT_READY".length).trim());
+   return;
+   } // if
+
+if (text.startsWith("MORPH_ERROR"))
+   {
+   let payload = null;
+   try
+      {
+      payload = JSON.parse(text.slice("MORPH_ERROR".length).trim());
+      } catch (e)
+        {
+        payload = { code: "UNKNOWN", message: text };
+        } // catch
+
+   console.log("[MORPH-MODULE] error " + payload.code + ": " + payload.message);
+   this.notify_frontend_console("[MORPH-MODULE] error " + payload.code + ": " + payload.message);
+   this.apicall_update_morph_status(
+                                    {
+                                    running: false,
+                                    phase: "stuck",
+                                    success: false,
+                                    finished_at: new Date().toISOString(),
+                                    message: "module error " + payload.code + ": " + payload.message
+                                    }
+                                    );
+
+   // Stop the close handler from reporting the same failure again
+   this.morph_module_active = false;
+   this.morph_module = null;
+   return;
+   } // if
+
+this.notify_frontend_console("[MORPH-MODULE] " + text);
+} // handle_morph_module_line()
+
+
+//
+// handle_morph_module_close()
+// Called when the module child process exits.
+//
+handle_morph_module_close(code)
+{
+this.morph_module_child = null;
+
+// Already finished via MORPH_RESULT_READY or MORPH_ERROR
+if (this.morph_module_active !== true) return;
+
+console.log("[MORPH-MODULE] exited with code " + code + " without MORPH_RESULT_READY");
+this.notify_frontend_console("[MORPH-MODULE] exited with code " + code + " without result");
+this.apicall_update_morph_status(
+                                 {
+                                 running: false,
+                                 phase: "stuck",
+                                 success: false,
+                                 finished_at: new Date().toISOString(),
+                                 message: "Morph module exited with code " + code + " without result"
+                                 }
+                                 );
+
+this.morph_module_active = false;
+this.morph_module = null;
+} // handle_morph_module_close()
+
+
+//
+// finish_morph_module()
+// Loads the module output (morph_output.json) and hands the plan over to the
+// existing finish path (morph_finish_handler / headless_morph_finish_handler).
+// If no output file exists, the run is reported only - nothing is executed.
+//
+finish_morph_module(output_file)
+{
+let module   = this.morph_module;
+let out_name = String(output_file ?? "").trim() || "morph_output.json";
+let out_path = module ? path.join(module.dir, out_name) : "";
+
+if (out_path == "" || fs.existsSync(out_path) !== true)
+   {
+   console.log("[MORPH-MODULE] finished without output file: " + out_name);
+   this.notify_frontend_console("[MORPH-MODULE] finished without " + out_name + " - nothing to execute");
+   this.apicall_update_morph_status(
+                                    {
+                                    running: false,
+                                    phase: "stuck",
+                                    success: false,
+                                    finished_at: new Date().toISOString(),
+                                    message: "Morph module finished without " + out_name
+                                    }
+                                    );
+
+   this.morph_module_active = false;
+   this.morph_module = null;
+   return;
+   } // if
+
+let morphLog = null;
+try
+   {
+   morphLog = JSON.parse(fs.readFileSync(out_path, "utf8"));
+   } catch (e)
+     {
+     console.log("[MORPH-MODULE] cannot read " + out_path + ": " + e.message);
+     this.notify_frontend_console("[MORPH-MODULE] invalid " + out_name + ": " + e.message);
+     this.apicall_update_morph_status(
+                                      {
+                                      running: false,
+                                      phase: "stuck",
+                                      success: false,
+                                      finished_at: new Date().toISOString(),
+                                      message: "Invalid morph output: " + e.message
+                                      }
+                                      );
+
+     this.morph_module_active = false;
+     this.morph_module = null;
+     return;
+     } // catch
+
+console.log("[MORPH-MODULE] output loaded: " + out_path);
+this.morphLog = morphLog;
+
+let context = this.morph_module_context ?? {};
+
+// morph_module_active stays true during the handover: this disables the
+// built-in morph fallback inside morph_finish_handler().
+if (String(context.mode ?? "normal") == "headless")
+   {
+   this.headless_morph_finish_handler(morphLog, true, context.output_file ?? null, context.callback ?? null);
+   } else
+     {
+     this.morph_finish_handler(morphLog, true);
+     } // else
+
+this.morph_module_active  = false;
+this.morph_module         = null;
+this.morph_module_context = null;
+} // finish_morph_module()
+
+
+//
+// scan_morph_modules()
+// Scans botcontroller/morph/<plugin>/manifest.json and returns the list of
+// file-based morph modules (Morph Plugin API v1).
+// Broken or incomplete manifests are skipped with a warning.
+//
+scan_morph_modules()
+{
+let modules = [];
+let morph_dir = path.join(__dirname, 'morph');
+
+if (!fs.existsSync(morph_dir))
+   {
+   Logger.log("WARNING: morph directory not found: " + morph_dir);
+   return(modules);
+   } // if
+
+let entries = [];
+try
+   {
+   entries = fs.readdirSync(morph_dir, { withFileTypes: true });
+   } catch (e)
+     {
+     Logger.log("WARNING: cannot read morph directory: " + e.message);
+     return(modules);
+     } // catch
+
+for (let i = 0; i < entries.length; i++)
+    {
+    if (!entries[i].isDirectory()) continue;
+
+    let plugin_dir    = path.join(morph_dir, entries[i].name);
+    let manifest_path = path.join(plugin_dir, 'manifest.json');
+
+    if (!fs.existsSync(manifest_path)) continue;
+
+    let manifest = null;
+    try
+       {
+       manifest = JSON.parse(fs.readFileSync(manifest_path, 'utf8'));
+       } catch (e)
+         {
+         Logger.log("WARNING: invalid manifest.json in '" + entries[i].name + "': " + e.message);
+         continue;
+         } // catch
+
+    let module_id = String(manifest?.id ?? "").trim();
+    if (module_id == "")
+       {
+       Logger.log("WARNING: manifest.json without 'id' skipped: " + plugin_dir);
+       continue;
+       } // if
+
+    modules.push({
+                 id: module_id,
+                 name: String(manifest.name ?? module_id),
+                 description: String(manifest.description ?? ""),
+                 version: String(manifest.version ?? ""),
+                 runtime: String(manifest.runtime ?? ""),
+                 runner: String(manifest.runner ?? ""),
+                 capabilities: manifest.capabilities ?? {},
+                 limits: manifest.limits ?? {},
+                 dir: plugin_dir,
+                 external: true
+                 });
+    } // for
+
+modules.sort((a, b) => a.id.localeCompare(b.id));
+
+return(modules);
+} // scan_morph_modules()
+
+
+//
 // createAlgorithm()
 // Called by prepare_morph()
 //
@@ -3681,7 +4108,7 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
    algo = this.createAlgorithm("parallel_vehicle_kinematics", startBots, targetBots, params);
 
    } // "parallel_vehicle_kinematics"
-   
+
 if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" ) 
    {
    console.log("Prepare parallel_vehicle_kinematics_2...");
@@ -3705,6 +4132,26 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" )
 
 
 
+
+// External morph module selected? Hand over to the module runner (child process)
+let morph_module = this.find_morph_module(this.morphAlgorithmSelected);
+if (morph_module)
+   {
+   let module_params = {
+                        masterbot: { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+                        anchors: morph_anchors,
+                        forbiddenCells: forbiddenCells,
+                        emptyArea: targetDefinition.emptyArea || null,
+                        mobility_mode: String(this.config?.mobility_mode ?? "full_edge").trim()
+                        };
+
+   this.start_morph_module(morph_module,
+                           {
+                           mode: "normal",
+                           input_payload: this.build_morph_input_payload(startBots, targetBots, module_params)
+                           });
+   return;
+   } // if
 
 this.notify_frontend_console("Prepare Morph");
 
@@ -3907,6 +4354,63 @@ if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics" )
 
 
 
+if ( this.morphAlgorithmSelected == "parallel_vehicle_kinematics_2" )
+   {
+   console.log("Headless prepare parallel_vehicle_kinematics_2...");
+
+   params = {
+            masterbot : { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+            anchors: morph_anchors,
+            forbiddenCells: forbiddenCells,
+            emptyArea: targetDefinition.emptyArea || null,
+            max_paths_in_wave: this.morph_fallback_active ? 1 : 14,
+            strict_orientation: this.morph_strict_orientation,
+            max_attempts_to_find_pair: 50
+            };
+
+   algo = this.createAlgorithm("parallel_vehicle_kinematics_2", startBots, targetBots, params);
+
+   } // "parallel_vehicle_kinematics_2"
+
+// Defensive guard: unknown algorithm → report failure via the normal headless path
+if (algo == null)
+   {
+   console.log("Headless prepare: unknown algorithm '" + String(this.morphAlgorithmSelected ?? "") + "'");
+   this.apicall_update_morph_status(
+                                    {
+                                    running: false,
+                                    phase: "stuck",
+                                    success: false,
+                                    finished_at: new Date().toISOString(),
+                                    message: "Unknown algorithm: " + String(this.morphAlgorithmSelected ?? "")
+                                    }
+                                    );
+   this.headless_morph_finish_handler(this.morphLog, false, output_file, callback);
+   return;
+   } // if
+
+// External morph module selected? Hand over to the module runner (child process)
+let morph_module = this.find_morph_module(this.morphAlgorithmSelected);
+if (morph_module)
+   {
+   let module_params = {
+                        masterbot: { x: morph_mb_pos.x, y: morph_mb_pos.y, z: morph_mb_pos.z },
+                        anchors: morph_anchors,
+                        forbiddenCells: forbiddenCells,
+                        emptyArea: targetDefinition.emptyArea || null,
+                        mobility_mode: String(this.config?.mobility_mode ?? "full_edge").trim()
+                        };
+
+   this.start_morph_module(morph_module,
+                           {
+                           mode: "headless",
+                           output_file: output_file,
+                           callback: callback,
+                           input_payload: this.build_morph_input_payload(startBots, targetBots, module_params)
+                           });
+   return;
+   } // if
+
 this.notify_frontend_console("Headless Prepare Morph");
 
 // Run algorithm with headless finish handler
@@ -3932,7 +4436,7 @@ this.notify_frontend_console("Morphing calculation complete!");
 if (success === false)
    {
    // Fallback: try again with single-bot waves if not already in fallback mode
-   if (!this.morph_fallback_active && this.morphAlgorithmSelected === "parallel_vehicle_kinematics_2") {
+   if (!this.morph_fallback_active && this.morph_module_active !== true && this.morphAlgorithmSelected === "parallel_vehicle_kinematics_2") {
        console.log("Morph stuck – retrying with single-bot waves (fallback)...");
        this.morph_fallback_active = true;
        this.notify_frontend_console("Morph stuck – retrying with single-bot waves...");
@@ -4009,6 +4513,15 @@ fs.writeFileSync("logs/morphresult.json", JSON.stringify(morphLog, null, 2));
              }
 
              let retstruct      = this.create_opcode_sequence( morphLog );
+
+             // Aborted by a consistency check (create_opcode_sequence returned null
+             // and already reported the error) -> do not build or run a sequence.
+             if (retstruct === null || retstruct === undefined)
+                {
+                console.log("[MORPH] opcode sequence aborted - morph not executed");
+                return;
+                } // if
+
              let opcodes        = retstruct.opcodes;
              this.signal_botids = retstruct.signal_botids;
 
@@ -4255,6 +4768,30 @@ for (let i=0; i<size; i++)
         let thez = morphLog.waves[i].moves[i2].from.z;
         let thekey = this.getKey_3d(thex, they, thez);
         let bindex = this.botindex[thekey];
+
+        // Fallback: this.botindex holds the positions from BEFORE the morph.
+        // If the bot was already moved in a previous wave, its current position
+        // is not in that map - look it up in the running copy bots_tmp instead.
+        if (bindex === undefined || bindex === null)
+           {
+           bindex = bots_tmp.findIndex(b => Number(b.x) === Number(thex) && Number(b.y) === Number(they) && Number(b.z) === Number(thez));
+           } // if
+
+        // Guard: no bot at the reported position -> report instead of crashing
+        if (bindex === undefined || bindex === null || bindex < 0)
+           {
+           console.log("[MORPH] Plan/world mismatch: no bot at (" + thex + "," + they + "," + thez + ") for move of '" + thebotid + "'");
+           this.apicall_update_morph_status(
+                                            {
+                                            running: false,
+                                            phase: "stuck",
+                                            success: false,
+                                            finished_at: new Date().toISOString(),
+                                            message: "Plan/world mismatch at " + thex + "," + they + "," + thez
+                                            }
+                                            );
+           return(null);
+           } // if
     
         if (locallog) console.log("thebotid: ");
         if (locallog) console.log(bindex);
@@ -4320,10 +4857,29 @@ for (let i=0; i<size; i++)
              !(b2.x === bots_tmp[b].x && b2.y === bots_tmp[b].y && b2.z === bots_tmp[b].z)
             );
             
-            // Determine address origin based on bot's ADC connector
+            // Determine address origin by PROXIMITY to the bot's simulated position.
+            // This mirrors the ADC runtime auto-assign (assign_nearest_mb_to_bot,
+            // active when adc_auto_assign_proximity = true): after every MOVE the bot
+            // is assigned to the nearest MB/hMB. Using the static connector here would
+            // leave a stale origin for bots that moved in an earlier wave, and later
+            // waves would be routed to the wrong position.
             let addrFrom = { ...defaultAddrFrom };
             let botId = bots_tmp[b].id;
-            if (botId && this.accessDomainController && typeof this.accessDomainController.adc_getConnectorForBot === "function") {
+
+            if (this.adc_auto_assign_proximity === true && this.accessDomainController && this.accessDomainController.helper_masterbots) {
+                let simX = Number(bots_tmp[b].x), simY = Number(bots_tmp[b].y), simZ = Number(bots_tmp[b].z);
+                let bestDist = Infinity;
+                for (let mid in this.accessDomainController.helper_masterbots) {
+                    let mb = this.accessDomainController.helper_masterbots[mid];
+                    if (mb.type !== "masterbot" || mb.active === false) continue;
+                    let dist = Math.abs(simX - Number(mb.pos.x)) + Math.abs(simY - Number(mb.pos.y)) + Math.abs(simZ - Number(mb.pos.z));
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        addrFrom = { x: Number(mb.pos.x), y: Number(mb.pos.y), z: Number(mb.pos.z) };
+                    }
+                }
+            } else if (botId && this.accessDomainController && typeof this.accessDomainController.adc_getConnectorForBot === "function") {
+                // Fallback (proximity disabled): origin from the static ADC connector assignment
                 try {
                     let connInfo = this.accessDomainController.adc_getConnectorForBot(botId);
                     if (connInfo && connInfo.connector_id && connectorOrigins[connInfo.connector_id]) {
@@ -5464,6 +6020,22 @@ if (merge_type == "step_down")
 return(String(merged_primitive ?? ""));
 } // get_vk_merged_movesubcmd()
 
+//
+// vk_dir_key()
+// Maps an orientation vector to the generator's direction key (ZP/ZN/PX/XN).
+// External morph modules may deliver fullPath entries without 'dir' - the key
+// required for rotation detection is then derived from vx/vy/vz.
+//
+function vk_dir_key(vx, vy, vz)
+{
+if (Number(vx) == 1  && Number(vz) == 0) return("PX");
+if (Number(vx) == -1 && Number(vz) == 0) return("XN");
+if (Number(vz) == 1  && Number(vx) == 0) return("ZP");
+if (Number(vz) == -1 && Number(vx) == 0) return("ZN");
+return("");
+} // vk_dir_key()
+
+
 function build_vk_macro_steps(raw_path)
 {
 let macro_steps = [];
@@ -5585,8 +6157,10 @@ if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
        let same_position = (dx == 0 && dy == 0 && dz == 0);
        let same_orientation = (current.vx == next.vx && current.vy == next.vy && current.vz == next.vz);
 
-       let current_dir = String(current.dir || (current.vx + "," + current.vy + "," + current.vz));
-       let next_dir = String(next.dir || (next.vx + "," + next.vy + "," + next.vz));
+       // 'dir' comes from the plan when provided; otherwise it is derived from the
+       // orientation vector - so external modules only need to deliver vx/vy/vz.
+       let current_dir = String(current.dir || vk_dir_key(current.vx, current.vy, current.vz) || (current.vx + "," + current.vy + "," + current.vz));
+       let next_dir = String(next.dir || vk_dir_key(next.vx, next.vy, next.vz) || (next.vx + "," + next.vy + "," + next.vz));
        let rotation = "";
        let type = "";
        let direction = "";
@@ -10974,7 +11548,7 @@ handleGUIMessage(message) {
 
             answer = JSON.stringify({
                 answer: "answer_requestmorphalgorithms",
-                list: this.morphAlgorithms
+                list: this.get_morph_algorithm_list()
             });
 
             this.ws_gui.send(answer);
