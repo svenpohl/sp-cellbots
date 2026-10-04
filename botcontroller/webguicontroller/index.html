@@ -908,6 +908,12 @@ addConsoleLine("Connected" );
              option.text = item.name; 
 
 
+             // Separator entry (e.g. "--- Dynamic Morph Modules ---"): visible but not selectable
+             if (item.separator) {
+                option.disabled = true;
+                option.value = "";
+             }
+
              if (item.default) {
                 option.selected = true;
              }
