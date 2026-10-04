@@ -6,6 +6,14 @@
 
 ---
 
+- **2.0.9** (04.10.2026)
+**Module-Based Morph Algorithms – Plugin API v1**
+  - Morph algorithms can be developed as **separate modules**, decoupled from the BotController: a module lives in `botcontroller/morph/<module>/` and consists of `manifest.json` (id, name, runtime, runner), a runner script (`runner.js`/`runner.py`), `morph_input.json` (world model, target structure, params) and `morph_output.json` (complete morph plan: bots/waves/targets)
+  - The BotController scans `morph/*/manifest.json` at startup and lists the modules in the WebGUI morph dropdown, below the built-in algorithms
+  - A module is launched as a **child process** (`spawn` using the runtime and runner from the manifest); the BotController reads its stdout line by line (`MORPH_STATUS {json}` live progress → WebGUI console, `MORPH_RESULT_READY <file>`, `MORPH_ERROR {json}`) and writes/reads the data files atomically (.tmp + rename)
+  - The returned plan runs through the existing finish handler, so `logs/morphresult.json`, opcode generation and execution stay unchanged; `fullPath` only needs positions and orientation vectors (direction keys for rotations are derived automatically)
+  - Reference module: `botcontroller/morph/hello_world_morph`
+
 - **2.0.8** (03.09.2026)
 **Structurescan Resume – Non-Destructive Hardware Scan**
   - `structurescan_resume [passes]` – non-destructive scan that keeps all known bots and pings every free slot (slot-based redundancy), recovering bots missed by a full scan; per-pass report via `get_scan_resume_report`, timeout via `structurescan_resume_timeout` (config.cfg)
