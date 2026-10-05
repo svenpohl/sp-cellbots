@@ -3416,16 +3416,174 @@ return(list);
 
 
 //
+//
+// calc_protected_connectivity_bots()
+// Way A - identifies critical mesh/hMB relay bots: one candidate bot at a time is
+// removed from the local 6-neighbour graph and it is checked whether the masterbot
+// and ALL given hMB anchors stay connected. If an anchor loses its connection to
+// the master, the bot is reported as protected - it must never be used as a morph
+// donor (it carries the traffic of the bots behind it).
+// Returns: [ { id, reason } ]
+//
+calc_protected_connectivity_bots(startBots, anchors, masterbot)
+{
+let bots_list      = Array.isArray(startBots) ? startBots : [];
+let anchor_list    = Array.isArray(anchors) ? anchors : [];
+let protected_bots = [];
+
+if (bots_list.length === 0 || anchor_list.length === 0 || masterbot == null)
+   {
+   return(protected_bots);
+   } // if
+
+let directions = [[1,0,0], [-1,0,0], [0,1,0], [0,-1,0], [0,0,1], [0,0,-1]];
+
+let key_of = (p) => Number(p.x) + "," + Number(p.y) + "," + Number(p.z);
+
+// Readable anchor name for the reason string (hMB1 / hMB2 / MB ...)
+let anchor_name_of = (a) => {
+let a_key = key_of(a);
+let known_bots = Array.isArray(this.bots) ? this.bots : [];
+
+for (let ki=0; ki<known_bots.length; ki++)
+    {
+    if (key_of(known_bots[ki]) === a_key) return(String(known_bots[ki].id ?? a_key));
+    } // for ki
+
+return(a_key);
+}; // anchor_name_of()
+
+// reachable_cells(removed_key) - set of cell keys reachable from the masterbot
+// (removed_key = null checks the intact cluster). Only occupied cells are nodes.
+let reachable_cells = (removed_key) => {
+let node_set = new Set();
+let seen     = new Set();
+
+for (let bi=0; bi<bots_list.length; bi++)
+    {
+    let bot_key = key_of(bots_list[bi]);
+    if (removed_key != null && bot_key === removed_key) continue;
+    node_set.add(bot_key);
+    } // for bi
+
+for (let ai=0; ai<anchor_list.length; ai++)
+    {
+    node_set.add(key_of(anchor_list[ai]));
+    } // for ai
+
+let start_key = key_of(masterbot);
+node_set.add(start_key);
+seen.add(start_key);
+
+let queue = [start_key];
+
+while (queue.length > 0)
+    {
+    let current = String(queue.shift());
+    let parts   = current.split(",");
+    let cx      = Number(parts[0]);
+    let cy      = Number(parts[1]);
+    let cz      = Number(parts[2]);
+
+    for (let di=0; di<directions.length; di++)
+        {
+        let n_key = (cx + directions[di][0]) + "," + (cy + directions[di][1]) + "," + (cz + directions[di][2]);
+
+        if (node_set.has(n_key) === true && seen.has(n_key) !== true)
+           {
+           seen.add(n_key);
+           queue.push(n_key);
+           } // if
+        } // for di
+    } // while
+
+return(seen);
+}; // reachable_cells()
+
+// Baseline: only protect relays while the cluster is intact before the removal.
+let seen_base = reachable_cells(null);
+
+for (let ai=0; ai<anchor_list.length; ai++)
+    {
+    if (seen_base.has(key_of(anchor_list[ai])) !== true)
+       {
+       Logger.log("[MORPH-INPUT] connectivity baseline incomplete - anchor " + anchor_name_of(anchor_list[ai]) +
+                  " already unreachable - no relay protection applied");
+       return(protected_bots);
+       } // if
+    } // for ai
+
+for (let bi=0; bi<bots_list.length; bi++)
+    {
+    let bot          = bots_list[bi];
+    let bot_mobility = (bot.mobility === false || bot.mobility === 'false' || bot.mobility == 0) ? false : true;
+
+    if (bot_mobility !== true) continue;   // already immobile -> never a donor anyway
+
+    let seen         = reachable_cells(key_of(bot));
+    let lost_anchors = [];
+
+    for (let ai=0; ai<anchor_list.length; ai++)
+        {
+        if (seen.has(key_of(anchor_list[ai])) !== true)
+           {
+           lost_anchors.push(anchor_name_of(anchor_list[ai]));
+           } // if
+        } // for ai
+
+    if (lost_anchors.length > 0)
+       {
+       protected_bots.push({
+                           id: String(bot.id ?? ""),
+                           reason: "disconnects " + lost_anchors.join("+") + " from master"
+                           });
+       } // if
+    } // for bi
+
+return(protected_bots);
+} // calc_protected_connectivity_bots()
+
+
 // build_morph_input_payload()
 // Builds the morph_input.json payload handed to a file-based morph module
 // (Morph Plugin API v1): current world, target structure and generic params.
 //
 build_morph_input_payload(startBots, targetBots, params)
 {
+let bots_list   = Array.isArray(startBots) ? startBots : [];
+let target_list = Array.isArray(targetBots) ? targetBots : [];
+let params_obj  = params ?? {};
+
+// Way A: critical mesh/hMB relay bots are exported as "mobility": false so that
+// no planner (transformer, A* fill, ...) can pick them as a morph donor. The
+// detection is listed in meta.protected_connectivity_bots (diagnostics only).
+let protected_bots = this.calc_protected_connectivity_bots(bots_list, params_obj.anchors, params_obj.masterbot);
+let payload_bots   = bots_list.map(bot => Object.assign({}, bot));
+
+for (let pi=0; pi<protected_bots.length; pi++)
+    {
+    for (let bi=0; bi<payload_bots.length; bi++)
+        {
+        if (String(payload_bots[bi].id ?? "") === protected_bots[pi].id)
+           {
+           payload_bots[bi].mobility = false;
+           } // if
+        } // for bi
+    } // for pi
+
+if (protected_bots.length > 0)
+   {
+   Logger.log("[MORPH-INPUT] protected connectivity bots=" + protected_bots.length + " : " +
+              protected_bots.map(p => p.id + " (" + p.reason + ")").join(", "));
+   } // if
+
 return({
-       startBots: Array.isArray(startBots) ? startBots : [],
-       targetBots: Array.isArray(targetBots) ? targetBots : [],
-       params: params ?? {}
+       startBots: payload_bots,
+       targetBots: target_list,
+       params: params_obj,
+       meta: {
+              protected_connectivity_bots: protected_bots
+              }
        });
 } // build_morph_input_payload()
 
@@ -4990,6 +5148,40 @@ for (let i=0; i<size; i++)
              }
         
         let movecmds = result.movecmds;
+
+        // ------------------------------------------------------------------
+        // Guard 1 (fail-fast): an incomplete opcode chain must never be sent.
+        // A discarded submove would otherwise still travel inside a command that
+        // ends with ";ALIFE;<signal>#<retaddr>" - the bot would answer with a
+        // RALIFE and the wave would count as finished although nothing moved.
+        // Abort the whole morph here with a concrete error: nothing is sent, no
+        // sequence file is written and no wave/RALIFE can be triggered.
+        // ------------------------------------------------------------------
+        if (mobility_mode == "vehicle_kinematics" &&
+            (result == null || result.ok !== true || String(movecmds ?? "") === ""))
+           {
+           let discarded = (result != null && Array.isArray(result.discarded) ? result.discarded : []);
+           let first_bad = (discarded.length > 0 ? discarded[0] : null);
+           let abort_msg = "Morph aborted: MOVE opcodes incomplete for bot " + thebotid +
+                           " (wave " + (i+1) + "/" + size + ", move " + (i2+1) + "/" + size2 + ")" +
+                           (first_bad != null
+                              ? (" - step " + first_bad.step_index + " discarded (" + first_bad.reason + ")")
+                              : " - empty opcode chain");
+
+           console.log("[MORPH-ABORT] " + abort_msg);
+           Logger.log("[MORPH-ABORT] " + abort_msg + " discarded=" + JSON.stringify(discarded));
+           this.notify_frontend_console("[MORPH-ABORT] " + abort_msg);
+           this.apicall_update_morph_status(
+                                            {
+                                            running: false,
+                                            phase: "error",
+                                            success: false,
+                                            finished_at: new Date().toISOString(),
+                                            message: abort_msg
+                                            }
+                                            );
+           return(null);
+           } // if
             
            
         if (locallog) console.log("movecmds: ["+movecmds+"]");
@@ -6371,6 +6563,20 @@ if (Array.isArray(vk_macro_steps) && vk_macro_steps.length > 0)
                              };
                 }
 
+       // Guard 1 (fail-fast): a step that fails the EXISTING validation must never
+       // keep a previously computed opcode (VIRTUAL_POS_MISMATCH, missing anchor or
+       // any other validation error). The opcode is discarded here; create_opcode_sequence()
+       // then aborts the whole morph - no MOVE is sent, no RALIFE/wave-done triggered.
+       if (validation != null && validation.checked === true && validation.ok !== true)
+          {
+          movesubcmd = "";
+          Logger.log("[MOVE-VK] validation failed -> opcode discarded: step=" + i +
+                     " reason=" + String(validation.reason ?? "") +
+                     " from=(" + current.x + "," + current.y + "," + current.z + ")" +
+                     " to=(" + next.x + "," + next.y + "," + next.z + ")" +
+                     " virtual=(" + (validation.virtual_pos ? (validation.virtual_pos.x + "," + validation.virtual_pos.y + "," + validation.virtual_pos.z) : "null") + ")");
+          } // if
+
        vk_movesubcmds.push({
                             index: i,
                             type: type,
@@ -6430,6 +6636,31 @@ movecmds = vk_movesubcmds
            .map(item => item.movesubcmd)
            .filter(item => item !== "")
            .join(";");
+
+// Guard 1 (fail-fast): collect every step whose opcode was discarded. Such a
+// chain is incomplete and must not be sent - the caller aborts the morph.
+let vk_discarded = [];
+
+for (let gi=0; gi<vk_movesubcmds.length; gi++)
+    {
+    let gitem = vk_movesubcmds[gi];
+
+    if (String(gitem.movesubcmd ?? "") === "")
+       {
+       vk_discarded.push({
+                          step_index: gitem.index,
+                          direction: gitem.direction,
+                          reason: (gitem.validation ? String(gitem.validation.reason ?? "") : ""),
+                          from: gitem.from,
+                          to: gitem.to
+                          });
+       } // if
+    } // for gi<vk_movesubcmds.length
+
+if (vk_discarded.length > 0)
+   {
+   Logger.log("[MOVE-VK] discarded steps=" + vk_discarded.length + " of " + vk_movesubcmds.length + " -> opcode chain incomplete");
+   } // if
 
 let vk_movesubcmds_path = path.join(__dirname, "logs", "calc_move_vk_movesubcmds.json");
 vk_debug_write(vk_movesubcmds_path, JSON.stringify(vk_movesubcmds, null, 2), "utf8");
@@ -6536,7 +6767,11 @@ let ret = {
            movecmds: movecmds,
            lastneighbour: lastneighbour,
            final_lastanchor: final_lastanchor,
-           final_lastanchorneighbour: final_lastanchorneighbour
+           final_lastanchorneighbour: final_lastanchorneighbour,
+           // Guard 1: ok=false means at least one step was discarded -> the caller
+           // must not send this chain.
+           ok: (vk_discarded.length === 0),
+           discarded: vk_discarded
            };
 
 let calc_move_cmds_return_path = path.join(__dirname, "logs", "calc_move_cmds_return.json");
