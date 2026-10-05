@@ -1,0 +1,812 @@
+{
+  "startBots": [
+    {
+      "id": "MB",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": false
+    },
+    {
+      "id": "B30",
+      "x": 1,
+      "y": 0,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": false
+    },
+    {
+      "id": "B40",
+      "x": 1,
+      "y": 0,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": false
+    },
+    {
+      "id": "B43",
+      "x": 1,
+      "y": 0,
+      "z": 5,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": false
+    },
+    {
+      "id": "B12",
+      "x": 1,
+      "y": -1,
+      "z": 0,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B17",
+      "x": 1,
+      "y": -1,
+      "z": 5,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B42",
+      "x": 1,
+      "y": 0,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B44",
+      "x": 2,
+      "y": 0,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B39",
+      "x": 1,
+      "y": 0,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B45",
+      "x": 2,
+      "y": 0,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B20",
+      "x": 1,
+      "y": -1,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B73",
+      "x": 2,
+      "y": 0,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B41",
+      "x": 1,
+      "y": 0,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B11",
+      "x": 2,
+      "y": -1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B21",
+      "x": 1,
+      "y": -1,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B18",
+      "x": 1,
+      "y": -1,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B1",
+      "x": 3,
+      "y": -1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B19",
+      "x": 1,
+      "y": -1,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B35",
+      "x": 2,
+      "y": -1,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B58",
+      "x": 2,
+      "y": 0,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B16",
+      "x": 2,
+      "y": -1,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B32",
+      "x": 2,
+      "y": -1,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B69",
+      "x": 3,
+      "y": 0,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B33",
+      "x": 2,
+      "y": -1,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B71",
+      "x": 2,
+      "y": 0,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B72",
+      "x": 2,
+      "y": 0,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B46",
+      "x": 3,
+      "y": 0,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B57",
+      "x": 3,
+      "y": 0,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B2",
+      "x": 4,
+      "y": -1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B31",
+      "x": 3,
+      "y": -1,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B15",
+      "x": 3,
+      "y": -1,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B34",
+      "x": 2,
+      "y": -1,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B38",
+      "x": 3,
+      "y": -1,
+      "z": 2,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B70",
+      "x": 3,
+      "y": 0,
+      "z": 1,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B67",
+      "x": 3,
+      "y": 0,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B14",
+      "x": 4,
+      "y": -1,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B26",
+      "x": 4,
+      "y": -1,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B37",
+      "x": 3,
+      "y": -1,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B27",
+      "x": 4,
+      "y": -1,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B36",
+      "x": 3,
+      "y": -1,
+      "z": 4,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B68",
+      "x": 3,
+      "y": 0,
+      "z": 3,
+      "vx": 1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B3",
+      "x": 5,
+      "y": -1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B56",
+      "x": 4,
+      "y": 0,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B66",
+      "x": 4,
+      "y": 0,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B65",
+      "x": 4,
+      "y": 0,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B47",
+      "x": 4,
+      "y": 0,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B29",
+      "x": 4,
+      "y": -1,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B10",
+      "x": 5,
+      "y": -1,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B22",
+      "x": 5,
+      "y": -1,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B23",
+      "x": 5,
+      "y": -1,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B28",
+      "x": 4,
+      "y": -1,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B62",
+      "x": 5,
+      "y": 0,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B55",
+      "x": 5,
+      "y": 0,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B61",
+      "x": 5,
+      "y": 0,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B64",
+      "x": 4,
+      "y": 0,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B63",
+      "x": 4,
+      "y": 0,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B4",
+      "x": 6,
+      "y": -1,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": false
+    },
+    {
+      "id": "B48",
+      "x": 5,
+      "y": 0,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B9",
+      "x": 6,
+      "y": -1,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    },
+    {
+      "id": "B25",
+      "x": 5,
+      "y": -1,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B54",
+      "x": 6,
+      "y": 0,
+      "z": 0,
+      "vx": 0,
+      "vy": 0,
+      "vz": 1,
+      "mobility": true
+    },
+    {
+      "id": "B59",
+      "x": 5,
+      "y": 0,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B60",
+      "x": 5,
+      "y": 0,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B5",
+      "x": 6,
+      "y": -1,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B53",
+      "x": 6,
+      "y": 0,
+      "z": 1,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B24",
+      "x": 5,
+      "y": -1,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B8",
+      "x": 6,
+      "y": -1,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B6",
+      "x": 6,
+      "y": -1,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B52",
+      "x": 6,
+      "y": 0,
+      "z": 2,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B51",
+      "x": 6,
+      "y": 0,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B50",
+      "x": 6,
+      "y": 0,
+      "z": 4,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B7",
+      "x": 6,
+      "y": -1,
+      "z": 3,
+      "vx": -1,
+      "vy": 0,
+      "vz": 0,
+      "mobility": true
+    },
+    {
+      "id": "B49",
+      "x": 6,
+      "y": 0,
+      "z": 5,
+      "vx": 0,
+      "vy": 0,
+      "vz": -1,
+      "mobility": true
+    }
+  ],
+  "targetBots": [
+    {
+      "x": 4,
+      "y": 1,
+      "z": 2
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 2
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "z": 2
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "z": 2
+    }
+  ],
+  "params": {
+    "masterbot": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "anchors": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5
+      }
+    ],
+    "forbiddenCells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5
+      }
+    ],
+    "emptyArea": {
+      "x": 1,
+      "y": 1,
+      "z": 1,
+      "x2": 6,
+      "y2": 5,
+      "z2": 4
+    },
+    "mobility_mode": "vehicle_kinematics"
+  },
+  "meta": {
+    "protected_connectivity_bots": [
+      {
+        "id": "B30",
+        "reason": "disconnects hMB1+hMB2 from master"
+      },
+      {
+        "id": "B40",
+        "reason": "disconnects hMB1 from master"
+      },
+      {
+        "id": "B43",
+        "reason": "disconnects hMB2 from master"
+      }
+    ]
+  }
+}

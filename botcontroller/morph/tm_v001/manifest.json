@@ -1,0 +1,11 @@
+{
+  "id": "tm_v001",
+  "name": "TransformerMorph v001 (proof of concept)",
+  "version": "0.1.0",
+  "description": "File-based frozen TransformerMorph inference module; sequential waves only",
+  "runner": "runner.js",
+  "runtime": "node",
+  "capabilities": {
+    "mode": "vehicle_kinematics"
+  } 
+}
