@@ -6,6 +6,14 @@
 
 ---
 
+- **2.1.0** (05.10.2026)
+**TransformerMorph v001 – Proof of Concept**
+  - First step towards transformer-driven morphing: **sequential** morph planning based on a policy trained on local movement primitives, shipped as the reference plugin module `botcontroller/morph/tm_v001`   
+  - Model: **Morph-S2 Transformer policy** – 997,129 trainable parameters, inference-only checkpoint (`morph_s2_consolidation_v9_stage15000_inference.pt`, ~3.8 MB); runtime dependency: `torch` (see `tm_v001/requirements.txt`)
+  - Architecture: CONTROL adapter 5 → 128, EGO adapter 9 → 128, HISTORY adapter 17 → 128 · Transformer encoder: 5 layers, model width 128, 8 attention heads, feed-forward width 512, dropout 0.0 · output head 128 → 9 Q-values
+  - Targets the policy cannot reach are completed by a local **A\*** fill planner, resulting in a hybrid plan (simple example target structure: `tower4demo`)
+  - Status: proof of concept – sequential and limited to simple structures; the built-in `parallel_vehicle_kinematics_2` remains the default morph algorithm
+
 - **2.0.9** (04.10.2026)
 **Module-Based Morph Algorithms – Plugin API v1**
   - Morph algorithms can be developed as **separate modules**, decoupled from the BotController: a module lives in `botcontroller/morph/<module>/` and consists of `manifest.json` (id, name, runtime, runner), a runner script (`runner.js`/`runner.py`), `morph_input.json` (world model, target structure, params) and `morph_output.json` (complete morph plan: bots/waves/targets)
