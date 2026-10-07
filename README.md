@@ -272,6 +272,10 @@ If you use SP-CellBots in your work, please cite one (or more) of the following:
 - **Resilient BotController Strategies for Modular Cubic Robot Clusters:**  
   Pohl, S. (2026). *Resilient BotController Strategies for Modular Cubic Robot Clusters*. Zenodo.  
   [https://doi.org/10.5281/zenodo.21204357](https://doi.org/10.5281/zenodo.21204357)  
+
+- **TransformerMorph: Local Transformer Policies for 3D Morphing of Modular Robots – A Feasibility Study:**  
+  Pohl, S. (2026). *TransformerMorph: Local Transformer Policies for 3D Morphing of Modular Robots – A Feasibility Study*. Zenodo.  
+  [https://doi.org/10.5281/zenodo.23223177](https://doi.org/10.5281/zenodo.23223177)  
   
 ---
 
