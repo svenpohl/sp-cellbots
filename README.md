@@ -66,6 +66,7 @@ structures.
 
 ## 🚧 Planned Features
 
+- **Security improvements (planned):** Nonce parameters in the MasterBot–CellBot communication to defend against replay attacks. Each command carries a fresh, single-use value that the receiver validates before execution.
 - **Decentralized AntMorph algorithm (planned):** Swarm-intelligence-based morphing where bots autonomously negotiate target positions without a central wave planner – inspired by ant colony behaviour and decentralised decision-making.
 - **Extended resilience features (planned):** Additional API diagnostics and manipulation commands for deeper fault injection, automated recovery sequences, and multi-hMB redundancy handling.
 
@@ -75,11 +76,16 @@ structures.
 
 ## 🧩 Version
 
-Current version: **2.1.0**  
+Current version: **2.1.1**  
 Developed and tested on **Node.js v26.0.0**.  
 Due to rapid ecosystem changes, newer or older versions may cause incompatibilities.
 
 Latest changes:
+
+- **2.1.1** (17.11.2026)
+**API Docs Completion & General CellBots Strategy 2026**
+  - `docs/api.md` now lists **all 129 CLI commands**: the 15 missing ones were added (`structurescan_resume`, `get_scan_resume_report`, `headless`, `convert` / `convert_to_batch`, `set_latches`, `get_payload_link` / `register_payload_link`, `batchlog` / `clearbatchlog` / `log`, plus four VoxelEdit commands), and the stale `register_duplicate_ids` entry was removed (it was documented, but not implemented server-side)
+  - Main point of this release: the new research note **[General CellBots Strategy 2026](docs/research/03_general_cellbots_strategy_2026.md)** outlines the three strategic pillars – **security** (cryptographic *and* physical, context-dependent safety, including LLM/agent access via the API or MCP), **vehicle kinematics** as the cost-efficient mode for real-world hardware (without reducing full-edge), and **preparing the BotController for real hardware**.
 
 - **2.1.0** (05.10.2026)
 **TransformerMorph v001 – Proof of Concept**
