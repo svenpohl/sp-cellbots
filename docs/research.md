@@ -24,6 +24,9 @@ including early ideas, abandoned paths, performance tests, alternative topologie
 
 2. **Floodfill Approach – Early 2D Experiments**  
    → [research/02_floodfill_approach.md](research/02_floodfill_approach.md) [2025-11-29]
+
+3. **General CellBots Strategy 2026**  
+   → [research/03_general_cellbots_strategy_2026.md](research/03_general_cellbots_strategy_2026.md) [2026-11-17]
  
 ---
 [⬅️ Back to Overview](../README.md)  

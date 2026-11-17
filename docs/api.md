@@ -163,6 +163,8 @@ The API is not only callable, but also largely **self-describing**.
 - `structurescan`
 - `structurescan_lvl2`
 - `structurescan_radio`
+- `structurescan_resume`
+- `get_scan_resume_report`
 - `search_bot`
 
 ### GUI and Diagnostics
@@ -209,7 +211,6 @@ The API is not only callable, but also largely **self-describing**.
 - `diagnose_bot_address`
 - `check_mbs`
 - `get_resilience_status`
-- `register_duplicate_ids`
 
 ### Runtime Roles (Forbidden / ServiceBay)
 
@@ -252,8 +253,11 @@ The API is not only callable, but also largely **self-describing**.
 - `rotate_bot_to`
 - `grab_bot`
 - `release_bot`
+- `set_latches`
 - `move_payload_to`
 - `move_carrier_to`
+- `get_payload_link`
+- `register_payload_link`
 
 ### Morphing
 
@@ -261,6 +265,9 @@ The API is not only callable, but also largely **self-describing**.
 - `morph_get_algos`
 - `morph_start`
 - `morph_check_progress`
+- `headless <algo> <structure> <output_file>`
+- `convert <morphresult.json> <output.batch>`
+- `convert_to_batch` (alias of `convert`)
 - `draw_path_for_bot`
 - `get_address_route`
 
@@ -276,6 +283,9 @@ The API is not only callable, but also largely **self-describing**.
 
 - `raw_cmd`
 - `batch <file>`
+- `batchlog <text>`
+- `clearbatchlog`
+- `log <text>`
 - `sleep <ms>`
 
 ---
@@ -392,6 +402,7 @@ Direct morph via `:voxeledit` without file save.
 - `ve_set_voxel setId x y z [vx vy vz]`
 - `ve_clear_voxel setId x y z`
 - `ve_get_voxels [setId]`
+- `ve_capture`
 - `ve_create_box setId x1 y1 z1 x2 y2 z2`
 - `ve_emptyarea x y z x2 y2 z2`
 - `ve_import x1 y1 z1 x2 y2 z2`
@@ -399,8 +410,11 @@ Direct morph via `:voxeledit` without file save.
 - `ve_hide`
 - `ve_load name`
 - `ve_gravity`
+- `ve_strict_orientation`
 - `ve_is_connected`
 - `ve_clear_set setId`
+- `ve_clear_donors`
+- `ve_copy_set_to_donors`
 - `ve_translate setId dx dy dz`
 - `ve_duplicate srcId dstId`
 - `ve_save name`

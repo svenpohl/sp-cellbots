@@ -6,6 +6,11 @@
 
 ---
 
+- **2.1.1** (17.11.2026)
+**API Docs Completion & General CellBots Strategy 2026**
+  - `docs/api.md` now lists **all 129 CLI commands**: the 15 missing ones were added (`structurescan_resume`, `get_scan_resume_report`, `headless`, `convert` / `convert_to_batch`, `set_latches`, `get_payload_link` / `register_payload_link`, `batchlog` / `clearbatchlog` / `log`, plus four VoxelEdit commands), and the stale `register_duplicate_ids` entry was removed (it was documented, but not implemented server-side)
+  - Main point of this release: the new research note **[General CellBots Strategy 2026](research/03_general_cellbots_strategy_2026.md)** outlines the three strategic pillars – **security** (cryptographic *and* physical, context-dependent safety, including LLM/agent access via the API or MCP), **vehicle kinematics** as the cost-efficient mode for real-world hardware (without reducing full-edge), and **preparing the BotController for real hardware**.
+
 - **2.1.0** (05.10.2026)
 **TransformerMorph v001 – Proof of Concept**
   - First step towards transformer-driven morphing: **sequential** morph planning based on a policy trained on local movement primitives, shipped as the reference plugin module `botcontroller/morph/tm_v001`   
